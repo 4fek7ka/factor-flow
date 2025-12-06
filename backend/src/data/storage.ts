@@ -3,11 +3,15 @@ import path from "path";
 
 const filePath = path.join(__dirname, "prices.json");
 
-export function readPrices(): Record<string, number> {
+export interface PriceHistoryMap {
+  [key: string]: number[];
+}
+
+export function readPrices(): PriceHistoryMap {
   const raw = fs.readFileSync(filePath, "utf-8");
   return JSON.parse(raw);
 }
 
-export function writePrices(data: Record<string, number>) {
+export function writePrices(data: PriceHistoryMap) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }

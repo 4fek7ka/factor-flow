@@ -1,27 +1,29 @@
 import { Router } from "express";
 import { generateNextPrice } from "../generators/priceGenerator";
-import { readPrices, writePrices } from "../data/storage";
+import { readPrices, writePrices, PriceHistoryMap } from "../data/storage";
 
 const router = Router();
 
 router.get("/price/:asset", (req, res) => {
   const { asset } = req.params;
 
-  const prices = readPrices();
-  const currentPrice = prices[asset];
+  const prices: PriceHistoryMap = readPrices();
+  const history = prices[asset];
 
-  if (!currentPrice) {
+  if (!history) {
     return res.status(404).json({ error: "Unknown asset" });
   }
 
+  const currentPrice = history[history.length - 1];
   const nextPrice = generateNextPrice(currentPrice);
-  prices[asset] = nextPrice;
+
+  history.push(nextPrice);
 
   writePrices(prices);
 
   res.json({
     asset,
-    price: nextPrice
+    history
   });
 });
 
