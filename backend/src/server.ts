@@ -1,9 +1,12 @@
 import express from "express";
 import cors from "cors";
+import priceRoutes from "./routes/prices";
+
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use("/api", priceRoutes);
 
 app.get("/", (req, res) => {
   res.send("Factor Flow backend is running");
