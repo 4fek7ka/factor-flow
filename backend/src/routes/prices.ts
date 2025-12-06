@@ -18,12 +18,16 @@ router.get("/price/:asset", (req, res) => {
   const nextPrice = generateNextPrice(currentPrice);
 
   history.push(nextPrice);
-
   writePrices(prices);
+
+  const responseHistory = history.map((p) => ({
+    timestamp: Date.now(),
+    price: p
+  }));
 
   res.json({
     asset,
-    history
+    history: responseHistory
   });
 });
 
