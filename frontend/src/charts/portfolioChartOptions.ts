@@ -2,13 +2,17 @@ export function buildTooltip() {
   return {
     trigger: "axis",
     formatter: (params: any) => {
-      const val = params[0].value as number;
+      const val = params[0].value[1] as number;
       const sign = val >= 0 ? "+" : "";
-      const date = new Date(params[0].axisValue);
+      const date = new Date(params[0].value[0]);
+
       return `
         <div>
           <strong>${sign}${val.toFixed(2)}%</strong><br/>
-          ${date.toLocaleDateString("en-GB")}
+          ${date.toLocaleDateString("en-GB", {
+            month: "long",
+            year: "numeric",
+          })}
         </div>
       `;
     },
@@ -24,22 +28,22 @@ export function buildGrid() {
   };
 }
 
-export function buildXAxis(timestamps: Date[]) {
+export function buildXAxis() {
   return {
-    type: "category",
-    data: timestamps,
+    type: "time",
+
     axisLabel: {
       color: "#999",
-      formatter: (value: string) => {
+      formatter: (value: number) => {
         const d = new Date(value);
-        if (d.getDate() === 1) {
-          return d.toLocaleDateString("en-GB", { month: "short" });
-        }
-        return "";
+        return d.toLocaleDateString("en-GB", {
+          month: "short",
+        });
       },
     },
-    axisTick: { alignWithLabel: true },
+
     axisLine: { lineStyle: { color: "#555" } },
+    splitLine: { show: false },
   };
 }
 
@@ -54,17 +58,19 @@ export function buildYAxis() {
   };
 }
 
-export function buildSeries(percentValues: number[]) {
+export function buildSeries(timestamps: number[], percentValues: number[]) {
   return [
     {
       name: "Portfolio % Change",
       type: "line",
       smooth: true,
       showSymbol: false,
+
       lineStyle: {
         width: 3,
         color: "#4a90e2",
       },
+
       areaStyle: {
         origin: "start",
         color: {
@@ -79,21 +85,22 @@ export function buildSeries(percentValues: number[]) {
           ],
         },
       },
-      data: percentValues,
+
+      data: percentValues.map((v, i) => [timestamps[i], v]),
     },
   ];
 }
 
 export function buildPortfolioChartOption(
-  timestamps: Date[],
+  timestamps: number[],
   percentValues: number[]
 ) {
   return {
     backgroundColor: "transparent",
     tooltip: buildTooltip(),
     grid: buildGrid(),
-    xAxis: buildXAxis(timestamps),
+    xAxis: buildXAxis(),
     yAxis: buildYAxis(),
-    series: buildSeries(percentValues),
+    series: buildSeries(timestamps, percentValues),
   };
 }
