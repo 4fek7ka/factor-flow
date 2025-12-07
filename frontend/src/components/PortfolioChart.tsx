@@ -10,43 +10,42 @@ import type { Period } from "../services/portfolioService";
 
 import { buildPortfolioChartOption } from "../charts/portfolioChartOptions";
 
-const FADE_MS = 180;
+const EVAP_MS = 100; // ✅ было 260
+const EVAP_BLUR_PX = 6;
 
 export function PortfolioChart() {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
 
-  const fadeTimerRef = useRef<number | null>(null);
-
   const [period, setPeriod] = useState<Period>("year");
-  const [isFading, setIsFading] = useState(false);
 
-  // init chart once
+  const [fadeOpacity, setFadeOpacity] = useState(1);
+  const [fadeBlur, setFadeBlur] = useState(0);
+  const [transitionOn, setTransitionOn] = useState(true);
+
+  const seriesCounterRef = useRef(0);
+  const seriesIdRef = useRef("portfolio-line-0");
+
+  const transitioningRef = useRef(false);
+  const timerRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (!chartRef.current) return;
 
-    if (!chartInstance.current) {
-      chartInstance.current = echarts.init(chartRef.current, "dark");
-    }
+    chartInstance.current = echarts.init(chartRef.current, "dark");
+    const chart = chartInstance.current;
 
-    const observer = new ResizeObserver(() => {
-      chartInstance.current?.resize();
-    });
-
+    const observer = new ResizeObserver(() => chart.resize());
     observer.observe(chartRef.current);
 
     return () => {
       observer.disconnect();
-      if (fadeTimerRef.current) {
-        window.clearTimeout(fadeTimerRef.current);
-        fadeTimerRef.current = null;
-      }
-      chartInstance.current?.dispose();
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+      chart.dispose();
       chartInstance.current = null;
     };
   }, []);
 
-  // update chart on period change (без анимаций апдейта)
   useEffect(() => {
     const chart = chartInstance.current;
     if (!chart) return;
@@ -59,65 +58,96 @@ export function PortfolioChart() {
 
     if (!percentValues.length) return;
 
-    const option = buildPortfolioChartOption(timestamps, percentValues);
+    const option = buildPortfolioChartOption(timestamps, percentValues, {
+      seriesId: seriesIdRef.current,
+      initial: true,
+      opacity: 1,
+    });
 
     chart.setOption(option, { notMerge: true, lazyUpdate: false });
   }, [period]);
 
   const switchPeriod = (next: Period) => {
     if (next === period) return;
+    if (transitioningRef.current) return;
 
-    if (fadeTimerRef.current) {
-      window.clearTimeout(fadeTimerRef.current);
-      fadeTimerRef.current = null;
+    transitioningRef.current = true;
+
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
     }
 
-    // fade out
-    setIsFading(true);
+    setTransitionOn(true);
+    setFadeOpacity(0);
+    setFadeBlur(EVAP_BLUR_PX);
 
-    // after fade out, switch data, then fade in automatically (state)
-    fadeTimerRef.current = window.setTimeout(() => {
+    timerRef.current = window.setTimeout(() => {
+      seriesCounterRef.current += 1;
+      seriesIdRef.current = `portfolio-line-${seriesCounterRef.current}`;
+
+      setTransitionOn(false);
+      setFadeOpacity(1);
+      setFadeBlur(0);
+
       setPeriod(next);
-      setIsFading(false);
-      fadeTimerRef.current = null;
-    }, FADE_MS);
+
+      requestAnimationFrame(() => setTransitionOn(true));
+
+      transitioningRef.current = false;
+      timerRef.current = null;
+    }, EVAP_MS);
   };
+
+  const tabClass = (key: Period) =>
+    `btn btn-sm ${period === key ? "btn-purple" : "btn-outline-purple"}`;
 
   return (
     <div>
+      <style>{`
+        .btn-purple {
+          --tblr-btn-bg: #b351f9;
+          --tblr-btn-border-color: #b351f9;
+          --tblr-btn-color: #fff;
+          --tblr-btn-hover-bg: #a449e8;
+          --tblr-btn-hover-border-color: #a449e8;
+          --tblr-btn-active-bg: #9440d7;
+          --tblr-btn-active-border-color: #9440d7;
+        }
+        .btn-outline-purple {
+          --tblr-btn-color: #b351f9;
+          --tblr-btn-border-color: #b351f9;
+          --tblr-btn-hover-bg: #b351f9;
+          --tblr-btn-hover-border-color: #b351f9;
+          --tblr-btn-hover-color: #fff;
+          --tblr-btn-active-bg: #a449e8;
+          --tblr-btn-active-border-color: #a449e8;
+          --tblr-btn-active-color: #fff;
+        }
+      `}</style>
+
       <div className="btn-group mb-3">
-        <button
-          className={`btn btn-sm ${
-            period === "year" ? "btn-primary" : "btn-outline-primary"
-          }`}
-          onClick={() => switchPeriod("year")}
-        >
+        <button className={tabClass("year")} onClick={() => switchPeriod("year")}>
           Year
         </button>
-
         <button
-          className={`btn btn-sm ${
-            period === "month" ? "btn-primary" : "btn-outline-primary"
-          }`}
+          className={tabClass("month")}
           onClick={() => switchPeriod("month")}
         >
           Month
         </button>
-
-        <button
-          className={`btn btn-sm ${
-            period === "week" ? "btn-primary" : "btn-outline-primary"
-          }`}
-          onClick={() => switchPeriod("week")}
-        >
+        <button className={tabClass("week")} onClick={() => switchPeriod("week")}>
           Week
         </button>
       </div>
 
       <div
         style={{
-          opacity: isFading ? 0 : 1,
-          transition: `opacity ${FADE_MS}ms linear`,
+          opacity: fadeOpacity,
+          filter: `blur(${fadeBlur}px)`,
+          transition: transitionOn
+            ? `opacity ${EVAP_MS}ms ease-in-out, filter ${EVAP_MS}ms ease-in-out`
+            : "none",
         }}
       >
         <div ref={chartRef} style={{ width: "100%", height: "350px" }} />
