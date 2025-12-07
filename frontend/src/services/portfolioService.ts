@@ -17,8 +17,38 @@ const AMOUNTS = {
   UNI: 400,
 };
 
-export function buildPortfolioSeries(history: HistoryPoint[]) {
-  // timestamps в ms
+export type Period = "year" | "month" | "week";
+
+// ✅ ФИЛЬТРАЦИЯ ПО ПЕРИОДУ
+export function filterHistoryByPeriod(
+  history: HistoryPoint[],
+  period: Period
+) {
+  if (!history.length) return history;
+
+  const now = history[history.length - 1].timestamp * 1000;
+  let from = now;
+
+  if (period === "week") {
+    from -= 7 * 24 * 60 * 60 * 1000;
+  }
+
+  if (period === "month") {
+    from -= 30 * 24 * 60 * 60 * 1000;
+  }
+
+  if (period === "year") {
+    from -= 365 * 24 * 60 * 60 * 1000;
+  }
+
+  return history.filter((p) => p.timestamp * 1000 >= from);
+}
+
+// ✅ РАСЧЁТ ПОРТФЕЛЯ
+export function buildPortfolioSeries(
+  history: HistoryPoint[],
+  period: Period
+) {
   const rawTimestamps = history.map((p) => p.timestamp * 1000);
 
   const values = history.map((p) => {
@@ -36,18 +66,26 @@ export function buildPortfolioSeries(history: HistoryPoint[]) {
     return { timestamps: [], percentValues: [] };
   }
 
-  // ✅ ТВОЯ ЛОГИКА — относительно первой точки
+  // ✅ ТВОЯ ЛОГИКА — ОТНОСИТЕЛЬНО ПЕРВОЙ ТОЧКИ
   const base = values[0];
   const rawPercentValues = values.map((v) => ((v - base) / base) * 100);
 
-  // ✅ ТЕПЕРЬ БЕРЁМ КАЖДУЮ 3-Ю ТОЧКУ (пропускаем 2)
-  const timestamps: number[] = [];
-  const percentValues: number[] = [];
+  // ✅ Year → с downsampling, Month/Week → без
+  if (period === "year") {
+    const timestamps: number[] = [];
+    const percentValues: number[] = [];
 
-  for (let i = 0; i < rawPercentValues.length; i += 2) {
-    timestamps.push(rawTimestamps[i]);
-    percentValues.push(rawPercentValues[i]);
+    for (let i = 0; i < rawPercentValues.length; i += 2) {
+      timestamps.push(rawTimestamps[i]);
+      percentValues.push(rawPercentValues[i]);
+    }
+
+    return { timestamps, percentValues };
   }
 
-  return { timestamps, percentValues };
+  // ✅ Month + Week → ВСЕ точки
+  return {
+    timestamps: rawTimestamps,
+    percentValues: rawPercentValues,
+  };
 }

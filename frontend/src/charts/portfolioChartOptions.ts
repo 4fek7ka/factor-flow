@@ -31,17 +31,13 @@ export function buildGrid() {
 export function buildXAxis() {
   return {
     type: "time",
-
     axisLabel: {
       color: "#999",
       formatter: (value: number) => {
         const d = new Date(value);
-        return d.toLocaleDateString("en-GB", {
-          month: "short",
-        });
+        return d.toLocaleDateString("en-GB", { month: "short" });
       },
     },
-
     axisLine: { lineStyle: { color: "#555" } },
     splitLine: { show: false },
   };
@@ -59,33 +55,34 @@ export function buildYAxis() {
 }
 
 export function buildSeries(timestamps: number[], percentValues: number[]) {
-  // ✅ определяем направление тренда
   const first = percentValues[0];
   const last = percentValues[percentValues.length - 1];
-
   const isUp = last >= first;
 
-  const lineColor = isUp ? "#2ecc71" : "#e74c3c"; // зелёный / красный
+  const lineColor = isUp ? "#27a95e" : "#e11c14";
   const areaTop = isUp
-    ? "rgba(46,204,113,0.40)"
-    : "rgba(231,76,60,0.40)";
-
+    ? "rgba(39,169,94,0.40)"
+    : "rgba(225,28,20,0.40)";
   const areaBottom = isUp
-    ? "rgba(46,204,113,0.05)"
-    : "rgba(231,76,60,0.05)";
+    ? "rgba(39,169,94,0.05)"
+    : "rgba(225,28,20,0.05)";
 
   return [
     {
+      id: "portfolio-line",
       name: "Portfolio % Change",
       type: "line",
       smooth: true,
       showSymbol: false,
 
-      lineStyle: {
-        width: 3,
-        color: lineColor,
-      },
+      // только первый рендер (опционально)
+      animationDuration: 700,
+      animationEasing: "easeOutCubic",
 
+      // апдейты выключаем — фейд делаем CSS-ом
+      animationDurationUpdate: 0,
+
+      lineStyle: { width: 3, color: lineColor },
       areaStyle: {
         origin: "start",
         color: {
@@ -112,6 +109,7 @@ export function buildPortfolioChartOption(
 ) {
   return {
     backgroundColor: "transparent",
+    animation: true,
     tooltip: buildTooltip(),
     grid: buildGrid(),
     xAxis: buildXAxis(),
