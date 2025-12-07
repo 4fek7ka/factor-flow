@@ -59,6 +59,21 @@ export function buildYAxis() {
 }
 
 export function buildSeries(timestamps: number[], percentValues: number[]) {
+  // ✅ определяем направление тренда
+  const first = percentValues[0];
+  const last = percentValues[percentValues.length - 1];
+
+  const isUp = last >= first;
+
+  const lineColor = isUp ? "#2ecc71" : "#e74c3c"; // зелёный / красный
+  const areaTop = isUp
+    ? "rgba(46,204,113,0.40)"
+    : "rgba(231,76,60,0.40)";
+
+  const areaBottom = isUp
+    ? "rgba(46,204,113,0.05)"
+    : "rgba(231,76,60,0.05)";
+
   return [
     {
       name: "Portfolio % Change",
@@ -68,7 +83,7 @@ export function buildSeries(timestamps: number[], percentValues: number[]) {
 
       lineStyle: {
         width: 3,
-        color: "#4a90e2",
+        color: lineColor,
       },
 
       areaStyle: {
@@ -80,8 +95,8 @@ export function buildSeries(timestamps: number[], percentValues: number[]) {
           x2: 0,
           y2: 1,
           colorStops: [
-            { offset: 0, color: "rgba(74,144,226,0.40)" },
-            { offset: 1, color: "rgba(74,144,226,0.05)" },
+            { offset: 0, color: areaTop },
+            { offset: 1, color: areaBottom },
           ],
         },
       },
