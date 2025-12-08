@@ -1,0 +1,81 @@
+#!/bin/bash
+
+echo "⏳ Генерация годовой часовой истории цен..."
+
+OUTPUT="mock-history-hourly.json"
+
+node << 'EOF'
+const fs = require("fs");
+
+// ==== КОНФИГ ВСЕХ АКТИВОВ ====
+const assets = ["ETH","WBTC","USDC","DAI","UNI"];
+
+const cfg = {
+  WBTC: {base:30000, noise:0.0025, shockP:1/(24*4), shockMin:-0.05, shockMax:0.05},
+  ETH : {base:1800,  noise:0.0045, shockP:1/(24*3), shockMin:-0.07, shockMax:0.07},
+  UNI : {base:6.5,   noise:0.012,  shockP:1/(24*2), shockMin:-0.12, shockMax:0.15},
+  USDC: {base:1.0,   noise:0.0003, shockP:1/(24*14),shockMin:-0.003,shockMax:0.003},
+  DAI : {base:1.0,   noise:0.00035,shockP:1/(24*10),shockMin:-0.004,shockMax:0.004},
+};
+
+// ==== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====
+const HOURS = 24 * 365;
+const now = Math.floor(Date.now()/1000);
+const startTs = now - HOURS*3600;
+
+function normal(std) {
+  return std * Math.sqrt(-2 * Math.log(Math.random())) * Math.cos(2*Math.PI*Math.random());
+}
+function rand(min,max) { return min + Math.random()*(max-min); }
+
+// ==== ИНИЦИАЛИЗАЦИЯ ====
+const prices = Object.fromEntries(
+  assets.map(a => [a, cfg[a].base])
+);
+
+const history = [];
+
+// ==== ГЕНЕРАЦИЯ ====
+for (let i = 0; i < HOURS; i++) {
+  const ts = startTs + i*3600;
+  const row = { timestamp: ts, prices: {} };
+
+  for (const a of assets) {
+    const c = cfg[a];
+
+    // шум
+    const noise = normal(c.noise);
+
+    // шок
+    const shock = Math.random() < c.shockP ? rand(c.shockMin, c.shockMax) : 0;
+
+    // результирующая доходность
+    let ret = noise + shock;
+
+    // новый расчёт цены
+    let newPrice = prices[a] * (1 + ret);
+
+    // === СИЛЬНАЯ ЗАЩИТА ОТ NaN / Infinity / отрицательных ===
+    if (!Number.isFinite(newPrice) || newPrice <= 0) {
+      // fallback: возвращаем к +- исходной цене
+      newPrice = c.base * (0.5 + Math.random() * 0.5);
+    }
+
+    prices[a] = newPrice;
+
+    // округление
+    const rounded = Number(newPrice.toFixed(4));
+
+    // защита JSON-формата
+    row.prices[a] = Number.isFinite(rounded) ? rounded : c.base;
+  }
+
+  history.push(row);
+}
+
+// ==== СОХРАНЕНИЕ ====
+fs.writeFileSync("mock-history-hourly.json", JSON.stringify(history, null, 2));
+EOF
+
+echo "✅ Файл mock-history-hourly.json успешно создан!"
+

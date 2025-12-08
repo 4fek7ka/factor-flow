@@ -9,7 +9,8 @@ import {
 import type { HistoryPoint, Period } from "../services/portfolioService";
 
 import { PortfolioMetricsRow } from "./PortfolioMetricsRow";
-import { PortfolioChartCard } from "./PortfolioChartCard"; // ✅ ВОТ ЭТОГО ИМПОРТА НЕ ХВАТАЛО
+import { PortfolioChartCard } from "./PortfolioChartCard";
+import { AssetSparklinesSection } from "./AssetSparklinesSection"; // ← добавлено
 
 export function PortfolioSection() {
   const history = historyJson as unknown as HistoryPoint[];
@@ -28,7 +29,7 @@ export function PortfolioSection() {
 
   return (
     <div>
-      {/* ✅ МЕТРИКИ — ОТДЕЛЬНО СВЕРХУ */}
+      {/* МЕТРИКИ НАД ГРАФИКОМ */}
       <PortfolioMetricsRow
         tvl={metrics.tvl}
         lastTsMs={metrics.lastTsMs}
@@ -39,11 +40,17 @@ export function PortfolioSection() {
         period={period}
       />
 
-      {/* ✅ ГРАФИК — В ОТДЕЛЬНОЙ КАРТОЧКЕ */}
+      {/* ГРАФИК */}
       <PortfolioChartCard
         period={period}
         onPeriodChange={setPeriod}
         history={filteredHistory}
+      />
+
+      {/* НОВАЯ СЕКЦИЯ — ТОП АКТИВЫ С МИНИ-ГРАФИКАМИ */}
+      <AssetSparklinesSection
+        history={filteredHistory}
+        period={period}
       />
     </div>
   );
