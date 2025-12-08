@@ -84,7 +84,7 @@ export function buildSeries(
       smooth: true,
       showSymbol: false,
 
-      animationDuration: initial ? 2500 : 0,
+      animationDuration: initial ? 1500 : 0,
       animationEasing: initial ? "quadraticInOut" : "linear",
 
       animationDurationUpdate: 750,
