@@ -4,7 +4,7 @@ export type HistoryPoint = {
   timestamp: number; // unix seconds
   prices: {
     ETH: number;
-    WBTC: number; // ✅ считаем как BTC (в UI называем BTC)
+    WBTC: number;
     USDC: number;
     DAI: number;
     UNI: number;
@@ -33,23 +33,42 @@ function calcPortfolioValue(p: HistoryPoint): number {
 export function filterHistoryByPeriod(history: HistoryPoint[], period: Period) {
   if (!history.length) return [];
 
-  const last = history[history.length - 1].timestamp; // seconds
+  const last = history[history.length - 1].timestamp;
   const seconds =
-    period === "week" ? 7 * 24 * 60 * 60 :
-    period === "month" ? 30 * 24 * 60 * 60 :
-    365 * 24 * 60 * 60;
+    period === "week" ? 7 * 24 * 3600 :
+    period === "month" ? 30 * 24 * 3600 :
+    365 * 24 * 3600;
 
   const cutoff = last - seconds;
   return history.filter((p) => p.timestamp >= cutoff);
 }
 
-/**
- * Данные для графика.
- * ВАЖНО: тут может быть downsampling для year, чтобы линия была "плавнее".
- */
-export function buildPortfolioSeries(history: HistoryPoint[], period: Period) {
-  const rawTimestamps = history.map((p) => p.timestamp * 1000); // ms
+/* ================================
+   📌 Адаптивный downsampling
+   ================================ */
 
+function downsample(xs: number[], ys: number[], target: number) {
+  const n = xs.length;
+  if (n <= target) return { xs, ys };
+
+  const step = Math.ceil(n / target);
+  const outX = [];
+  const outY = [];
+
+  for (let i = 0; i < n; i += step) {
+    outX.push(xs[i]);
+    outY.push(ys[i]);
+  }
+
+  return { xs: outX, ys: outY };
+}
+
+/* ================================
+   📌 Основная функция для графика
+   ================================ */
+
+export function buildPortfolioSeries(history: HistoryPoint[], period: Period) {
+  const rawTimestamps = history.map((p) => p.timestamp * 1000);
   const values = history.map(calcPortfolioValue);
 
   if (!values.length) {
@@ -57,28 +76,25 @@ export function buildPortfolioSeries(history: HistoryPoint[], period: Period) {
   }
 
   const base = values[0];
-  const rawPercentValues = values.map((v) => (base === 0 ? 0 : ((v - base) / base) * 100));
+  const rawPercentValues = values.map((v) =>
+    base === 0 ? 0 : ((v - base) / base) * 100
+  );
 
-  // ✅ Downsampling: только для year (как договаривались)
-  if (period !== "year") {
-    return { timestamps: rawTimestamps, percentValues: rawPercentValues };
-  }
+  // 🎯 Целевое число точек для графика
+  const target =
+    period === "week" ? 120 :
+    period === "month" ? 300 :
+    150; // year
 
-  const timestamps: number[] = [];
-  const percentValues: number[] = [];
+  const { xs, ys } = downsample(rawTimestamps, rawPercentValues, target);
 
-  for (let i = 0; i < rawPercentValues.length; i += 2) {
-    timestamps.push(rawTimestamps[i]);
-    percentValues.push(rawPercentValues[i]);
-  }
-
-  return { timestamps, percentValues };
+  return { timestamps: xs, percentValues: ys };
 }
 
-/**
- * Метрики для карточек (без downsampling).
- * BTC берём из WBTC, но в UI называем BTC.
- */
+/* ================================
+   📌 Метрики (без изменений)
+   ================================ */
+
 export function buildTopMetrics(history: HistoryPoint[]) {
   if (history.length < 2) {
     return {

@@ -81,8 +81,9 @@ export function buildSeries(
       id: seriesId,
       name: "Portfolio % Change",
       type: "line",
-      smooth: true,
+      smooth: false,
       showSymbol: false,
+
 
       animationDuration: initial ? 1500 : 0,
       animationEasing: initial ? "quadraticInOut" : "linear",
