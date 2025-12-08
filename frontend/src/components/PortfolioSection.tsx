@@ -50,7 +50,6 @@ export function PortfolioSection() {
       {/* НОВАЯ СЕКЦИЯ — ТОП АКТИВЫ С МИНИ-ГРАФИКАМИ */}
       <AssetSparklinesSection
         history={filteredHistory}
-        period={period}
       />
     </div>
   );
