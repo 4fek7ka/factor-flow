@@ -82,8 +82,8 @@ export function buildPortfolioSeries(history: HistoryPoint[], period: Period) {
 
   // 🎯 Целевое число точек для графика
   const target =
-    period === "week" ? 120 :
-    period === "month" ? 300 :
+    period === "week" ? 50 :
+    period === "month" ? 70 :
     150; // year
 
   const { xs, ys } = downsample(rawTimestamps, rawPercentValues, target);

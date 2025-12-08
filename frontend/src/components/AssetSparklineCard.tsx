@@ -4,23 +4,41 @@ type Props = {
   name: string;
   values: number[];
   pct: number;
-  label?: string; // для "24H"
+  label?: string;
 };
 
 export function AssetSparklineCard({ name, values, pct, label }: Props) {
   if (!values.length) return null;
 
-  // normalize data for sparkline (как было)
+  // 1) Переводим цены в % изменения от первой точки
+  const base = values[0];
+  const pctValues = values.map((v) => ((v - base) / base) * 100); // в процентах
+
   const w = 120;
   const h = 40;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
 
-  const points = values
+  // 2) Локальный диапазон по % (для конкретного актива)
+  const min = Math.min(...pctValues);
+  const max = Math.max(...pctValues);
+  const range = max - min || 0;
+
+  // 3) Динамический scale по волатильности
+  // A — амплитуда в %, k — чувствительность
+  const A = Math.abs(range);
+  const K = 1.5; // можно потом подправить (1–3)
+  const scale = A === 0 ? 0 : Math.min(1, A / (A + K)); // 0..1
+
+  const centerY = h / 2;
+
+  const points = pctValues
     .map((v, i) => {
+      // нормализуем в [0;1]
+      const norm = range === 0 ? 0.5 : (v - min) / range; // 0..1
+      const normCentered = norm - 0.5; // -0.5..0.5
+
+      // высота колебаний = h * scale, центр по вертикали
+      const y = centerY - normCentered * h * scale;
       const x = (i / Math.max(values.length - 1, 1)) * w;
-      const y = h - ((v - min) / range) * h;
       return `${x},${y}`;
     })
     .join(" ");
@@ -38,7 +56,7 @@ export function AssetSparklineCard({ name, values, pct, label }: Props) {
           <div style={{ color }}>{pctStr}</div>
         </div>
 
-        {/* label (24H) */}
+        {/* период (например 24H) */}
         {label && (
           <div
             style={{
