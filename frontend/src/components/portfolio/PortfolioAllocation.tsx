@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useMemo } from "react";
 import * as echarts from "echarts";
-import type { HistoryPoint } from "../services/portfolioService";
+import type { HistoryPoint } from "../../services/portfolioService";
 
 const ASSET_COLORS: Record<string, string> = {
   ETH: "#8A7FFF",

@@ -1,10 +1,10 @@
 import { useEffect, useRef } from "react";
 import * as echarts from "echarts";
 
-import { buildPortfolioSeries } from "../services/portfolioService";
-import type { HistoryPoint, Period } from "../services/portfolioService";
+import { buildPortfolioSeries } from "../../services/portfolioService";
+import type { HistoryPoint, Period } from "../../services/portfolioService";
 
-import { buildPortfolioChartOption } from "../charts/portfolioChartOptions";
+import { buildPortfolioChartOption } from "../../charts/portfolioChartOptions";
 
 type Props = {
   history: HistoryPoint[];

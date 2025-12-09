@@ -8,12 +8,13 @@ import {
 
 import type { HistoryPoint, Period } from "../services/portfolioService";
 
-import { PortfolioMetricsRow } from "./PortfolioMetricsRow";
-import { PortfolioChartCard } from "./PortfolioChartCard";
-import { AssetSparklinesSection } from "./AssetSparklinesSection";
-import { PortfolioAllocationSection } from "./PortfolioAllocationSection";
+// portfolio components
+import { PortfolioMetricsRow } from "../components/portfolio/PortfolioMetricsRow";
+import { PortfolioChartCard } from "../components/portfolio/PortfolioChartCard";
+import { AssetSparklinesSection } from "../components/portfolio/AssetSparklinesSection";
+import { PortfolioAllocationSection } from "../components/portfolio/PortfolioAllocationSection";
 
-export function PortfolioSection() {
+export function PortfolioPage() {
   const history = historyJson as unknown as HistoryPoint[];
 
   const [period, setPeriod] = useState<Period>("year");
@@ -55,15 +56,13 @@ export function PortfolioSection() {
       />
 
       {/* ============================== */}
-      {/* МИНИ-ГРАФИКИ ТОП АКТИВОВ (24H) */}
-      {/* ============================== */}
-      
-
-      {/* ============================== */}
       {/* PORTFOLIO ALLOCATION + MARKET MOOD */}
       {/* ============================== */}
       <PortfolioAllocationSection history={filteredHistory} />
 
+      {/* ============================== */}
+      {/* МИНИ-ГРАФИКИ ТОП АКТИВОВ (24H) */}
+      {/* ============================== */}
       <AssetSparklinesSection history={filteredHistory} />
     </div>
   );

@@ -1,5 +1,5 @@
 import React from "react";
-import type { HistoryPoint } from "../services/portfolioService";
+import type { HistoryPoint } from "../../services/portfolioService";
 
 import { PortfolioAllocation } from "./PortfolioAllocation";
 import { VolatilityArcCard } from "./VolatilityArcCard";

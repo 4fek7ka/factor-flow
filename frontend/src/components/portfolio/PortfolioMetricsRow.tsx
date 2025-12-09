@@ -1,4 +1,4 @@
-import type { Period } from "../services/portfolioService";
+import type { Period } from "../../services/portfolioService";
 
 type Props = {
   tvl: number;

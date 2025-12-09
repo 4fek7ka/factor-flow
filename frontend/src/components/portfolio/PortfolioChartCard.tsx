@@ -4,11 +4,11 @@ import * as echarts from "echarts";
 import {
   buildPortfolioSeries,
   filterHistoryByPeriod,
-} from "../services/portfolioService";
+} from "../../services/portfolioService";
 
-import type { HistoryPoint, Period } from "../services/portfolioService";
+import type { HistoryPoint, Period } from "../../services/portfolioService";
 
-import { buildPortfolioChartOption } from "../charts/portfolioChartOptions";
+import { buildPortfolioChartOption } from "../../charts/portfolioChartOptions";
 
 type Props = {
   history: HistoryPoint[];
