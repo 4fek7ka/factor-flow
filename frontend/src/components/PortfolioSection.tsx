@@ -11,18 +11,20 @@ import type { HistoryPoint, Period } from "../services/portfolioService";
 import { PortfolioMetricsRow } from "./PortfolioMetricsRow";
 import { PortfolioChartCard } from "./PortfolioChartCard";
 import { AssetSparklinesSection } from "./AssetSparklinesSection";
-import { PortfolioAllocation } from "./PortfolioAllocation";
+import { PortfolioAllocationSection } from "./PortfolioAllocationSection";
 
 export function PortfolioSection() {
   const history = historyJson as unknown as HistoryPoint[];
 
   const [period, setPeriod] = useState<Period>("year");
 
+  // фильтрация под период
   const filteredHistory = useMemo(
     () => filterHistoryByPeriod(history, period),
     [history, period]
   );
 
+  // метрики сверху
   const metrics = useMemo(
     () => buildTopMetrics(filteredHistory),
     [filteredHistory]
@@ -30,7 +32,9 @@ export function PortfolioSection() {
 
   return (
     <div>
+      {/* ============================== */}
       {/* МЕТРИКИ НАД ГРАФИКОМ */}
+      {/* ============================== */}
       <PortfolioMetricsRow
         tvl={metrics.tvl}
         lastTsMs={metrics.lastTsMs}
@@ -41,18 +45,26 @@ export function PortfolioSection() {
         period={period}
       />
 
-      {/* ГРАФИК */}
+      {/* ============================== */}
+      {/* ОСНОВНОЙ ГРАФИК ПОРТФЕЛЯ */}
+      {/* ============================== */}
       <PortfolioChartCard
         period={period}
         onPeriodChange={setPeriod}
         history={filteredHistory}
       />
 
-      {/* ТОП АКТИВЫ — 24H mini sparkline charts */}
-      <AssetSparklinesSection history={filteredHistory}  />
+      {/* ============================== */}
+      {/* МИНИ-ГРАФИКИ ТОП АКТИВОВ (24H) */}
+      {/* ============================== */}
+      
 
-      {/* НОВЫЙ БЛОК — ДОНАТ РАСПРЕДЕЛЕНИЯ */}
-      <PortfolioAllocation history={filteredHistory} />
+      {/* ============================== */}
+      {/* PORTFOLIO ALLOCATION + MARKET MOOD */}
+      {/* ============================== */}
+      <PortfolioAllocationSection history={filteredHistory} />
+
+      <AssetSparklinesSection history={filteredHistory} />
     </div>
   );
 }

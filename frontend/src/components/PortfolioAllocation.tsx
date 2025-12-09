@@ -8,6 +8,7 @@ const ASSET_COLORS: Record<string, string> = {
   USDC: "#5DA7FF",
   DAI: "#FFD86B",
   UNI: "#FF6F9E",
+  Others: "#6B7280", // серый для суммарной группы
 };
 
 const AMOUNTS = {
@@ -27,29 +28,50 @@ export function PortfolioAllocation({ history }: Props) {
   const chart = useRef<echarts.ECharts | null>(null);
 
   // ============================
-  // 📌 Расчёт распределения
+  // 📌 Расчёт TOP-3 + Others
   // ============================
   const allocation = useMemo(() => {
     if (!history.length) return [];
 
     const last = history[history.length - 1];
 
+    // 1) считаем стоимость всех активов
     const values = Object.entries(AMOUNTS).map(([symbol, amount]) => {
       const price = last.prices[symbol as keyof typeof last.prices];
       const valueUsd = price * amount;
       return { symbol, valueUsd };
     });
 
-    const total = values.reduce((s, v) => s + v.valueUsd, 0);
+    // 2) сортировка по убыванию стоимости
+    const sorted = values.sort((a, b) => b.valueUsd - a.valueUsd);
 
-    return values.map((v) => ({
+    // 3) топ 3
+    const top3 = sorted.slice(0, 3);
+
+    // 4) остальные → Others
+    const others = sorted.slice(3);
+    const othersTotal = others.reduce((s, v) => s + v.valueUsd, 0);
+
+    const finalList = [...top3];
+
+    if (othersTotal > 0) {
+      finalList.push({
+        symbol: "Others",
+        valueUsd: othersTotal,
+      });
+    }
+
+    // 5) проценты только внутри finalList
+    const total = finalList.reduce((s, v) => s + v.valueUsd, 0);
+
+    return finalList.map((v) => ({
       ...v,
       pct: total ? (v.valueUsd / total) * 100 : 0,
     }));
   }, [history]);
 
   // ============================
-  // 📌 Donut
+  // 📌 Donut Chart
   // ============================
   useEffect(() => {
     if (!chartRef.current) return;
@@ -66,6 +88,7 @@ export function PortfolioAllocation({ history }: Props) {
           center: ["50%", "50%"],
           label: { show: false },
           labelLine: { show: false },
+          minAngle: 2, // гарантирует видимость сегментов
           data: allocation.map((a) => ({
             value: a.valueUsd,
             name: a.symbol,
@@ -76,6 +99,7 @@ export function PortfolioAllocation({ history }: Props) {
     };
 
     inst.setOption(option);
+
     const ro = new ResizeObserver(() => inst.resize());
     ro.observe(chartRef.current);
 
@@ -89,10 +113,13 @@ export function PortfolioAllocation({ history }: Props) {
 
   return (
     <div
-      className="card mt-3"
+      className="card"
       style={{
-        maxWidth: "620px",
         borderRadius: "10px",
+        height: "100%",
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       <div
@@ -103,7 +130,9 @@ export function PortfolioAllocation({ history }: Props) {
           alignItems: "center",
         }}
       >
-        {/* Donut */}
+        {/* ----------------------------------------------------
+           Donut
+        ---------------------------------------------------- */}
         <div
           ref={chartRef}
           style={{
@@ -113,7 +142,9 @@ export function PortfolioAllocation({ history }: Props) {
           }}
         />
 
-        {/* Legend */}
+        {/* ----------------------------------------------------
+            Легенда TOP-3 + Others
+        ---------------------------------------------------- */}
         <div
           style={{
             display: "flex",
@@ -126,8 +157,8 @@ export function PortfolioAllocation({ history }: Props) {
           <h4
             style={{
               margin: 0,
-              fontSize: "20px",      // ещё немного крупнее
-              color: "#FAFAFA",       // почти белый, но не режет глаза
+              fontSize: "20px",
+              color: "#FAFAFA",
               fontWeight: 600,
               letterSpacing: "0.2px",
             }}
@@ -140,8 +171,8 @@ export function PortfolioAllocation({ history }: Props) {
             style={{
               display: "grid",
               gridTemplateColumns: "18px 110px 110px 70px",
-              fontSize: "14px",       // чуть крупнее
-              color: "#E8E8E8",       // светло-серый ближе к белому
+              fontSize: "14px",
+              color: "#E8E8E8",
               paddingBottom: "6px",
               borderBottom: "1px solid rgba(255,255,255,0.08)",
               fontWeight: 500,
@@ -161,11 +192,11 @@ export function PortfolioAllocation({ history }: Props) {
                 display: "grid",
                 gridTemplateColumns: "18px 110px 110px 70px",
                 alignItems: "center",
-                fontSize: "15px",        // весь текст чуть крупнее
-                color: "#EFEFEF",         // светлее чем раньше
+                fontSize: "15px",
+                color: "#EFEFEF",
               }}
             >
-              {/* dot */}
+              {/* Colored dot */}
               <div
                 style={{
                   width: 12,
@@ -176,10 +207,10 @@ export function PortfolioAllocation({ history }: Props) {
                 }}
               />
 
-              {/* name */}
+              {/* Asset name */}
               <div style={{ fontWeight: 500 }}>{a.symbol}</div>
 
-              {/* value */}
+              {/* USD value */}
               <div>${a.valueUsd.toFixed(0)}</div>
 
               {/* percentage */}
