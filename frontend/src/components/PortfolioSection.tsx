@@ -10,7 +10,8 @@ import type { HistoryPoint, Period } from "../services/portfolioService";
 
 import { PortfolioMetricsRow } from "./PortfolioMetricsRow";
 import { PortfolioChartCard } from "./PortfolioChartCard";
-import { AssetSparklinesSection } from "./AssetSparklinesSection"; // ← добавлено
+import { AssetSparklinesSection } from "./AssetSparklinesSection";
+import { PortfolioAllocation } from "./PortfolioAllocation";
 
 export function PortfolioSection() {
   const history = historyJson as unknown as HistoryPoint[];
@@ -47,10 +48,11 @@ export function PortfolioSection() {
         history={filteredHistory}
       />
 
-      {/* НОВАЯ СЕКЦИЯ — ТОП АКТИВЫ С МИНИ-ГРАФИКАМИ */}
-      <AssetSparklinesSection
-        history={filteredHistory}
-      />
+      {/* ТОП АКТИВЫ — 24H mini sparkline charts */}
+      <AssetSparklinesSection history={filteredHistory}  />
+
+      {/* НОВЫЙ БЛОК — ДОНАТ РАСПРЕДЕЛЕНИЯ */}
+      <PortfolioAllocation history={filteredHistory} />
     </div>
   );
 }
