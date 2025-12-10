@@ -1,5 +1,5 @@
 import type { AssetRow } from "../../services/assetsService";
-import { AssetSparkline } from "../../charts/AssetSparkline";
+import { SparklineBase } from "../../charts/SparklineBase";
 
 type Props = {
   asset: AssetRow;
@@ -31,7 +31,12 @@ export function AssetRowItem({ asset, index }: Props) {
 
       <td style={{ textAlign: "right", paddingRight: 24 }}>
         <div style={{ width: 180, display: "inline-block" }}>
-          <AssetSparkline data={asset.sparkline} positive={isUp} />
+          <SparklineBase
+            values={asset.sparkline}
+            color={color}
+            width={100}
+            height={34}
+          />
         </div>
       </td>
     </tr>

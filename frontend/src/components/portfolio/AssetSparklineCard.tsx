@@ -37,8 +37,24 @@ export function AssetSparklineCard({ name, values, pct, label }: Props) {
           </div>
         )}
 
-        {/* unified sparkline */}
-        <SparklineBase values={values} color={color} width={120} height={40} />
+        {/* centered sparkline */}
+        <div
+          style={{
+            width: "100%",
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          <div style={{ width: 140 }}> 
+            <SparklineBase
+              values={values}
+              color={color}
+              width={140}
+              height={40}
+              fullWidth={true}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
