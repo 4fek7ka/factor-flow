@@ -71,12 +71,31 @@ export function PortfolioAllocation({ history }: Props) {
   }, [history]);
 
   // ============================
-  // 📌 Donut Chart
+  // 📌 Инициализация donut один раз
   // ============================
   useEffect(() => {
     if (!chartRef.current) return;
 
     chart.current = echarts.init(chartRef.current);
+    const inst = chart.current;
+
+    const ro = new ResizeObserver(() => inst.resize());
+    ro.observe(chartRef.current);
+
+    return () => {
+      ro.disconnect();
+      inst.dispose();
+      chart.current = null;
+    };
+  }, []);
+
+  // ============================
+  // 📌 Обновление данных без пересоздания
+  // ============================
+  useEffect(() => {
+    if (!chart.current) return;
+    if (!allocation.length) return;
+
     const inst = chart.current;
 
     const option = {
@@ -98,15 +117,11 @@ export function PortfolioAllocation({ history }: Props) {
       ],
     };
 
-    inst.setOption(option);
-
-    const ro = new ResizeObserver(() => inst.resize());
-    ro.observe(chartRef.current);
-
-    return () => {
-      ro.disconnect();
-      inst.dispose();
-    };
+    inst.setOption(option, {
+      notMerge: false,
+      lazyUpdate: false,
+      silent: true,
+    });
   }, [allocation]);
 
   if (!allocation.length) return null;

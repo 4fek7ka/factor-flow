@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import * as echarts from "echarts";
 
 import {
@@ -16,9 +16,6 @@ type Props = {
   onPeriodChange: (p: Period) => void;
 };
 
-const EVAP_MS = 220;
-const EVAP_BLUR_PX = 6;
-
 export function PortfolioChartCard({
   history,
   period,
@@ -27,17 +24,10 @@ export function PortfolioChartCard({
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
 
-  const [fadeOpacity, setFadeOpacity] = useState(1);
-  const [fadeBlur, setFadeBlur] = useState(0);
-  const [transitionOn, setTransitionOn] = useState(true);
-
   const seriesCounterRef = useRef(0);
   const seriesIdRef = useRef("portfolio-line-0");
 
-  const transitioningRef = useRef(false);
-  const timerRef = useRef<number | null>(null);
-
-  // init chart
+  // Init chart
   useEffect(() => {
     if (!chartRef.current) return;
 
@@ -49,19 +39,17 @@ export function PortfolioChartCard({
 
     return () => {
       observer.disconnect();
-      if (timerRef.current) window.clearTimeout(timerRef.current);
       chart.dispose();
       chartInstance.current = null;
     };
   }, []);
 
-  // update chart on period change
+  // Update chart (анимация как раньше)
   useEffect(() => {
     const chart = chartInstance.current;
     if (!chart) return;
 
     const filteredHistory = filterHistoryByPeriod(history, period);
-
     const { timestamps, percentValues } =
       buildPortfolioSeries(filteredHistory, period);
 
@@ -69,47 +57,25 @@ export function PortfolioChartCard({
 
     const option = buildPortfolioChartOption(timestamps, percentValues, {
       seriesId: seriesIdRef.current,
-      initial: true,
+      initial: true, // всегда проигрываем "первичную" анимацию линии
       opacity: 1,
     });
 
     chart.setOption(option, {
-      notMerge: true,
-      lazyUpdate: false,
+      notMerge: true,   // создаём новую серию
+      lazyUpdate: true,
+      silent: true,
     });
   }, [history, period]);
 
-  // tab switch with fade
+  // Переключение табов — только смена id серии + периода
   const switchPeriod = (next: Period) => {
     if (next === period) return;
-    if (transitioningRef.current) return;
 
-    transitioningRef.current = true;
+    seriesCounterRef.current += 1;
+    seriesIdRef.current = `portfolio-line-${seriesCounterRef.current}`;
 
-    if (timerRef.current) {
-      window.clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-
-    setTransitionOn(true);
-    setFadeOpacity(0);
-    setFadeBlur(EVAP_BLUR_PX);
-
-    timerRef.current = window.setTimeout(() => {
-      seriesCounterRef.current += 1;
-      seriesIdRef.current = `portfolio-line-${seriesCounterRef.current}`;
-
-      setTransitionOn(false);
-      setFadeOpacity(1);
-      setFadeBlur(0);
-
-      onPeriodChange(next);
-
-      requestAnimationFrame(() => setTransitionOn(true));
-
-      transitioningRef.current = false;
-      timerRef.current = null;
-    }, EVAP_MS);
+    onPeriodChange(next);
   };
 
   const tabClass = (key: Period) =>
@@ -159,11 +125,10 @@ export function PortfolioChartCard({
           border-radius: 2px;
           transition: transform 320ms cubic-bezier(0.25, 0.1, 0.25, 1),
                       width 320ms cubic-bezier(0.25, 0.1, 0.25, 1);
-          will-change: transform, width;
         }
       `}</style>
 
-      {/* ✅ Tabs */}
+      {/* Tabs */}
       <div className="period-tabs-wrap">
         <div className="period-tabs">
           <div
@@ -183,10 +148,7 @@ export function PortfolioChartCard({
             Year
           </button>
 
-          <button
-            className={tabClass("month")}
-            onClick={() => switchPeriod("month")}
-          >
+          <button className={tabClass("month")} onClick={() => switchPeriod("month")}>
             Month
           </button>
 
@@ -196,17 +158,9 @@ export function PortfolioChartCard({
         </div>
       </div>
 
-      {/* ✅ Chart */}
-      <div
-        style={{
-          opacity: fadeOpacity,
-          filter: `blur(${fadeBlur}px)`,
-          transition: transitionOn
-            ? `opacity ${EVAP_MS}ms ease-out, filter ${EVAP_MS}ms ease-out`
-            : "none",
-        }}
-      >
-        <div ref={chartRef} style={{ width: "100%", height: "350px" }} />
+      {/* Chart без внешнего fade/blur */}
+      <div style={{ width: "100%", height: "350px" }}>
+        <div ref={chartRef} style={{ width: "100%", height: "100%" }} />
       </div>
     </div>
   );
