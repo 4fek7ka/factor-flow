@@ -36,7 +36,7 @@ export function FearGreedCard({ value }: Props) {
           className="text-muted"
           style={{
             position: "absolute",
-            top: 6,
+            top: 14,       // ← добавили отступ сверху
             left: 12,
             fontSize: "0.75rem",
             opacity: 0.85,
@@ -52,7 +52,7 @@ export function FearGreedCard({ value }: Props) {
             justifyContent: "center",
             marginTop: 22,
             position: "relative",
-            height: 90, // ↑ увеличили пространство для круга и текста внутри
+            height: 90,
           }}
         >
           <FearGreedGauge value={value} width={160} height={80} />
@@ -61,7 +61,7 @@ export function FearGreedCard({ value }: Props) {
           <div
             style={{
               position: "absolute",
-              top: "80%",        // ← магия: регулирует вертикальный центр
+              top: "80%",
               left: "50%",
               transform: "translate(-50%, -50%)",
               textAlign: "center",
