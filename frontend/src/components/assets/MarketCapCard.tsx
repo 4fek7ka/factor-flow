@@ -19,24 +19,13 @@ export function MarketCapCard({ capUsd, changePct, spark }: Props) {
   const color = isUp ? "#22c55e" : "#ef4444";
 
   return (
-    <div className="card card-sm mb-3">
-      <style>{`
-        .fade-number {
-          opacity: 0;
-          animation: fadeIn 220ms ease-out forwards;
-        }
-        .fade-sub {
-          opacity: 0;
-          animation: fadeIn 220ms ease-out forwards;
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-      `}</style>
-
-      <div className="card-body">
-        {/* Header */}
+    <div
+      className="card card-sm mb-3 h-100"
+      style={{
+        flex: 1, // ⭐ позволяет карточке растянуться по ширине
+      }}
+    >
+      <div className="card-body" style={{ padding: "12px 16px" }}>
         <div className="d-flex justify-content-between mb-1">
           <div className="text-muted">Market Cap</div>
           <div className={isUp ? "text-success" : "text-danger"}>
@@ -45,23 +34,15 @@ export function MarketCapCard({ capUsd, changePct, spark }: Props) {
           </div>
         </div>
 
-        {/* Market Cap Value */}
-        <div
-          className={`h2 m-0 fade-number ${
-            isUp ? "text-success" : "text-danger"
-          }`}
-        >
-          {formatMarketCap(capUsd)}
-        </div>
+        <div className="h2 m-0">{formatMarketCap(capUsd)}</div>
 
-        {/* full-width sparkline */}
-        <div className="mt-2" style={{ width: "100%" }}>
+        <div style={{ marginTop: 6 }}>
           <SparklineBase
             values={spark}
             color={color}
-            width={200}   // viewBox width
-            height={45}   // fixed height
-            fullWidth={true}
+            width={200}   // можно заменить на 100% если нужно
+            height={30}
+            fullWidth={true} // ⭐ Sparkline тянется на всю ширину
           />
         </div>
       </div>
