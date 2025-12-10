@@ -1,4 +1,4 @@
-import React from "react";
+
 import type { HistoryPoint } from "../../services/portfolioService";
 
 import { PortfolioAllocation } from "./PortfolioAllocation";

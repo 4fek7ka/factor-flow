@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import * as echarts from "echarts";
 import type { HistoryPoint } from "../../services/portfolioService";
 
