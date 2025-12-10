@@ -1,5 +1,4 @@
 import { createBrowserRouter } from "react-router-dom";
-
 import { AppLayout } from "./layout/AppLayout";
 
 import { PortfolioPage } from "./pages/PortfolioPage";
@@ -12,22 +11,10 @@ export const router = createBrowserRouter([
     path: "/",
     element: <AppLayout />,
     children: [
-      {
-        index: true,
-        element: <PortfolioPage />,
-      },
-      {
-        path: "prices",
-        element: <PricesPage />,
-      },
-      {
-        path: "assets",
-        element: <AssetsPage />,
-      },
-      {
-        path: "settings",
-        element: <SettingsPage />,
-      },
+      { index: true, element: <PortfolioPage /> },
+      { path: "prices", element: <PricesPage /> },
+      { path: "assets", element: <AssetsPage /> },
+      { path: "settings", element: <SettingsPage /> },
     ],
   },
 ]);

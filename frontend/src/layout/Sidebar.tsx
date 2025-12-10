@@ -1,37 +1,61 @@
-import { NavLink } from "react-router-dom";
+import { useState } from "react";
+import { SidebarItem } from "./SidebarItem";
+import {
+  IconLayoutDashboard,
+  IconChartLine,
+  IconTable,
+  IconSettings,
+} from "@tabler/icons-react";
 
 export function Sidebar() {
+  const [expanded, setExpanded] = useState(false);
+
+  const WIDTH_COLLAPSED = 70;
+  const WIDTH_EXPANDED = 220;
+
   return (
     <aside
-      className="navbar navbar-vertical navbar-expand-lg"
-      style={{ width: "240px" }}
+      onMouseEnter={() => setExpanded(true)}
+      onMouseLeave={() => setExpanded(false)}
+      style={{
+        width: expanded ? WIDTH_EXPANDED : WIDTH_COLLAPSED,
+        transition: "width 0.35s ease-in-out",
+        background: "#111827",
+        borderRight: "1px solid rgba(255,255,255,0.05)",
+        paddingTop: "20px",
+        height: "calc(100vh - 55px)", 
+        position: "fixed",
+        top: 55,
+        left: 0,
+        overflow: "hidden",
+        zIndex: 20,
+      }}
     >
-      <div className="container-fluid">
-        <ul className="navbar-nav pt-lg-3">
-          <li className="nav-item">
-            <NavLink to="/" end className="nav-link">
-              <span className="nav-link-title">Dashboard</span>
-            </NavLink>
-          </li>
-
-          <li className="nav-item">
-            <NavLink to="/prices" className="nav-link">
-              <span className="nav-link-title">Live Prices</span>
-            </NavLink>
-          </li>
-
-          <li className="nav-item">
-            <NavLink to="/assets" className="nav-link">
-              <span className="nav-link-title">Assets</span>
-            </NavLink>
-          </li>
-
-          <li className="nav-item">
-            <NavLink to="/settings" className="nav-link">
-              <span className="nav-link-title">Settings</span>
-            </NavLink>
-          </li>
-        </ul>
+      <div style={{ display: "flex", flexDirection: "column", marginTop: 10 }}>
+        <SidebarItem
+          to="/"
+          label="Dashboard"
+          icon={<IconLayoutDashboard size={22} />}
+          expanded={expanded}
+        />
+        <SidebarItem
+          to="/prices"
+          label="Prices"
+          icon={<IconChartLine size={22} />}
+          expanded={expanded}
+        />
+        <SidebarItem
+          to="/assets"
+          label="Assets"
+          icon={<IconTable size={22} />}
+          expanded={expanded}
+        />
+        <SidebarItem
+          to="/settings"
+          label="Settings"
+          icon={<IconSettings size={22} />}
+          expanded={expanded}
+        />
       </div>
     </aside>
   );
