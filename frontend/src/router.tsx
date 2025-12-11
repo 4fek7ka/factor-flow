@@ -1,3 +1,5 @@
+// src/router.tsx
+
 import { createBrowserRouter } from "react-router-dom";
 import { AppLayout } from "./layout/AppLayout";
 
@@ -5,6 +7,7 @@ import { PortfolioPage } from "./pages/PortfolioPage";
 import { PricesPage } from "./pages/PricesPage";
 import { AssetsPage } from "./pages/AssetsPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { SimulationPage } from "./pages/SimulationPage";
 
 export const router = createBrowserRouter([
   {
@@ -15,6 +18,7 @@ export const router = createBrowserRouter([
       { path: "prices", element: <PricesPage /> },
       { path: "assets", element: <AssetsPage /> },
       { path: "settings", element: <SettingsPage /> },
+      { path: "simulation", element: <SimulationPage /> },
     ],
   },
 ]);

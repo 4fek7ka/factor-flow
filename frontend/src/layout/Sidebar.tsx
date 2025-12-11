@@ -1,3 +1,5 @@
+// src/layout/Sidebar.tsx
+
 import { useState } from "react";
 import { SidebarItem } from "./SidebarItem";
 import {
@@ -5,6 +7,7 @@ import {
   IconChartLine,
   IconTable,
   IconSettings,
+  IconChartDots,
 } from "@tabler/icons-react";
 
 export function Sidebar() {
@@ -23,7 +26,7 @@ export function Sidebar() {
         background: "#111827",
         borderRight: "1px solid rgba(255,255,255,0.05)",
         paddingTop: "20px",
-        height: "calc(100vh - 55px)", 
+        height: "calc(100vh - 55px)",
         position: "fixed",
         top: 55,
         left: 0,
@@ -38,18 +41,29 @@ export function Sidebar() {
           icon={<IconLayoutDashboard size={22} />}
           expanded={expanded}
         />
+
         <SidebarItem
           to="/prices"
           label="Prices"
           icon={<IconChartLine size={22} />}
           expanded={expanded}
         />
+
         <SidebarItem
           to="/assets"
           label="Assets"
           icon={<IconTable size={22} />}
           expanded={expanded}
         />
+
+        {/* ➜ Новый пункт меню Simulation */}
+        <SidebarItem
+          to="/simulation"
+          label="Simulation"
+          icon={<IconChartDots size={22} />}
+          expanded={expanded}
+        />
+
         <SidebarItem
           to="/settings"
           label="Settings"
