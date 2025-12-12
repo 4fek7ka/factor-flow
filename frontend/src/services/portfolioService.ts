@@ -35,16 +35,18 @@ export function filterHistoryByPeriod(history: HistoryPoint[], period: Period) {
 
   const last = history[history.length - 1].timestamp;
   const seconds =
-    period === "week" ? 7 * 24 * 3600 :
-    period === "month" ? 30 * 24 * 3600 :
-    365 * 24 * 3600;
+    period === "week"
+      ? 7 * 24 * 3600
+      : period === "month"
+      ? 30 * 24 * 3600
+      : 365 * 24 * 3600;
 
   const cutoff = last - seconds;
   return history.filter((p) => p.timestamp >= cutoff);
 }
 
 /* ================================
-   📌 Адаптивный downsampling
+   📌 Downsampling (visual)
    ================================ */
 
 function downsample(xs: number[], ys: number[], target: number) {
@@ -52,19 +54,25 @@ function downsample(xs: number[], ys: number[], target: number) {
   if (n <= target) return { xs, ys };
 
   const step = Math.ceil(n / target);
-  const outX = [];
-  const outY = [];
+  const outX: number[] = [];
+  const outY: number[] = [];
 
   for (let i = 0; i < n; i += step) {
     outX.push(xs[i]);
     outY.push(ys[i]);
   }
 
+  // гарантируем последнюю точку
+  if (outX[outX.length - 1] !== xs[n - 1]) {
+    outX.push(xs[n - 1]);
+    outY.push(ys[n - 1]);
+  }
+
   return { xs: outX, ys: outY };
 }
 
 /* ================================
-   📌 Основная функция для графика
+   ✅ Экспорт, который у тебя импортируется
    ================================ */
 
 export function buildPortfolioSeries(history: HistoryPoint[], period: Period) {
@@ -80,20 +88,13 @@ export function buildPortfolioSeries(history: HistoryPoint[], period: Period) {
     base === 0 ? 0 : ((v - base) / base) * 100
   );
 
-  // 🎯 Целевое число точек для графика
   const target =
-    period === "week" ? 50 :
-    period === "month" ? 70 :
-    150; // year
+    period === "week" ? 50 : period === "month" ? 70 : 150;
 
   const { xs, ys } = downsample(rawTimestamps, rawPercentValues, target);
 
   return { timestamps: xs, percentValues: ys };
 }
-
-/* ================================
-   📌 Метрики (без изменений)
-   ================================ */
 
 export function buildTopMetrics(history: HistoryPoint[]) {
   if (history.length < 2) {
