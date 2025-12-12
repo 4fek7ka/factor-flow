@@ -1,22 +1,20 @@
-// src/services/monteCarloService.ts
-
 export type MonteCarloInput = {
-  startValue: number;      // начальное значение (например, 100)
-  driftPct: number;        // средний дневной рост (%)
-  volatilityPct: number;   // дневная волатильность (%)
-  horizonDays: number;     // горизонт прогноза в днях
-  simulations: number;     // количество симулируемых траекторий
+  startValue: number;
+  driftPct: number;
+  volatilityPct: number;
+  horizonDays: number;
+  simulations: number;
 };
 
 export type MonteCarloAdvancedOutput = {
-  timestamps: number[];    // 0..N (дни)
-  median: number[];        // медианная линия
-  upper: number[];         // верхняя граница (прямая линия в координатах время-значение)
-  lower: number[];         // нижняя граница (прямая линия)
-  paths: number[][];       // все сгенерированные траектории
+  timestamps: number[];
+  median: number[];
+  representative: number[];
+  upper: number[];
+  lower: number[];
+  paths: number[][];
 };
 
-// простая нормальная случайная величина N(0,1)
 function randomNormal(): number {
   let u = 0;
   let v = 0;
@@ -25,85 +23,81 @@ function randomNormal(): number {
   return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
-/**
- * Расширенный Monte Carlo:
- * - генерирует N траекторий
- * - считает медиану по каждой дате
- * - считает верхнюю/нижнюю границы:
- *   • в начале: ±5% от median[0]
- *   • в конце: среднее верхних 10% и нижних 10% значений
- *   • между началом и концом: линейная интерполяция (прямые линии)
- */
 export function runMonteCarloAdvanced(
   input: MonteCarloInput
 ): MonteCarloAdvancedOutput {
   const { startValue, driftPct, volatilityPct, horizonDays, simulations } =
     input;
 
-  // дни 0..N
   const timestamps = Array.from({ length: horizonDays + 1 }, (_, i) => i);
-
   const paths: number[][] = [];
 
-  // 1) Генерируем все траектории
+  // generate paths
   for (let s = 0; s < simulations; s++) {
     const path: number[] = [startValue];
-
     for (let i = 1; i <= horizonDays; i++) {
       const prev = path[i - 1];
       const noise = randomNormal() * volatilityPct;
       const next = prev * (1 + driftPct / 100 + noise / 100);
       path.push(next);
     }
-
     paths.push(path);
   }
 
-  // 2) Медиана по каждому дню
-  const median: number[] = timestamps.map((idx) => {
-    const values = paths.map((p) => p[idx]).sort((a, b) => a - b);
+  // median
+  const median: number[] = timestamps.map((i) => {
+    const values = paths.map((p) => p[i]).sort((a, b) => a - b);
     const mid = Math.floor(values.length / 2);
-    return values.length % 2 !== 0
+    return values.length % 2
       ? values[mid]
       : (values[mid - 1] + values[mid]) / 2;
   });
 
-  // 3) Границы по конечной дате на основе верхних/нижних 10%
-  const lastIndex = horizonDays;
-  const endValues = paths.map((p) => p[lastIndex]).sort((a, b) => a - b);
+  // representative path (closest to median)
+  let bestIdx = 0;
+  let bestDist = Infinity;
 
-  const k = Math.max(1, Math.floor(simulations * 0.1));
+  for (let k = 0; k < paths.length; k++) {
+    let dist = 0;
+    for (let i = 0; i < median.length; i++) {
+      const d = paths[k][i] - median[i];
+      dist += d * d;
+    }
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestIdx = k;
+    }
+  }
 
-  const lowSlice = endValues.slice(0, k);
-  const highSlice = endValues.slice(endValues.length - k);
+  const representative = paths[bestIdx];
+
+  // end bounds (top/bottom 20%)
+  const endValues = paths.map((p) => p[horizonDays]).sort((a, b) => a - b);
+  const k = Math.max(1, Math.floor(simulations * 0.2));
 
   const avg = (arr: number[]) =>
-    arr.reduce((sum, v) => sum + v, 0) / (arr.length || 1);
+    arr.reduce((s, v) => s + v, 0) / arr.length;
 
-  const lowerEnd = avg(lowSlice);
-  const upperEnd = avg(highSlice);
+  const lowerEnd = avg(endValues.slice(0, k));
+  const upperEnd = avg(endValues.slice(endValues.length - k));
 
-  // начало: узкий коридор ±5%
-  const lowerStart = median[0] * 0.95;
-  const upperStart = median[0] * 1.05;
+  // start bounds ±10%
+  const lowerStart = median[0] * 0.9;
+  const upperStart = median[0] * 1.1;
 
-  // 4) Строим прямые линии в координатах (день, значение)
   const lower: number[] = [];
   const upper: number[] = [];
 
   for (let i = 0; i <= horizonDays; i++) {
     const t = horizonDays === 0 ? 0 : i / horizonDays;
-
-    const l = lowerStart + (lowerEnd - lowerStart) * t;
-    const u = upperStart + (upperEnd - upperStart) * t;
-
-    lower.push(l);
-    upper.push(u);
+    lower.push(lowerStart + (lowerEnd - lowerStart) * t);
+    upper.push(upperStart + (upperEnd - upperStart) * t);
   }
 
   return {
     timestamps,
     median,
+    representative,
     upper,
     lower,
     paths,
