@@ -1,210 +1,160 @@
 // src/components/simulation/SimulationChartCard.tsx
 
-import { useEffect, useRef } from "react";
-import * as echarts from "echarts";
+import React, { useEffect, useRef } from "react";
+import * as echarts from "echarts/core";
+import { LineChart } from "echarts/charts";
+import { TooltipComponent, GridComponent } from "echarts/components";
+import { CanvasRenderer } from "echarts/renderers";
 
-import type { SimulationParams } from "./SimulationControls";
-import type { MonteCarloInput } from "../../services/monteCarloService";
+echarts.use([LineChart, TooltipComponent, GridComponent, CanvasRenderer]);
 
-import {
-  runMonteCarloSimple,
-  runMonteCarloAdvanced,
-} from "../../services/monteCarloService";
-
-type Props = {
-  mode: "simple" | "advanced";
-  params: SimulationParams;
-  startValue: number;
+export type SimulationChartCardProps = {
+  timestamps: number[]; // 0..N
+  median: number[];
+  upper: number[];      // прямая линия сверху (по интерполяции)
+  lower: number[];      // прямая линия снизу (по интерполяции)
+  cloud: number[][];
+  showCloud: boolean;
 };
 
-export function SimulationChartCard({ mode, params, startValue }: Props) {
-  const chartRef = useRef<HTMLDivElement>(null);
-  const chartInstance = useRef<echarts.ECharts | null>(null);
+export function SimulationChartCard({
+  timestamps,
+  median,
+  upper,
+  lower,
+  cloud,
+  showCloud,
+}: SimulationChartCardProps) {
+  const ref = useRef<HTMLDivElement>(null);
 
-  // INIT
   useEffect(() => {
-    if (!chartRef.current) return;
-    chartInstance.current = echarts.init(chartRef.current);
+    if (!ref.current) return;
+
+    const chart = echarts.init(ref.current);
+
+    // Облако симуляций
+    const cloudSeries = showCloud
+      ? cloud.map((path, idx) => ({
+          type: "line" as const,
+          name: `Path ${idx + 1}`,
+          data: timestamps.map((t, i) => [t, path[i]]),
+          showSymbol: false,
+          lineStyle: {
+            width: 1,
+            opacity: 0.12,
+            color: "#94a3b8",
+          },
+          silent: true,
+          animation: false,
+          z: 1,
+        }))
+      : [];
+
+    // Верхняя граница — прямая линия
+    const upperSeries = {
+      type: "line" as const,
+      name: "Upper",
+      data: timestamps.map((t, i) => [t, upper[i]]),
+      showSymbol: false,
+      lineStyle: {
+        width: 2,
+        color: "#22c55e",
+      },
+      animation: false,
+      z: 5,
+    };
+
+    // Нижняя граница — прямая линия
+    const lowerSeries = {
+      type: "line" as const,
+      name: "Lower",
+      data: timestamps.map((t, i) => [t, lower[i]]),
+      showSymbol: false,
+      lineStyle: {
+        width: 2,
+        color: "#ef4444",
+      },
+      animation: false,
+      z: 5,
+    };
+
+    // Основная "живая" траектория
+    const medianSeries = {
+      type: "line" as const,
+      name: "Median",
+      data: timestamps.map((t, i) => [t, median[i]]),
+      showSymbol: false,
+      lineStyle: {
+        width: 3,
+        color: "#0ea5e9",
+      },
+      z: 10,
+      animationDuration: 600,
+    };
+
+    const lastTs = timestamps.length > 0 ? timestamps[timestamps.length - 1] : 0;
+
+    const option = {
+      backgroundColor: "transparent",
+
+      tooltip: {
+        trigger: "axis",
+        valueFormatter: (v: number) => v.toFixed(2),
+      },
+
+      grid: {
+        left: 40,
+        right: 24,
+        top: 20,
+        bottom: 40,
+      },
+
+      xAxis: {
+        type: "value" as const,
+        min: 0,
+        max: lastTs,
+        boundaryGap: false,
+        axisLabel: {
+          color: "#64748b",
+          formatter: (v: number) => `${Math.round(v)}d`,
+        },
+        axisLine: { lineStyle: { color: "#334155" } },
+        splitLine: { lineStyle: { color: "#1e293b" } },
+      },
+
+      yAxis: {
+        type: "value" as const,
+        axisLabel: { color: "#94a3b8" },
+        axisLine: { lineStyle: { color: "#334155" } },
+        splitLine: { lineStyle: { color: "#1e293b" } },
+      },
+
+      series: [
+        ...cloudSeries,
+        upperSeries,
+        lowerSeries,
+        medianSeries,
+      ],
+    };
+
+    chart.setOption(option);
+
+    const resizeHandler = () => chart.resize();
+    window.addEventListener("resize", resizeHandler);
+
     return () => {
-      chartInstance.current?.dispose();
-      chartInstance.current = null;
+      window.removeEventListener("resize", resizeHandler);
+      chart.dispose();
     };
-  }, []);
-
-  // UPDATE
-  useEffect(() => {
-    if (!chartInstance.current) return;
-
-    const input: MonteCarloInput = {
-      startValue,
-      driftPct: params.driftPct,
-      volatilityPct: params.volatilityPct,
-      horizonDays: params.horizonDays,
-      simulations: params.simulations,
-    };
-
-    if (mode === "simple") {
-      const sim = runMonteCarloSimple(input);
-      chartInstance.current.clear();
-      chartInstance.current.setOption(buildSimpleOption(sim), true);
-    } else {
-      const sim = runMonteCarloAdvanced(input);
-      chartInstance.current.clear();
-      chartInstance.current.setOption(buildAdvancedOption(sim), true);
-    }
-  }, [mode, params, startValue]);
+  }, [timestamps, median, upper, lower, cloud, showCloud]);
 
   return (
     <div
-      ref={chartRef}
+      ref={ref}
       style={{
         width: "100%",
-        height: 420,
+        height: 380,
       }}
     />
   );
-}
-
-/* -------------------------------------------------------
-   SIMPLE MODE OPTION
--------------------------------------------------------- */
-function buildSimpleOption(sim: ReturnType<typeof runMonteCarloSimple>) {
-  const { timestamps, median, upper, lower } = sim;
-
-  return {
-    backgroundColor: "transparent",
-    animationDuration: 500,
-
-    tooltip: {
-      trigger: "axis",
-      formatter: (params: any) => {
-        const p = params[0];
-        const v = p.value[1];
-        return `<strong>${v.toFixed(2)}</strong>`;
-      },
-    },
-
-    grid: {
-      left: 40,
-      right: 40,
-      top: 20,
-      bottom: 40,
-    },
-
-    xAxis: {
-      type: "value",
-      axisLabel: { color: "#8895a7" },
-      axisLine: { lineStyle: { color: "#475569" } },
-    },
-
-    yAxis: {
-      type: "value",
-      axisLabel: { color: "#8895a7" },
-      axisLine: { lineStyle: { color: "#475569" } },
-      splitLine: { lineStyle: { color: "#1e293b" } },
-    },
-
-    series: [
-      {
-        type: "line",
-        name: "Upper",
-        data: timestamps.map((t, i) => [t, upper[i]]),
-        smooth: false,
-        showSymbol: false,
-        lineStyle: { width: 2, color: "#22c55e" },
-        opacity: 0.5,
-      },
-      {
-        type: "line",
-        name: "Lower",
-        data: timestamps.map((t, i) => [t, lower[i]]),
-        smooth: false,
-        showSymbol: false,
-        lineStyle: { width: 2, color: "#ef4444" },
-        opacity: 0.5,
-      },
-      {
-        type: "line",
-        name: "Median",
-        data: timestamps.map((t, i) => [t, median[i]]),
-        smooth: false,
-        showSymbol: false,
-        lineStyle: { width: 3, color: "#38bdf8" },
-      },
-    ],
-  };
-}
-
-/* -------------------------------------------------------
-   ADVANCED MODE OPTION
--------------------------------------------------------- */
-function buildAdvancedOption(sim: ReturnType<typeof runMonteCarloAdvanced>) {
-  const { timestamps, paths, median, p10, p90 } = sim;
-
-  const pathSeries = paths.map((path) => ({
-    type: "line",
-    data: timestamps.map((t, i) => [t, path[i]]),
-    smooth: false,
-    showSymbol: false,
-    lineStyle: {
-      width: 1,
-      color: "rgba(56,189,248,0.15)",
-    },
-    animation: false,
-  }));
-
-  return {
-    backgroundColor: "transparent",
-
-    tooltip: {
-      trigger: "axis",
-      formatter: (params: any) => {
-        const p = params[0];
-        const v = p.value[1];
-        return `<strong>${v.toFixed(2)}</strong>`;
-      },
-    },
-
-    grid: {
-      left: 40,
-      right: 40,
-      top: 20,
-      bottom: 40,
-    },
-
-    xAxis: {
-      type: "value",
-      axisLabel: { color: "#8895a7" },
-      axisLine: { lineStyle: { color: "#475569" } },
-    },
-
-    yAxis: {
-      type: "value",
-      axisLabel: { color: "#8895a7" },
-      axisLine: { lineStyle: { color: "#475569" } },
-      splitLine: { lineStyle: { color: "#1e293b" } },
-    },
-
-    series: [
-      ...pathSeries,
-      {
-        type: "line",
-        data: timestamps.map((t, i) => [t, p10[i]]),
-        showSymbol: false,
-        lineStyle: { width: 2, color: "#ef4444" },
-      },
-      {
-        type: "line",
-        data: timestamps.map((t, i) => [t, p90[i]]),
-        showSymbol: false,
-        lineStyle: { width: 2, color: "#22c55e" },
-      },
-      {
-        type: "line",
-        data: timestamps.map((t, i) => [t, median[i]]),
-        showSymbol: false,
-        lineStyle: { width: 3, color: "#38bdf8" },
-      },
-    ],
-  };
 }

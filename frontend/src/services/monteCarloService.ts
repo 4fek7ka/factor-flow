@@ -1,112 +1,111 @@
 // src/services/monteCarloService.ts
 
 export type MonteCarloInput = {
-  startValue: number;     // начальная стоимость
-  driftPct: number;       // дневной дрейф (%)
-  volatilityPct: number;  // дневная волатильность (%)
-  horizonDays: number;    // длительность симуляции в днях
-  simulations: number;    // количество траекторий (advanced)
-};
-
-export type MonteCarloSimpleOutput = {
-  timestamps: number[];
-  median: number[];
-  upper: number[];
-  lower: number[];
+  startValue: number;      // начальное значение (например, 100)
+  driftPct: number;        // средний дневной рост (%)
+  volatilityPct: number;   // дневная волатильность (%)
+  horizonDays: number;     // горизонт прогноза в днях
+  simulations: number;     // количество симулируемых траекторий
 };
 
 export type MonteCarloAdvancedOutput = {
-  timestamps: number[];
-  paths: number[][];      // N траекторий
-  median: number[];
-  p10: number[];
-  p90: number[];
+  timestamps: number[];    // 0..N (дни)
+  median: number[];        // медианная линия
+  upper: number[];         // верхняя граница (прямая линия в координатах время-значение)
+  lower: number[];         // нижняя граница (прямая линия)
+  paths: number[][];       // все сгенерированные траектории
 };
 
-/* ------------------------------------------------
-   RANDOM NORMAL (Box–Muller)
---------------------------------------------------- */
-function randomNormal() {
-  let u = 0, v = 0;
+// простая нормальная случайная величина N(0,1)
+function randomNormal(): number {
+  let u = 0;
+  let v = 0;
   while (u === 0) u = Math.random();
   while (v === 0) v = Math.random();
   return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
-/* ------------------------------------------------
-   ONE TRAJECTORY
---------------------------------------------------- */
-function generatePath(
-  start: number,
-  driftPct: number,
-  volPct: number,
-  horizon: number
-): number[] {
-  const drift = driftPct / 100;
-  const vol = volPct / 100;
+/**
+ * Расширенный Monte Carlo:
+ * - генерирует N траекторий
+ * - считает медиану по каждой дате
+ * - считает верхнюю/нижнюю границы:
+ *   • в начале: ±5% от median[0]
+ *   • в конце: среднее верхних 10% и нижних 10% значений
+ *   • между началом и концом: линейная интерполяция (прямые линии)
+ */
+export function runMonteCarloAdvanced(
+  input: MonteCarloInput
+): MonteCarloAdvancedOutput {
+  const { startValue, driftPct, volatilityPct, horizonDays, simulations } =
+    input;
 
-  const out = [start];
-  for (let i = 1; i <= horizon; i++) {
-    const prev = out[out.length - 1];
-    const shock = randomNormal();
-    const next = prev * (1 + drift + vol * shock);
-    out.push(next);
-  }
-  return out;
-}
-
-/* ------------------------------------------------
-   SIMPLE MODE: 3 TRAJECTORIES
---------------------------------------------------- */
-export function runMonteCarloSimple(input: MonteCarloInput): MonteCarloSimpleOutput {
-  const { startValue, driftPct, volatilityPct, horizonDays } = input;
-
-  const median = generatePath(startValue, driftPct, volatilityPct, horizonDays);
-  const upper = generatePath(startValue, driftPct, volatilityPct * 1.5, horizonDays);
-  const lower = generatePath(startValue, driftPct, volatilityPct * 0.5, horizonDays);
-
+  // дни 0..N
   const timestamps = Array.from({ length: horizonDays + 1 }, (_, i) => i);
-
-  return { timestamps, median, upper, lower };
-}
-
-/* ------------------------------------------------
-   PERCENTILE
---------------------------------------------------- */
-function percentile(arr: number[], p: number): number {
-  if (arr.length === 0) return 0;
-  const sorted = [...arr].sort((a, b) => a - b);
-  const idx = (p / 100) * (sorted.length - 1);
-  const lo = Math.floor(idx);
-  const hi = Math.ceil(idx);
-  const t = idx - lo;
-  if (hi >= sorted.length) return sorted[lo];
-  return sorted[lo] * (1 - t) + sorted[hi] * t;
-}
-
-/* ------------------------------------------------
-   ADVANCED MODE: MANY TRAJECTORIES
---------------------------------------------------- */
-export function runMonteCarloAdvanced(input: MonteCarloInput): MonteCarloAdvancedOutput {
-  const { startValue, driftPct, volatilityPct, horizonDays, simulations } = input;
 
   const paths: number[][] = [];
-  for (let i = 0; i < simulations; i++) {
-    paths.push(generatePath(startValue, driftPct, volatilityPct, horizonDays));
+
+  // 1) Генерируем все траектории
+  for (let s = 0; s < simulations; s++) {
+    const path: number[] = [startValue];
+
+    for (let i = 1; i <= horizonDays; i++) {
+      const prev = path[i - 1];
+      const noise = randomNormal() * volatilityPct;
+      const next = prev * (1 + driftPct / 100 + noise / 100);
+      path.push(next);
+    }
+
+    paths.push(path);
   }
 
-  const timestamps = Array.from({ length: horizonDays + 1 }, (_, i) => i);
+  // 2) Медиана по каждому дню
+  const median: number[] = timestamps.map((idx) => {
+    const values = paths.map((p) => p[idx]).sort((a, b) => a - b);
+    const mid = Math.floor(values.length / 2);
+    return values.length % 2 !== 0
+      ? values[mid]
+      : (values[mid - 1] + values[mid]) / 2;
+  });
 
-  const median: number[] = [];
-  const p10: number[] = [];
-  const p90: number[] = [];
+  // 3) Границы по конечной дате на основе верхних/нижних 10%
+  const lastIndex = horizonDays;
+  const endValues = paths.map((p) => p[lastIndex]).sort((a, b) => a - b);
 
-  for (let day = 0; day <= horizonDays; day++) {
-    const valuesAtDay = paths.map((path) => path[day]);
-    median.push(percentile(valuesAtDay, 50));
-    p10.push(percentile(valuesAtDay, 10));
-    p90.push(percentile(valuesAtDay, 90));
+  const k = Math.max(1, Math.floor(simulations * 0.1));
+
+  const lowSlice = endValues.slice(0, k);
+  const highSlice = endValues.slice(endValues.length - k);
+
+  const avg = (arr: number[]) =>
+    arr.reduce((sum, v) => sum + v, 0) / (arr.length || 1);
+
+  const lowerEnd = avg(lowSlice);
+  const upperEnd = avg(highSlice);
+
+  // начало: узкий коридор ±5%
+  const lowerStart = median[0] * 0.95;
+  const upperStart = median[0] * 1.05;
+
+  // 4) Строим прямые линии в координатах (день, значение)
+  const lower: number[] = [];
+  const upper: number[] = [];
+
+  for (let i = 0; i <= horizonDays; i++) {
+    const t = horizonDays === 0 ? 0 : i / horizonDays;
+
+    const l = lowerStart + (lowerEnd - lowerStart) * t;
+    const u = upperStart + (upperEnd - upperStart) * t;
+
+    lower.push(l);
+    upper.push(u);
   }
 
-  return { timestamps, paths, median, p10, p90 };
+  return {
+    timestamps,
+    median,
+    upper,
+    lower,
+    paths,
+  };
 }

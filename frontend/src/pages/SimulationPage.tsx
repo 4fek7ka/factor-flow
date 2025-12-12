@@ -1,23 +1,37 @@
 // src/pages/SimulationPage.tsx
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { SimulationControls } from "../components/simulation/SimulationControls";
 import type { SimulationParams } from "../components/simulation/SimulationControls";
 
 import { SimulationChartCard } from "../components/simulation/SimulationChartCard";
 
-export function SimulationPage() {
-  const [mode, setMode] = useState<"simple" | "advanced">("simple");
+import { runMonteCarloAdvanced } from "../services/monteCarloService";
 
+export function SimulationPage() {
   const [params, setParams] = useState<SimulationParams>({
     driftPct: 0.05,
     volatilityPct: 2.0,
     horizonDays: 90,
-    simulations: 200,
+    simulations: 50,
+    showCloud: false,
   });
 
   const startValue = 100;
+
+  /* ============================================================
+     Генерируем новые симуляции при изменении params
+     ============================================================ */
+  const sim = useMemo(() => {
+    return runMonteCarloAdvanced({
+      startValue,
+      driftPct: params.driftPct,
+      volatilityPct: params.volatilityPct,
+      horizonDays: params.horizonDays,
+      simulations: params.simulations,
+    });
+  }, [params, startValue]);
 
   return (
     <div>
@@ -29,63 +43,29 @@ export function SimulationPage() {
         </div>
       </div>
 
-      {/* MODE SWITCH */}
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          margin: "20px 0",
-        }}
-      >
-        <button
-          onClick={() => setMode("simple")}
-          style={{
-            ...modeButton,
-            background: mode === "simple" ? "#1e3a8a" : "#0f172a",
-          }}
-        >
-          Simple
-        </button>
-
-        <button
-          onClick={() => setMode("advanced")}
-          style={{
-            ...modeButton,
-            background: mode === "advanced" ? "#1e3a8a" : "#0f172a",
-          }}
-        >
-          Advanced
-        </button>
-      </div>
-
-      {/* CHART (наверху) */}
+      {/* CHART */}
       <div
         style={{
           background: "#0f172a",
           border: "1px solid rgba(255,255,255,0.06)",
           borderRadius: 8,
           marginTop: 10,
-          marginBottom: 24,
+          marginBottom: 16,
+          padding: 8,
         }}
       >
         <SimulationChartCard
-          mode={mode}
-          params={params}
-          startValue={startValue}
+          timestamps={sim.timestamps}
+          median={sim.median}
+          upper={sim.upper}
+          lower={sim.lower}
+          cloud={sim.paths}
+          showCloud={params.showCloud}
         />
       </div>
 
-      {/* CONTROLS (вкладка настроек — ВНИЗУ СТРАНИЦЫ) */}
-      <SimulationControls value={params} onChange={setParams} mode={mode} />
+      {/* CONTROLS */}
+      <SimulationControls value={params} onChange={setParams} />
     </div>
   );
 }
-
-const modeButton: React.CSSProperties = {
-  padding: "8px 16px",
-  borderRadius: 6,
-  border: "1px solid rgba(255,255,255,0.1)",
-  color: "#e2e8f0",
-  cursor: "pointer",
-  fontSize: 14,
-};
