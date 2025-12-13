@@ -5,6 +5,7 @@ export type SimulationParams = {
   scenario: Scenario;
   simulations: 50 | 100 | 200;
   showCloud: boolean;
+  showMedian: boolean;
 };
 
 type Props = {
@@ -33,7 +34,6 @@ function Chip({
         background: active ? "rgba(14,165,233,0.22)" : "rgba(15,23,42,0.6)",
         color: active ? "#e5e7eb" : "rgba(229,231,235,0.85)",
         fontWeight: 600,
-        letterSpacing: 0.2,
       }}
     >
       {label}
@@ -55,7 +55,6 @@ function Section({
           fontSize: 12,
           color: "rgba(148,163,184,0.9)",
           fontWeight: 700,
-          letterSpacing: 0.25,
           marginBottom: 8,
           textTransform: "uppercase",
         }}
@@ -107,9 +106,6 @@ export function SimulationControls({ value, onChange }: Props) {
             />
           ))}
         </div>
-        <div style={{ marginTop: 8, fontSize: 12, color: "rgba(148,163,184,0.85)" }}>
-          Risk regime (volatility scaling)
-        </div>
       </Section>
 
       <Section title="Simulations">
@@ -125,29 +121,23 @@ export function SimulationControls({ value, onChange }: Props) {
         </div>
       </Section>
 
-      <Section title="Simulation cloud">
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button
-            type="button"
-            className="btn btn-sm"
-            onClick={() => onChange({ ...value, showCloud: !value.showCloud })}
-            style={{
-              borderRadius: 999,
-              padding: "6px 12px",
-              border: "1px solid rgba(255,255,255,0.10)",
-              background: value.showCloud
-                ? "rgba(34,197,94,0.18)"
-                : "rgba(15,23,42,0.6)",
-              color: value.showCloud ? "#e5e7eb" : "rgba(229,231,235,0.85)",
-              fontWeight: 700,
-            }}
-          >
-            {value.showCloud ? "On" : "Off"}
-          </button>
+      <Section title="Visual layers">
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <Chip
+            label={`Cloud ${value.showCloud ? "On" : "Off"}`}
+            active={value.showCloud}
+            onClick={() =>
+              onChange({ ...value, showCloud: !value.showCloud })
+            }
+          />
 
-          <div style={{ fontSize: 12, color: "rgba(148,163,184,0.85)" }}>
-            Show simulated paths behind the forecast
-          </div>
+          <Chip
+            label={`Median ${value.showMedian ? "On" : "Off"}`}
+            active={value.showMedian}
+            onClick={() =>
+              onChange({ ...value, showMedian: !value.showMedian })
+            }
+          />
         </div>
       </Section>
     </div>

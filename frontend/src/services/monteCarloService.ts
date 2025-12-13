@@ -2,8 +2,8 @@ export type Scenario = "conservative" | "baseline" | "stress";
 
 export type MonteCarloInput = {
   startValue: number;
-  drift: number;       // μ, log-return per day (from history)
-  volatility: number;  // σ, log-return std per day (from history)
+  drift: number;       // μ, log-return per day
+  volatility: number;  // σ, log-return std per day
   horizonDays: number;
   simulations: number;
   scenario: Scenario;
@@ -24,13 +24,33 @@ const SCENARIO_VOL_MULTIPLIER: Record<Scenario, number> = {
   stress: 1.5,
 };
 
-function randomNormal(): number {
+/* ================================
+   Deterministic RNG (fixed seed)
+   ================================ */
+
+const FIXED_SEED = 42;
+
+function mulberry32(seed: number) {
+  let t = seed >>> 0;
+  return function () {
+    t += 0x6d2b79f5;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function randomNormal(rng: () => number): number {
   let u = 0;
   let v = 0;
-  while (u === 0) u = Math.random();
-  while (v === 0) v = Math.random();
+  while (u === 0) u = rng();
+  while (v === 0) v = rng();
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
+
+/* ================================
+   Monte Carlo Simulation (GBM)
+   ================================ */
 
 export function runMonteCarloAdvanced(
   input: MonteCarloInput
@@ -45,34 +65,34 @@ export function runMonteCarloAdvanced(
   } = input;
 
   const sigma = volatility * SCENARIO_VOL_MULTIPLIER[scenario];
+  const rng = mulberry32(FIXED_SEED);
 
   const timestamps = Array.from({ length: horizonDays + 1 }, (_, i) => i);
   const paths: number[][] = [];
 
-  // === 1) generate paths ===
+  // 1) paths
   for (let s = 0; s < simulations; s++) {
     const path: number[] = [startValue];
 
     for (let t = 1; t <= horizonDays; t++) {
       const prev = path[t - 1];
-      const z = randomNormal();
-      const next = prev * Math.exp(drift + sigma * z);
-      path.push(next);
+      const z = randomNormal(rng);
+      path.push(prev * Math.exp(drift + sigma * z));
     }
 
     paths.push(path);
   }
 
-  // === 2) median path ===
-  const median: number[] = timestamps.map((i) => {
+  // 2) median
+  const median = timestamps.map((i) => {
     const values = paths.map((p) => p[i]).sort((a, b) => a - b);
-    const mid = Math.floor(values.length / 2);
+    const m = Math.floor(values.length / 2);
     return values.length % 2
-      ? values[mid]
-      : (values[mid - 1] + values[mid]) / 2;
+      ? values[m]
+      : (values[m - 1] + values[m]) / 2;
   });
 
-  // === 3) representative path (closest to median) ===
+  // 3) representative
   let bestIdx = 0;
   let bestDist = Infinity;
 
@@ -90,19 +110,19 @@ export function runMonteCarloAdvanced(
 
   const representative = paths[bestIdx];
 
-  // === 4) probabilistic bounds (top/bottom 20% at horizon) ===
+  // 4) horizon bounds (20%)
   const endValues = paths.map((p) => p[horizonDays]).sort((a, b) => a - b);
   const k = Math.max(1, Math.floor(simulations * 0.2));
 
-  const avg = (arr: number[]) =>
-    arr.reduce((s, v) => s + v, 0) / arr.length;
+  const avg = (xs: number[]) =>
+    xs.reduce((s, v) => s + v, 0) / xs.length;
 
   const lowerEnd = avg(endValues.slice(0, k));
   const upperEnd = avg(endValues.slice(endValues.length - k));
 
-  // === 5) start bounds ±10% ===
-  const lowerStart = median[0] * 0.9;
-  const upperStart = median[0] * 1.1;
+  // 5) start bounds ±5%
+  const lowerStart = median[0] * 0.95;
+  const upperStart = median[0] * 1.05;
 
   const lower: number[] = [];
   const upper: number[] = [];

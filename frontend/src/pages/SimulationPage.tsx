@@ -37,9 +37,10 @@ export function SimulationPage() {
     scenario: "baseline",
     simulations: 50,
     showCloud: false,
+    showMedian: false, // ⬅️ медиана по умолчанию выключена
   });
 
-  // Use same history logic as PortfolioPage (filtered by period)
+  // history slice — зависит ТОЛЬКО от horizon
   const filteredHistory = useMemo(() => {
     const period = periodFromHorizon(params.horizonDays);
     return filterHistoryByPeriod(history, period);
@@ -51,6 +52,8 @@ export function SimulationPage() {
 
   const startValue = 100;
 
+  // ⬇️ ВАЖНО:
+  // showCloud / showMedian НЕ участвуют в расчётах
   const sim = useMemo(() => {
     return runMonteCarloAdvanced({
       startValue,
@@ -60,9 +63,15 @@ export function SimulationPage() {
       simulations: params.simulations,
       scenario: params.scenario,
     });
-  }, [drift, volatility, params, startValue]);
+  }, [
+    drift,
+    volatility,
+    params.horizonDays,
+    params.simulations,
+    params.scenario,
+    startValue,
+  ]);
 
-  // Metrics
   const finalMedian = sim.median[sim.median.length - 1] ?? startValue;
   const finalUpper = sim.upper[sim.upper.length - 1] ?? startValue;
   const finalLower = sim.lower[sim.lower.length - 1] ?? startValue;
@@ -71,8 +80,7 @@ export function SimulationPage() {
     if (!sim.paths.length) return 0;
     let wins = 0;
     for (const p of sim.paths) {
-      const last = p[p.length - 1];
-      if (last > startValue) wins++;
+      if (p[p.length - 1] > startValue) wins++;
     }
     return (wins / sim.paths.length) * 100;
   }, [sim.paths, startValue]);
@@ -86,7 +94,7 @@ export function SimulationPage() {
         </div>
       </div>
 
-      {/* CHART + RIGHT CONTROLS */}
+      {/* CHART + CONTROLS */}
       <div
         style={{
           display: "grid",
@@ -96,7 +104,6 @@ export function SimulationPage() {
           marginTop: 10,
         }}
       >
-        {/* Chart */}
         <div
           style={{
             background: "#0f172a",
@@ -113,92 +120,52 @@ export function SimulationPage() {
             lower={sim.lower}
             cloud={sim.paths}
             showCloud={params.showCloud}
+            showMedian={params.showMedian}
           />
         </div>
 
-        {/* Controls */}
         <SimulationControls value={params} onChange={setParams} />
       </div>
 
       {/* METRICS */}
-      <div
-        className="row row-cards"
-        style={{ marginTop: 14, marginBottom: 4 }}
-      >
+      <div className="row row-cards" style={{ marginTop: 14 }}>
         <div className="col-12 col-md-4 d-flex">
-          <div
-            className="card card-sm w-100"
-            style={{
-              background: "#0f172a",
-              border: "1px solid rgba(255,255,255,0.06)",
-            }}
-          >
-            <div className="card-body" style={{ padding: "12px 14px" }}>
-              <div style={{ color: "rgba(148,163,184,0.9)", fontSize: 12 }}>
-                Median (T)
-              </div>
-              <div style={{ fontSize: 20, fontWeight: 800, marginTop: 4 }}>
+          <div className="card card-sm w-100">
+            <div className="card-body">
+              <div className="text-muted">Median (T)</div>
+              <div style={{ fontSize: 20, fontWeight: 800 }}>
                 {formatMoney(finalMedian)}
               </div>
-              <div style={{ marginTop: 6, fontSize: 12, color: "rgba(148,163,184,0.85)" }}>
-                Based on median of simulated outcomes
-              </div>
             </div>
           </div>
         </div>
 
         <div className="col-12 col-md-4 d-flex">
-          <div
-            className="card card-sm w-100"
-            style={{
-              background: "#0f172a",
-              border: "1px solid rgba(255,255,255,0.06)",
-            }}
-          >
-            <div className="card-body" style={{ padding: "12px 14px" }}>
-              <div style={{ color: "rgba(148,163,184,0.9)", fontSize: 12 }}>
-                P(Value &gt; Start)
-              </div>
-              <div style={{ fontSize: 20, fontWeight: 800, marginTop: 4 }}>
+          <div className="card card-sm w-100">
+            <div className="card-body">
+              <div className="text-muted">P(Value &gt; Start)</div>
+              <div style={{ fontSize: 20, fontWeight: 800 }}>
                 {probGain.toFixed(0)}%
               </div>
-              <div style={{ marginTop: 6, fontSize: 12, color: "rgba(148,163,184,0.85)" }}>
-                Share of paths ending above start
-              </div>
             </div>
           </div>
         </div>
 
         <div className="col-12 col-md-4 d-flex">
-          <div
-            className="card card-sm w-100"
-            style={{
-              background: "#0f172a",
-              border: "1px solid rgba(255,255,255,0.06)",
-            }}
-          >
-            <div className="card-body" style={{ padding: "12px 14px" }}>
-              <div style={{ color: "rgba(148,163,184,0.9)", fontSize: 12 }}>
-                Expected range (T)
-              </div>
-              <div style={{ fontSize: 18, fontWeight: 800, marginTop: 6 }}>
-                {formatMoney(finalLower)}{" "}
-                <span style={{ color: "rgba(148,163,184,0.85)", fontWeight: 700 }}>
-                  –
-                </span>{" "}
-                {formatMoney(finalUpper)}
-              </div>
-              <div style={{ marginTop: 6, fontSize: 12, color: "rgba(148,163,184,0.85)" }}>
-                Upper/Lower bounds at horizon
+          <div className="card card-sm w-100">
+            <div className="card-body">
+              <div className="text-muted">Expected range (T)</div>
+              <div style={{ fontSize: 18, fontWeight: 800 }}>
+                {formatMoney(finalLower)} – {formatMoney(finalUpper)}
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Debug-ish info (small, but useful for now) */}
-      <div style={{ marginTop: 10, fontSize: 12, color: "rgba(148,163,184,0.85)" }}>
-        Estimated from history: drift={drift.toFixed(5)}, volatility={volatility.toFixed(5)} (log-returns/day)
+      {/* DEBUG */}
+      <div style={{ marginTop: 10, fontSize: 12, color: "#94a3b8" }}>
+        drift={drift.toFixed(5)}, volatility={volatility.toFixed(5)}
       </div>
     </div>
   );
