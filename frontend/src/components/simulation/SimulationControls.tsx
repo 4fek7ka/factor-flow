@@ -6,6 +6,7 @@ export type SimulationParams = {
   simulations: 50 | 100 | 200;
   showCloud: boolean;
   showMedian: boolean;
+  showRepresentative: boolean; // ⬅️ NEW
 };
 
 type Props = {
@@ -136,6 +137,17 @@ export function SimulationControls({ value, onChange }: Props) {
             active={value.showMedian}
             onClick={() =>
               onChange({ ...value, showMedian: !value.showMedian })
+            }
+          />
+
+          <Chip
+            label={`Main ${value.showRepresentative ? "On" : "Off"}`}
+            active={value.showRepresentative}
+            onClick={() =>
+              onChange({
+                ...value,
+                showRepresentative: !value.showRepresentative,
+              })
             }
           />
         </div>

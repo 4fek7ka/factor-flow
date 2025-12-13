@@ -37,10 +37,10 @@ export function SimulationPage() {
     scenario: "baseline",
     simulations: 50,
     showCloud: false,
-    showMedian: false, // ⬅️ медиана по умолчанию выключена
+    showMedian: false,
+    showRepresentative: true, // ⬅️ NEW (default ON)
   });
 
-  // history slice — зависит ТОЛЬКО от horizon
   const filteredHistory = useMemo(() => {
     const period = periodFromHorizon(params.horizonDays);
     return filterHistoryByPeriod(history, period);
@@ -52,8 +52,6 @@ export function SimulationPage() {
 
   const startValue = 100;
 
-  // ⬇️ ВАЖНО:
-  // showCloud / showMedian НЕ участвуют в расчётах
   const sim = useMemo(() => {
     return runMonteCarloAdvanced({
       startValue,
@@ -94,7 +92,6 @@ export function SimulationPage() {
         </div>
       </div>
 
-      {/* CHART + CONTROLS */}
       <div
         style={{
           display: "grid",
@@ -121,13 +118,13 @@ export function SimulationPage() {
             cloud={sim.paths}
             showCloud={params.showCloud}
             showMedian={params.showMedian}
+            showRepresentative={params.showRepresentative} // ⬅️ NEW
           />
         </div>
 
         <SimulationControls value={params} onChange={setParams} />
       </div>
 
-      {/* METRICS */}
       <div className="row row-cards" style={{ marginTop: 14 }}>
         <div className="col-12 col-md-4 d-flex">
           <div className="card card-sm w-100">
@@ -163,7 +160,6 @@ export function SimulationPage() {
         </div>
       </div>
 
-      {/* DEBUG */}
       <div style={{ marginTop: 10, fontSize: 12, color: "#94a3b8" }}>
         drift={drift.toFixed(5)}, volatility={volatility.toFixed(5)}
       </div>

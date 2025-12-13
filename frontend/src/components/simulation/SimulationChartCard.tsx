@@ -16,11 +16,11 @@ echarts.use([
 
 const TARGET_POINTS = 250;
 
-// нейтральные границы
 const BOUND_COLOR = "#64748b";
-
-// белая, заметная заливка диапазона
 const RANGE_FILL = "rgba(255, 255, 255, 0.12)";
+
+const UPPER_START = 5;
+const LOWER_START = -5;
 
 export type SimulationChartCardProps = {
   timestamps: number[];
@@ -31,6 +31,7 @@ export type SimulationChartCardProps = {
   cloud: number[][];
   showCloud: boolean;
   showMedian: boolean;
+  showRepresentative?: boolean; // ⬅️ NEW
 };
 
 function resample<T>(arr: T[], target: number): T[] {
@@ -46,6 +47,20 @@ function resample<T>(arr: T[], target: number): T[] {
   return res;
 }
 
+function toPercent(values: number[]): number[] {
+  if (values.length === 0) return values;
+  const base = values[0];
+  if (!Number.isFinite(base) || base === 0) return values.map(() => 0);
+  return values.map((v) => ((v - base) / base) * 100);
+}
+
+function shiftToStart(values: number[], targetStart: number): number[] {
+  if (values.length === 0) return values;
+  const first = values[0];
+  const delta = targetStart - first;
+  return values.map((v) => v + delta);
+}
+
 export function SimulationChartCard({
   timestamps,
   median,
@@ -55,11 +70,13 @@ export function SimulationChartCard({
   cloud,
   showCloud,
   showMedian,
+  showRepresentative = true, // ⬅️ default ON
 }: SimulationChartCardProps) {
   const ref = useRef<HTMLDivElement>(null);
   const chartRef = useRef<EChartsType | null>(null);
 
-  // INIT ONCE
+  const yDomainRef = useRef<{ min: number; max: number } | null>(null);
+
   useEffect(() => {
     if (!ref.current) return;
 
@@ -76,19 +93,43 @@ export function SimulationChartCard({
     };
   }, []);
 
-  // UPDATE
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
 
-    const ts = resample(timestamps, TARGET_POINTS);
-    const med = resample(median, TARGET_POINTS);
-    const rep = resample(representative, TARGET_POINTS);
-    const up = resample(upper, TARGET_POINTS);
-    const low = resample(lower, TARGET_POINTS);
+    const medianPct = toPercent(median);
+    const repPct = toPercent(representative);
+    const upperPct = shiftToStart(toPercent(upper), UPPER_START);
+    const lowerPct = shiftToStart(toPercent(lower), LOWER_START);
+    const cloudPct = cloud.map(toPercent);
 
-    const cloudOpacity = showCloud ? 0.08 : 0;
-    const medianOpacity = showMedian ? 0.6 : 0; // чуть заметнее
+    if (!yDomainRef.current) {
+      const all = [
+        ...medianPct,
+        ...repPct,
+        ...upperPct,
+        ...lowerPct,
+        ...cloudPct.flat(),
+      ];
+
+      const min = Math.min(...all);
+      const max = Math.max(...all);
+      const pad = (max - min) * 0.08;
+
+      yDomainRef.current = { min: min - pad, max: max + pad };
+    }
+
+    const yDomain = yDomainRef.current;
+
+    const ts = resample(timestamps, TARGET_POINTS);
+    const med = resample(medianPct, TARGET_POINTS);
+    const rep = resample(repPct, TARGET_POINTS);
+    const up = resample(upperPct, TARGET_POINTS);
+    const low = resample(lowerPct, TARGET_POINTS);
+
+    const cloudOpacity = showCloud ? 0.14 : 0;
+    const medianOpacity = showMedian ? 0.6 : 0;
+    const repOpacity = showRepresentative ? 0.9 : 0;
 
     const option: EChartsCoreOption = {
       backgroundColor: "transparent",
@@ -98,7 +139,7 @@ export function SimulationChartCard({
 
       tooltip: {
         trigger: "axis",
-        valueFormatter: (v: number) => v.toFixed(2),
+        valueFormatter: (v: number) => `${v.toFixed(2)}%`,
       },
 
       grid: {
@@ -112,6 +153,7 @@ export function SimulationChartCard({
         type: "value",
         min: 0,
         max: ts[ts.length - 1],
+        animation: false,
         axisLabel: {
           color: "#94a3b8",
           formatter: (v: number) => `${Math.round(v)}d`,
@@ -122,116 +164,99 @@ export function SimulationChartCard({
 
       yAxis: {
         type: "value",
-        axisLabel: { color: "#94a3b8" },
+        min: yDomain.min,
+        max: yDomain.max,
+        animation: false,
+        axisLabel: {
+          color: "#94a3b8",
+          formatter: (v: number) => `${v}%`,
+        },
         axisLine: { lineStyle: { color: "#334155" } },
         splitLine: { lineStyle: { color: "#1e293b" } },
       },
 
       series: [
-        // ===== CLOUD =====
-        ...cloud.map((p) => {
-          const r = resample(p, TARGET_POINTS);
-          return {
-            type: "line",
-            data: ts.map((t, i) => [t, r[i]]),
-            showSymbol: false,
-            silent: true,
-            animation: false,
-            tooltip: { show: false },
-            emphasis: { disabled: true },
-            lineStyle: {
-              color: "#64748b",
-              width: 1,
-              opacity: cloudOpacity,
-            },
-            z: 1,
-          };
-        }),
+        // CLOUD
+        ...cloudPct.map((p) => ({
+          type: "line",
+          data: ts.map((t, i) => [t, resample(p, TARGET_POINTS)[i]]),
+          showSymbol: false,
+          silent: true,
+          animation: false,
+          tooltip: { show: false },
+          emphasis: { disabled: true },
+          lineStyle: {
+            color: "#64748b",
+            width: 1,
+            opacity: cloudOpacity,
+          },
+          z: 1,
+        })),
 
-        // ===== RANGE =====
+        // RANGE
         {
           type: "custom",
           silent: true,
+          animation: false,
           data: [0],
           z: 2,
-          tooltip: { show: false },
-          emphasis: { disabled: true },
-          renderItem: (_params: any, api: any) => {
+          renderItem: (_p: any, api: any) => {
             const points: number[][] = [];
-
-            for (let i = 0; i < ts.length; i++) {
-              points.push(api.coord([ts[i], up[i]]));
-            }
-            for (let i = ts.length - 1; i >= 0; i--) {
-              points.push(api.coord([ts[i], low[i]]));
-            }
-
-            return {
-              type: "polygon",
-              shape: { points },
-              style: {
-                fill: RANGE_FILL,
-                stroke: "none",
-              },
-            };
+            for (let i = 0; i < ts.length; i++) points.push(api.coord([ts[i], up[i]]));
+            for (let i = ts.length - 1; i >= 0; i--) points.push(api.coord([ts[i], low[i]]));
+            return { type: "polygon", shape: { points }, style: { fill: RANGE_FILL } };
           },
         },
 
-        // ===== LOWER =====
+        // LOWER
         {
-          name: "Lower",
           type: "line",
           data: ts.map((t, i) => [t, low[i]]),
           showSymbol: false,
-          lineStyle: {
-            color: BOUND_COLOR,
-            width: 2,
-            opacity: 0.75,
-          },
+          animation: false,
+          silent: true,
+          lineStyle: { color: BOUND_COLOR, width: 2, opacity: 0.7 },
           z: 4,
         },
 
-        // ===== UPPER =====
+        // UPPER
         {
-          name: "Upper",
           type: "line",
           data: ts.map((t, i) => [t, up[i]]),
           showSymbol: false,
-          lineStyle: {
-            color: BOUND_COLOR,
-            width: 2,
-            opacity: 0.75,
-          },
+          animation: false,
+          silent: true,
+          lineStyle: { color: BOUND_COLOR, width: 2, opacity: 0.7 },
           z: 4,
         },
 
-        // ===== MEDIAN (красная, поверх всех) =====
+        // MEDIAN
         {
-          name: "Median",
           type: "line",
           data: ts.map((t, i) => [t, med[i]]),
           showSymbol: false,
           tooltip: showMedian ? undefined : { show: false },
           emphasis: showMedian ? undefined : { disabled: true },
           lineStyle: {
-            color: "#ef4444",   // 🔴 красный
+            color: "#ef4444",
             width: 2,
             type: "dashed",
             opacity: medianOpacity,
           },
-          z: 10,               // ⬆️ поверх всех
+          z: 10,
         },
 
-        // ===== REPRESENTATIVE =====
+        // REPRESENTATIVE (TOGGLE)
         {
-          name: "Representative",
           type: "line",
           data: ts.map((t, i) => [t, rep[i]]),
           showSymbol: false,
+          tooltip: showRepresentative ? undefined : { show: false },
+          emphasis: showRepresentative ? undefined : { disabled: true },
           lineStyle: {
             color: "#0ea5e9",
             width: 2,
-            opacity: 0.9,
+            opacity: repOpacity,
           },
           z: 8,
         },
@@ -248,6 +273,7 @@ export function SimulationChartCard({
     cloud,
     showCloud,
     showMedian,
+    showRepresentative,
   ]);
 
   return <div ref={ref} style={{ width: "100%", height: 380 }} />;

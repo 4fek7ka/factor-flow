@@ -14,20 +14,6 @@ export type AssetRow = {
   sparkline: number[];
 };
 
-const ASSET_NAMES: Record<string, string> = {
-  BTC: "Bitcoin",
-  WBTC: "Wrapped BTC",
-  ETH: "Ethereum",
-  SOL: "Solana",
-  TON: "Toncoin",
-  USDC: "USD Coin",
-  USDT: "Tether",
-  DAI: "Dai",
-  UNI: "Uniswap",
-  DOGE: "Dogecoin",
-  SHIB: "Shiba Inu",
-};
-
 /**
  * Формирует таблицу активов:
  * - price
