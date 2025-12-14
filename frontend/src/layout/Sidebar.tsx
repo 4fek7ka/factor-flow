@@ -41,14 +41,6 @@ export function Sidebar() {
           icon={<IconLayoutDashboard size={22} />}
           expanded={expanded}
         />
-
-        <SidebarItem
-          to="/prices"
-          label="Prices"
-          icon={<IconChartLine size={22} />}
-          expanded={expanded}
-        />
-
         <SidebarItem
           to="/assets"
           label="Assets"
@@ -64,12 +56,7 @@ export function Sidebar() {
           expanded={expanded}
         />
 
-        <SidebarItem
-          to="/settings"
-          label="Settings"
-          icon={<IconSettings size={22} />}
-          expanded={expanded}
-        />
+       
       </div>
     </aside>
   );

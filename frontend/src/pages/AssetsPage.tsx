@@ -1,5 +1,3 @@
-// src/pages/AssetsPage.tsx
-
 import { useMemo } from "react";
 import historyJson from "../data/mock-history.json";
 
@@ -16,7 +14,7 @@ export function AssetsPage() {
   const history = historyJson as unknown as HistoryPoint[];
   const assets = useMemo(() => buildAssetsTable(history), [history]);
 
-  // Фейковые данные
+  // mock-данные
   const fakeMarketCap = 3_140_000_000_000;
   const fakeChangePct = 1.75;
   const fakeSpark = [1, 2, 3, 5, 4, 5, 5.2, 5.1, 5.3];
@@ -26,7 +24,6 @@ export function AssetsPage() {
   const fakeEthDom = 12.8;
   const fakeAltDom = 100 - fakeBtcDom - fakeEthDom;
 
-  // Бутафорный топ-гейнер (7 дней)
   const fakeTopGainer = {
     name: "Solana",
     symbol: "SOL",
@@ -36,14 +33,8 @@ export function AssetsPage() {
 
   return (
     <div>
-      <div className="page-header mb-2">
-        <h2 className="page-title">Assets</h2>
-        <div className="text-muted">Market overview (24h)</div>
-      </div>
-
-      {/* Блок карточек */}
-      <div className="row row-cards mb-3" style={{ marginBottom: 18 }}>
-        {/* Market Cap */}
+      {/* Верхний блок карточек — БЕЗ заголовков страницы */}
+      <div className="row row-cards mb-2">
         <div className="col-12 col-md-6 col-lg-3 d-flex">
           <MarketCapCard
             capUsd={fakeMarketCap}
@@ -52,17 +43,18 @@ export function AssetsPage() {
           />
         </div>
 
-        {/* Fear & Greed */}
         <div className="col-12 col-md-6 col-lg-3 d-flex">
           <FearGreedCard value={fakeFearIndex} />
         </div>
 
-        {/* BTC / ETH / ALT Dominance */}
         <div className="col-12 col-md-6 col-lg-3 d-flex">
-          <BtcEthAltCard btc={fakeBtcDom} eth={fakeEthDom} alt={fakeAltDom} />
+          <BtcEthAltCard
+            btc={fakeBtcDom}
+            eth={fakeEthDom}
+            alt={fakeAltDom}
+          />
         </div>
 
-        {/* Top Gainer (7d) */}
         <div className="col-12 col-md-6 col-lg-3 d-flex">
           <TopGainer7dCard
             name={fakeTopGainer.name}
@@ -74,7 +66,9 @@ export function AssetsPage() {
       </div>
 
       {/* Таблица активов */}
-      <AssetsTable assets={assets} />
+      <div style={{ marginTop: 15 }}>
+        <AssetsTable assets={assets} />
+      </div>
     </div>
   );
 }
