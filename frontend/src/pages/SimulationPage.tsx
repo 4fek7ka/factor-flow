@@ -34,10 +34,12 @@ export function SimulationPage() {
     showCloud: false,
     showMedian: false,
     showRepresentative: true,
-    showRange: true,
 
-    // NEW: Quantile Fan
-    showFan: false,
+    // Range: last + OFF by default
+    showRange: false,
+
+    // Fan: second + ON by default
+    showFan: true,
   });
 
   const filteredHistory = useMemo(() => {
@@ -122,11 +124,11 @@ export function SimulationPage() {
                   showRepresentative: !p.showRepresentative,
                 }))
               }
-              onToggleRange={() =>
-                setParams((p) => ({ ...p, showRange: !p.showRange }))
-              }
               onToggleFan={() =>
                 setParams((p) => ({ ...p, showFan: !p.showFan }))
+              }
+              onToggleRange={() =>
+                setParams((p) => ({ ...p, showRange: !p.showRange }))
               }
             />
           </div>

@@ -42,7 +42,7 @@ export type SimulationChartCardProps = {
   showRepresentative?: boolean;
   showRange: boolean;
 
-  // NEW: Quantile Fan
+  // Quantile Fan
   showFan?: boolean;
 
   onToggleCloud?: () => void;
@@ -50,7 +50,7 @@ export type SimulationChartCardProps = {
   onToggleRepresentative?: () => void;
   onToggleRange?: () => void;
 
-  // NEW: Quantile Fan
+  // Quantile Fan
   onToggleFan?: () => void;
 };
 
@@ -219,6 +219,7 @@ export function SimulationChartCard({
       `}</style>
 
       <div className="sim-legend">
+        {/* 1) Main */}
         <div
           className={`sim-legend-item ${showRepresentative ? "is-on" : ""}`}
           onClick={onToggleRepresentative}
@@ -227,14 +228,16 @@ export function SimulationChartCard({
           Main
         </div>
 
+        {/* 2) Fan */}
         <div
-          className={`sim-legend-item ${showRange ? "is-on" : ""}`}
-          onClick={onToggleRange}
+          className={`sim-legend-item ${showFan ? "is-on" : ""}`}
+          onClick={onToggleFan}
         >
           <span className="sim-legend-dot" />
-          Range
+          Fan
         </div>
 
+        {/* 3) Median */}
         <div
           className={`sim-legend-item ${showMedian ? "is-on" : ""}`}
           onClick={onToggleMedian}
@@ -243,6 +246,7 @@ export function SimulationChartCard({
           Median
         </div>
 
+        {/* 4) Cloud */}
         <div
           className={`sim-legend-item ${showCloud ? "is-on" : ""}`}
           onClick={onToggleCloud}
@@ -251,12 +255,13 @@ export function SimulationChartCard({
           Cloud
         </div>
 
+        {/* 5) Range (last) */}
         <div
-          className={`sim-legend-item ${showFan ? "is-on" : ""}`}
-          onClick={onToggleFan}
+          className={`sim-legend-item ${showRange ? "is-on" : ""}`}
+          onClick={onToggleRange}
         >
           <span className="sim-legend-dot" />
-          Fan
+          Range
         </div>
       </div>
 

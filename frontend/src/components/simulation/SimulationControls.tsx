@@ -12,7 +12,6 @@ export type SimulationParams = {
   showRepresentative: boolean;
   showRange: boolean;
 
-  // NEW: Quantile Fan
   showFan: boolean;
 };
 
@@ -178,7 +177,6 @@ export function SimulationControls({ value, onChange }: Props) {
         border: "1px solid rgba(255,255,255,0.05)",
       }}
     >
-      {/* header */}
       <div style={{ padding: 14, flexShrink: 0 }}>
         <div style={{ fontWeight: 800, fontSize: 14 }}>Simulation settings</div>
         <div style={{ fontSize: 12, color: "rgba(148,163,184,0.8)" }}>
@@ -186,7 +184,6 @@ export function SimulationControls({ value, onChange }: Props) {
         </div>
       </div>
 
-      {/* content */}
       <div
         style={{
           padding: "0 14px 14px",
@@ -233,7 +230,6 @@ export function SimulationControls({ value, onChange }: Props) {
           </SegGroup>
         </Section>
 
-        {/* NEW: overlays */}
         <Section title="Overlays">
           <div style={{ display: "grid", gap: 8 }}>
             <ToggleRow
@@ -245,9 +241,9 @@ export function SimulationControls({ value, onChange }: Props) {
             />
 
             <ToggleRow
-              label="Range"
-              active={value.showRange}
-              onClick={() => patch({ showRange: !value.showRange })}
+              label="Fan (Quantiles)"
+              active={value.showFan}
+              onClick={() => patch({ showFan: !value.showFan })}
             />
 
             <ToggleRow
@@ -263,21 +259,10 @@ export function SimulationControls({ value, onChange }: Props) {
             />
 
             <ToggleRow
-              label="Fan (Quantiles)"
-              active={value.showFan}
-              onClick={() => patch({ showFan: !value.showFan })}
+              label="Range"
+              active={value.showRange}
+              onClick={() => patch({ showRange: !value.showRange })}
             />
-          </div>
-
-          <div
-            style={{
-              marginTop: 8,
-              fontSize: 12,
-              color: "rgba(148,163,184,0.78)",
-              lineHeight: 1.35,
-            }}
-          >
-            Fan builds quantile bands (P05–P95 and P25–P75) from simulation paths.
           </div>
         </Section>
       </div>
