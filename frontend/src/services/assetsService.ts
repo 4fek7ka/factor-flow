@@ -79,7 +79,7 @@ function readJSON<T>(key: string): T | null {
 }
 
 /* =========================
-   Assets table
+   Assets table (7d sparkline)
 ========================= */
 
 export function getAssetsTableFromCache(): AssetRow[] {

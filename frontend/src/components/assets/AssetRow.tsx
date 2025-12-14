@@ -21,7 +21,6 @@ function fmtBig(n: number) {
 export function AssetRowItem({ asset, index }: Props) {
   return (
     <tr>
-      {/* Index */}
       <td>
         <div
           className="cell"
@@ -31,7 +30,6 @@ export function AssetRowItem({ asset, index }: Props) {
         </div>
       </td>
 
-      {/* Asset Symbol */}
       <td>
         <div
           className="cell"
@@ -41,7 +39,6 @@ export function AssetRowItem({ asset, index }: Props) {
         </div>
       </td>
 
-      {/* Price */}
       <td>
         <div
           className="cell"
@@ -51,49 +48,27 @@ export function AssetRowItem({ asset, index }: Props) {
         </div>
       </td>
 
-      {/* 1h */}
       <td>
-        <div
-          className="cell"
-          style={{
-            textAlign: "center",
-            color: colorize(asset.change1hPct),
-          }}
-        >
+        <div className="cell" style={{ textAlign: "center", color: colorize(asset.change1hPct) }}>
           {asset.change1hPct >= 0 ? "+" : ""}
           {asset.change1hPct.toFixed(2)}%
         </div>
       </td>
 
-      {/* 24h */}
       <td>
-        <div
-          className="cell"
-          style={{
-            textAlign: "center",
-            color: colorize(asset.change24hPct),
-          }}
-        >
+        <div className="cell" style={{ textAlign: "center", color: colorize(asset.change24hPct) }}>
           {asset.change24hPct >= 0 ? "+" : ""}
           {asset.change24hPct.toFixed(2)}%
         </div>
       </td>
 
-      {/* 7d */}
       <td>
-        <div
-          className="cell"
-          style={{
-            textAlign: "center",
-            color: colorize(asset.change7dPct),
-          }}
-        >
+        <div className="cell" style={{ textAlign: "center", color: colorize(asset.change7dPct) }}>
           {asset.change7dPct >= 0 ? "+" : ""}
           {asset.change7dPct.toFixed(2)}%
         </div>
       </td>
 
-      {/* Market Cap */}
       <td>
         <div
           className="cell"
@@ -103,13 +78,12 @@ export function AssetRowItem({ asset, index }: Props) {
         </div>
       </td>
 
-      {/* Sparkline */}
       <td>
         <div className="cell" style={{ textAlign: "right", paddingRight: 32 }}>
           <div style={{ width: 200, display: "inline-block" }}>
             <SparklineBase
               values={asset.sparkline}
-              color={asset.change24hPct >= 0 ? "#4ADE80" : "#F87171"}
+              color={colorize(asset.change7dPct)}
               width={150}
               height={34}
             />
