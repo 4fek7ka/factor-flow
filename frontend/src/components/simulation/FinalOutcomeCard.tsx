@@ -30,7 +30,6 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
   const ACCENT_COLOR = model.isPositive ? "#22c55e" : "#ef4444";
   const sign = model.deltaPct >= 0 ? "+" : "";
 
-
   const centerPct = 50;
   const fillLeft = model.isPositive ? centerPct : model.posPct;
   const fillWidth = Math.abs(model.posPct - centerPct);
@@ -78,10 +77,11 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
             style={{
               fontSize: 16,
               fontWeight: 800,
-              color: "rgba(226,232,240,0.95)", // ← проценты белые
+              color: ACCENT_COLOR,
+              transform: "translateY(2px)", // ← на пару пикселей ниже
             }}
           >
-            <span style={{ color: ACCENT_COLOR }}>{sign}</span>
+            {sign}
             {Math.abs(model.deltaPct).toFixed(1)}%
           </div>
         </div>
