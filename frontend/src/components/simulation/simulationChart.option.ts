@@ -7,6 +7,10 @@ const RANGE_FILL = "rgba(255, 255, 255, 0.12)";
 const FAN_OUTER = "rgba(148,163,184,0.12)";
 const FAN_INNER = "rgba(148,163,184,0.20)";
 
+const COLOR_MAIN = "#0ea5e9";
+const COLOR_UPPER = "#22c55e"; // green
+const COLOR_LOWER = "#ef4444"; // red
+
 type FanQuantiles = {
   q05: number[];
   q25: number[];
@@ -52,7 +56,7 @@ function buildPolygon(
 function tooltipRow(
   label: string,
   value: number,
-  color: string,
+  dotColor: string,
   bold = false
 ) {
   return `
@@ -60,7 +64,7 @@ function tooltipRow(
       display:flex;
       align-items:center;
       justify-content:space-between;
-      gap:10px;
+      gap:12px;
       margin-top:4px;
       font-weight:${bold ? 800 : 700};
     ">
@@ -69,7 +73,7 @@ function tooltipRow(
           width:8px;
           height:8px;
           border-radius:50%;
-          background:${color};
+          background:${dotColor};
           display:inline-block;
         "></span>
         <span style="color:rgba(148,163,184,0.9)">
@@ -128,14 +132,14 @@ export function buildSimulationChartOption({
           </div>
         `;
 
-        // TOP: upper
-        html += tooltipRow("Upper", upper[idx], BOUND_COLOR);
+        // TOP
+        html += tooltipRow("Upper", upper[idx], COLOR_UPPER);
 
-        // CENTER: main
-        html += tooltipRow("Main", representative[idx], "#0ea5e9", true);
+        // CENTER
+        html += tooltipRow("Main", representative[idx], COLOR_MAIN, true);
 
-        // BOTTOM: lower
-        html += tooltipRow("Lower", lower[idx], BOUND_COLOR);
+        // BOTTOM
+        html += tooltipRow("Lower", lower[idx], COLOR_LOWER);
 
         return html;
       },
@@ -260,7 +264,6 @@ export function buildSimulationChartOption({
         lineStyle: {
           color: "#ef4444",
           width: 2,
-          type: "dashed",
           opacity: medianOpacity,
         },
         z: 10,
@@ -273,7 +276,7 @@ export function buildSimulationChartOption({
         showSymbol: false,
         animation: false,
         lineStyle: {
-          color: "#0ea5e9",
+          color: COLOR_MAIN,
           width: 2,
           opacity: repOpacity,
         },
