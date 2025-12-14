@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { AssetRow } from "../services/assetsService";
 import {
   getAssetsTableFromCache,
-  getGlobalMarketCap,
+  getGlobalMarketCapWithBtcSurrogate,
   getDominance,
   getTopGainer7d,
 } from "../services/assetsService";
@@ -17,33 +17,26 @@ import { TopGainer7dCard } from "../components/assets/TopGainer7dCard";
 export function AssetsPage() {
   const [assets, setAssets] = useState<AssetRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [marketCap, setMarketCap] = useState<{
+    capUsd: number;
+    changePct24h: number;
+    sparkline: number[];
+  } | null>(null);
 
   useEffect(() => {
-    try {
-      setLoading(true);
-      setError(null);
+    setAssets(getAssetsTableFromCache());
+    setLoading(false);
 
-      const rows = getAssetsTableFromCache();
-      setAssets(rows);
-    } catch (e) {
-      setError((e as Error)?.message || "Failed to load assets");
-    } finally {
-      setLoading(false);
-    }
+    getGlobalMarketCapWithBtcSurrogate().then(setMarketCap);
   }, []);
 
-  /* ===== GLOBAL DATA (FROM CACHE) ===== */
-
-  const marketCap = getGlobalMarketCap();
   const dominance = getDominance();
   const topGainer = getTopGainer7d();
 
   const table = useMemo(() => {
     if (loading) return <div className="text-muted p-3">Loading assets…</div>;
-    if (error) return <div className="text-danger p-3">{error}</div>;
     return <AssetsTable assets={assets} />;
-  }, [assets, loading, error]);
+  }, [assets, loading]);
 
   return (
     <div>
@@ -53,7 +46,7 @@ export function AssetsPage() {
             <MarketCapCard
               capUsd={marketCap.capUsd}
               changePct={marketCap.changePct24h}
-              spark={[]}
+              spark={marketCap.sparkline}
             />
           )}
         </div>
