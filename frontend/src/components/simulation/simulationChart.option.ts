@@ -61,8 +61,12 @@ export function buildSimulationChartOption({
         color: "#94a3b8",
         formatter: (v: number) => `${Math.round(v)}d`,
       },
-      axisLine: { lineStyle: { color: "#334155" } },
-      splitLine: { show: false },
+      axisLine: {
+        lineStyle: { color: "#334155" },
+      },
+      splitLine: {
+        show: false,
+      },
     },
 
     yAxis: {
@@ -82,8 +86,13 @@ export function buildSimulationChartOption({
         },
       },
 
-      // ❌ убираем вертикальную линию возле процентов
+      // ❌ убираем вертикальную ось
       axisLine: {
+        show: false,
+      },
+
+      // ❌ убираем "пипки" (засечки)
+      axisTick: {
         show: false,
       },
 
@@ -100,6 +109,7 @@ export function buildSimulationChartOption({
     },
 
     series: [
+      // cloud
       ...cloud.map((p) => ({
         type: "line",
         data: timestamps.map((t, i) => [t, p[i]]),
@@ -116,6 +126,7 @@ export function buildSimulationChartOption({
         z: 1,
       })),
 
+      // range fill
       {
         type: "custom",
         silent: true,
@@ -145,6 +156,7 @@ export function buildSimulationChartOption({
         },
       },
 
+      // lower bound
       {
         type: "line",
         data: timestamps.map((t, i) => [t, lower[i]]),
@@ -159,6 +171,7 @@ export function buildSimulationChartOption({
         z: 4,
       },
 
+      // upper bound
       {
         type: "line",
         data: timestamps.map((t, i) => [t, upper[i]]),
@@ -173,6 +186,7 @@ export function buildSimulationChartOption({
         z: 4,
       },
 
+      // median
       {
         type: "line",
         data: timestamps.map((t, i) => [t, median[i]]),
@@ -188,6 +202,7 @@ export function buildSimulationChartOption({
         z: 10,
       },
 
+      // representative
       {
         type: "line",
         data: timestamps.map((t, i) => [t, representative[i]]),

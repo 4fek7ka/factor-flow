@@ -18,7 +18,11 @@ echarts.use([
 ]);
 
 const TARGET_POINTS = 250;
-const BOUND_COLOR = "#64748b";
+
+const ACTIVE_COLOR = "#0ea5e9";
+const INACTIVE_COLOR = "#64748b";
+const TEXT_ACTIVE = "rgba(226,232,240,0.95)";
+const TEXT_INACTIVE = "rgba(226,232,240,0.80)";
 
 export type SimulationChartCardProps = {
   timestamps: number[];
@@ -78,11 +82,7 @@ export function SimulationChartCard({
     const chart = chartRef.current;
     if (!chart) return;
 
-    const baseCandidate =
-      (median.length ? median[0] : undefined) ??
-      (representative.length ? representative[0] : undefined) ??
-      1;
-
+    const baseCandidate = median[0] ?? representative[0] ?? 1;
     const base =
       Number.isFinite(baseCandidate) && baseCandidate !== 0
         ? baseCandidate
@@ -102,32 +102,32 @@ export function SimulationChartCard({
         ...lowerPct,
         ...cloudPct.flat(),
       ];
-
       const min = Math.min(...all);
       const max = Math.max(...all);
       const pad = (max - min) * 0.08;
-
       yDomainRef.current = { min: min - pad, max: max + pad };
     }
 
     const ts = resample(timestamps, TARGET_POINTS);
-    const option = buildSimulationChartOption({
-      timestamps: ts,
-      median: resample(medianPct, TARGET_POINTS),
-      representative: resample(repPct, TARGET_POINTS),
-      upper: resample(upperPct, TARGET_POINTS),
-      lower: resample(lowerPct, TARGET_POINTS),
-      cloud: cloudPct.map((p) => resample(p, TARGET_POINTS)),
-      yDomain: yDomainRef.current!,
-      flags: {
-        showCloud,
-        showMedian,
-        showRepresentative,
-        showRange,
-      },
-    });
 
-    chart.setOption(option, { notMerge: true });
+    chart.setOption(
+      buildSimulationChartOption({
+        timestamps: ts,
+        median: resample(medianPct, TARGET_POINTS),
+        representative: resample(repPct, TARGET_POINTS),
+        upper: resample(upperPct, TARGET_POINTS),
+        lower: resample(lowerPct, TARGET_POINTS),
+        cloud: cloudPct.map((p) => resample(p, TARGET_POINTS)),
+        yDomain: yDomainRef.current!,
+        flags: {
+          showCloud,
+          showMedian,
+          showRepresentative,
+          showRange,
+        },
+      }),
+      { notMerge: true }
+    );
   }, [
     timestamps,
     median,
@@ -141,98 +141,84 @@ export function SimulationChartCard({
     showRange,
   ]);
 
-  const canToggle = {
-    rep: typeof onToggleRepresentative === "function",
-    range: typeof onToggleRange === "function",
-    median: typeof onToggleMedian === "function",
-    cloud: typeof onToggleCloud === "function",
-  };
-
   return (
     <div style={{ position: "relative", width: "100%", height: 380 }}>
       <style>{`
         .sim-legend {
           position: absolute;
-          top: 10px;
-          left: 12px;
+          top: 12px;
+          left: 50%;
+          transform: translateX(-50%);
           display: flex;
-          gap: 12px;
+          gap: 16px;
           z-index: 3;
-          align-items: center;
-          user-select: none;
-          padding: 6px 8px;
-          border-radius: 10px;
-          background: rgba(2, 6, 23, 0.35);
+          padding: 6px 12px;
+          border-radius: 12px;
+          background: rgba(2,6,23,0.35);
           border: 1px solid rgba(255,255,255,0.05);
           backdrop-filter: blur(10px);
         }
+
         .sim-legend-item {
           display: inline-flex;
           align-items: center;
-          gap: 6px;
-          font-size: 12px;
-          font-weight: 800;
-          padding: 4px 6px;
-          border-radius: 8px;
+          gap: 8px;
+          font-size: 13px;
+          font-weight: 700;
+          line-height: 1;
           cursor: pointer;
-          color: rgba(226,232,240,0.75);
+          user-select: none;
+          color: ${TEXT_INACTIVE};
         }
+
         .sim-legend-item.is-on {
-          color: rgba(226,232,240,0.96);
+          color: ${TEXT_ACTIVE};
         }
+
         .sim-legend-dot {
           width: 10px;
           height: 10px;
           border-radius: 999px;
+          background: ${INACTIVE_COLOR};
+          transition: background 120ms ease;
+          flex-shrink: 0;
+        }
+
+        .sim-legend-item.is-on .sim-legend-dot {
+          background: ${ACTIVE_COLOR};
         }
       `}</style>
 
       <div className="sim-legend">
         <div
-          className={[
-            "sim-legend-item",
-            showRepresentative ? "is-on" : "",
-            canToggle.rep ? "" : "is-disabled",
-          ].join(" ")}
-          onClick={() => canToggle.rep && onToggleRepresentative?.()}
+          className={`sim-legend-item ${showRepresentative ? "is-on" : ""}`}
+          onClick={onToggleRepresentative}
         >
-          <span className="sim-legend-dot" style={{ background: "#0ea5e9" }} />
+          <span className="sim-legend-dot" />
           Main
         </div>
 
         <div
-          className={[
-            "sim-legend-item",
-            showRange ? "is-on" : "",
-            canToggle.range ? "" : "is-disabled",
-          ].join(" ")}
-          onClick={() => canToggle.range && onToggleRange?.()}
+          className={`sim-legend-item ${showRange ? "is-on" : ""}`}
+          onClick={onToggleRange}
         >
-          <span className="sim-legend-dot" style={{ background: BOUND_COLOR }} />
+          <span className="sim-legend-dot" />
           Range
         </div>
 
         <div
-          className={[
-            "sim-legend-item",
-            showMedian ? "is-on" : "",
-            canToggle.median ? "" : "is-disabled",
-          ].join(" ")}
-          onClick={() => canToggle.median && onToggleMedian?.()}
+          className={`sim-legend-item ${showMedian ? "is-on" : ""}`}
+          onClick={onToggleMedian}
         >
-          <span className="sim-legend-dot" style={{ background: "#ef4444" }} />
+          <span className="sim-legend-dot" />
           Median
         </div>
 
         <div
-          className={[
-            "sim-legend-item",
-            showCloud ? "is-on" : "",
-            canToggle.cloud ? "" : "is-disabled",
-          ].join(" ")}
-          onClick={() => canToggle.cloud && onToggleCloud?.()}
+          className={`sim-legend-item ${showCloud ? "is-on" : ""}`}
+          onClick={onToggleCloud}
         >
-          <span className="sim-legend-dot" style={{ background: "#64748b" }} />
+          <span className="sim-legend-dot" />
           Cloud
         </div>
       </div>
