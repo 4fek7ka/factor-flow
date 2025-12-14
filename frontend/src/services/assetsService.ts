@@ -1,5 +1,7 @@
 export type AssetRow = {
   symbol: string;
+  iconUrl: string | null;
+
   price: number;
 
   change1hPct: number;
@@ -88,12 +90,16 @@ export function getAssetsTableFromCache(): AssetRow[] {
 
   return markets.map((m) => ({
     symbol: m.symbol.toUpperCase(),
+    iconUrl: m.image ?? null,
+
     price: m.current_price,
     change1hPct: m.price_change_percentage_1h_in_currency ?? 0,
     change24hPct: m.price_change_percentage_24h_in_currency ?? 0,
     change7dPct: m.price_change_percentage_7d_in_currency ?? 0,
+
     marketCapUsd: m.market_cap,
     volume24hUsd: m.total_volume,
+
     sparkline: m.sparkline_in_7d?.price ?? [],
   }));
 }

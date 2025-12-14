@@ -21,6 +21,7 @@ function fmtBig(n: number) {
 export function AssetRowItem({ asset, index }: Props) {
   return (
     <tr>
+      {/* Index */}
       <td>
         <div
           className="cell"
@@ -30,15 +31,34 @@ export function AssetRowItem({ asset, index }: Props) {
         </div>
       </td>
 
+      {/* Asset */}
       <td>
         <div
           className="cell"
-          style={{ textAlign: "left", fontWeight: 600, color: "#F4F4F5" }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            textAlign: "left",
+            fontWeight: 600,
+            color: "#F4F4F5",
+          }}
         >
-          {asset.symbol}
+          {asset.iconUrl && (
+            <img
+              src={asset.iconUrl}
+              alt={asset.symbol}
+              width={18}
+              height={18}
+              style={{ borderRadius: "50%" }}
+              loading="lazy"
+            />
+          )}
+          <span>{asset.symbol}</span>
         </div>
       </td>
 
+      {/* Price */}
       <td>
         <div
           className="cell"
@@ -48,6 +68,7 @@ export function AssetRowItem({ asset, index }: Props) {
         </div>
       </td>
 
+      {/* 1h */}
       <td>
         <div className="cell" style={{ textAlign: "center", color: colorize(asset.change1hPct) }}>
           {asset.change1hPct >= 0 ? "+" : ""}
@@ -55,6 +76,7 @@ export function AssetRowItem({ asset, index }: Props) {
         </div>
       </td>
 
+      {/* 24h */}
       <td>
         <div className="cell" style={{ textAlign: "center", color: colorize(asset.change24hPct) }}>
           {asset.change24hPct >= 0 ? "+" : ""}
@@ -62,6 +84,7 @@ export function AssetRowItem({ asset, index }: Props) {
         </div>
       </td>
 
+      {/* 7d */}
       <td>
         <div className="cell" style={{ textAlign: "center", color: colorize(asset.change7dPct) }}>
           {asset.change7dPct >= 0 ? "+" : ""}
@@ -69,6 +92,7 @@ export function AssetRowItem({ asset, index }: Props) {
         </div>
       </td>
 
+      {/* Market Cap */}
       <td>
         <div
           className="cell"
@@ -78,6 +102,7 @@ export function AssetRowItem({ asset, index }: Props) {
         </div>
       </td>
 
+      {/* Sparkline */}
       <td>
         <div className="cell" style={{ textAlign: "right", paddingRight: 32 }}>
           <div style={{ width: 200, display: "inline-block" }}>
