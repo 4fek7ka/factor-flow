@@ -6,6 +6,7 @@ import {
   getGlobalMarketCapWithBtcSurrogate,
   getDominance,
   getTopGainer7d,
+  getFearGreedIndex,
 } from "../services/assetsService";
 
 import { AssetsTable } from "../components/assets/AssetsTable";
@@ -17,17 +18,21 @@ import { TopGainer7dCard } from "../components/assets/TopGainer7dCard";
 export function AssetsPage() {
   const [assets, setAssets] = useState<AssetRow[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [marketCap, setMarketCap] = useState<{
     capUsd: number;
     changePct24h: number;
     sparkline: number[];
   } | null>(null);
 
+  const [fearGreed, setFearGreed] = useState<number | null>(null);
+
   useEffect(() => {
     setAssets(getAssetsTableFromCache());
     setLoading(false);
 
     getGlobalMarketCapWithBtcSurrogate().then(setMarketCap);
+    getFearGreedIndex().then(setFearGreed);
   }, []);
 
   const dominance = getDominance();
@@ -52,7 +57,7 @@ export function AssetsPage() {
         </div>
 
         <div className="col-12 col-md-6 col-lg-3 d-flex">
-          <FearGreedCard value={30} />
+          {fearGreed !== null && <FearGreedCard value={fearGreed} />}
         </div>
 
         <div className="col-12 col-md-6 col-lg-3 d-flex">

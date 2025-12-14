@@ -13,7 +13,7 @@ export type AssetRow = {
 };
 
 /* =========================
-   CoinGecko types
+   Types
 ========================= */
 
 type CoinGeckoMarket = {
@@ -41,6 +41,14 @@ type CoinGeckoGlobal = {
   };
 };
 
+type FearGreedApiResponse = {
+  data: Array<{
+    value: string;
+    value_classification: string;
+    timestamp: string;
+  }>;
+};
+
 /* =========================
    Cache keys
 ========================= */
@@ -50,6 +58,9 @@ const GLOBAL_KEY = "assets.cache.global";
 
 const BTC_HISTORY_KEY = "assets.cache.btcMarketCapHistory";
 const BTC_HISTORY_TS_KEY = "assets.cache.btcMarketCapHistory.fetchedAt";
+
+const FEAR_GREED_KEY = "assets.cache.fearGreed";
+const FEAR_GREED_TS_KEY = "assets.cache.fearGreed.fetchedAt";
 
 const ONE_HOUR = 60 * 60 * 1000;
 
@@ -158,9 +169,7 @@ export async function getGlobalMarketCapWithBtcSurrogate(): Promise<{
     return { ...snapshot, sparkline: cached };
   }
 
-  // lazy background update
   fetchBtcMarketCapHistory().catch(() => {});
-
   return { ...snapshot, sparkline: cached ?? [] };
 }
 
@@ -176,4 +185,33 @@ async function fetchBtcMarketCapHistory() {
 
   localStorage.setItem(BTC_HISTORY_KEY, JSON.stringify(series));
   localStorage.setItem(BTC_HISTORY_TS_KEY, String(Date.now()));
+}
+
+/* =========================
+   Fear & Greed Index
+========================= */
+
+export async function getFearGreedIndex(): Promise<number | null> {
+  const ts = Number(localStorage.getItem(FEAR_GREED_TS_KEY) || 0);
+  const cached = Number(localStorage.getItem(FEAR_GREED_KEY));
+  const fresh = Date.now() - ts < ONE_HOUR;
+
+  if (!Number.isNaN(cached) && fresh) {
+    return cached;
+  }
+
+  try {
+    const res = await fetch("https://api.alternative.me/fng/");
+    const json = (await res.json()) as FearGreedApiResponse;
+
+    const value = Number(json.data[0]?.value);
+    if (Number.isNaN(value)) return cached || null;
+
+    localStorage.setItem(FEAR_GREED_KEY, String(value));
+    localStorage.setItem(FEAR_GREED_TS_KEY, String(Date.now()));
+
+    return value;
+  } catch {
+    return cached || null;
+  }
 }
