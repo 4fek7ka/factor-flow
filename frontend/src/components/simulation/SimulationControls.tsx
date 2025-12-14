@@ -6,6 +6,7 @@ export type SimulationParams = {
   scenario: Scenario;
   simulations: 50 | 100 | 200;
 
+  // остаются в модели, но в этом компоненте НЕ отображаются и НЕ меняются
   showCloud: boolean;
   showMedian: boolean;
   showRepresentative: boolean;
@@ -19,11 +20,12 @@ type Props = {
 
 const HORIZONS = [30, 90, 180, 365] as const;
 const SIMULATIONS = [50, 100, 200] as const;
+
 const SCENARIOS = [
   ["conservative", "Conservative"],
   ["baseline", "Baseline"],
   ["stress", "Stress"],
-] as const;
+] as const satisfies readonly (readonly [Scenario, string])[];
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -59,21 +61,32 @@ function SegButton({
       type="button"
       onClick={onClick}
       style={{
-        padding: "6px 10px",
+        height: 32,
+        padding: "0 10px",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+
         fontSize: 12,
         fontWeight: 800,
+        lineHeight: "16px",
         borderRadius: 8,
+
         border: active
           ? "1px solid rgba(56,189,248,0.55)"
           : "1px solid rgba(255,255,255,0.10)",
+
         background: active
           ? "rgba(14,165,233,0.22)"
           : "rgba(15,23,42,0.45)",
+
         color: active
           ? "rgba(226,232,240,0.95)"
           : "rgba(226,232,240,0.75)",
+
         cursor: "pointer",
         transition: "all 120ms ease",
+        userSelect: "none",
       }}
     >
       {label}
@@ -81,23 +94,13 @@ function SegButton({
   );
 }
 
-function SegGroup({
-  children,
-  cols,
-}: {
-  children: ReactNode;
-  cols: number;
-}) {
+function SegGroup({ children, cols }: { children: ReactNode; cols: number }) {
   return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: `repeat(${cols}, minmax(0,1fr))`,
+        gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
         gap: 6,
-        padding: 6,
-        borderRadius: 10,
-        background: "rgba(2,6,23,0.35)",
-        border: "1px solid rgba(255,255,255,0.05)",
       }}
     >
       {children}
@@ -106,6 +109,8 @@ function SegGroup({
 }
 
 export function SimulationControls({ value, onChange }: Props) {
+  const patch = (next: Partial<SimulationParams>) => onChange({ ...value, ...next });
+
   return (
     <div
       style={{
@@ -120,9 +125,7 @@ export function SimulationControls({ value, onChange }: Props) {
     >
       {/* header */}
       <div style={{ padding: 14, flexShrink: 0 }}>
-        <div style={{ fontWeight: 800, fontSize: 14 }}>
-          Simulation settings
-        </div>
+        <div style={{ fontWeight: 800, fontSize: 14 }}>Simulation settings</div>
         <div style={{ fontSize: 12, color: "rgba(148,163,184,0.8)" }}>
           Horizon, scenario and runs
         </div>
@@ -143,7 +146,7 @@ export function SimulationControls({ value, onChange }: Props) {
                 key={d}
                 label={`${d}d`}
                 active={value.horizonDays === d}
-                onClick={() => onChange({ ...value, horizonDays: d })}
+                onClick={() => patch({ horizonDays: d })}
               />
             ))}
           </SegGroup>
@@ -156,9 +159,7 @@ export function SimulationControls({ value, onChange }: Props) {
                 key={key}
                 label={label}
                 active={value.scenario === key}
-                onClick={() =>
-                  onChange({ ...value, scenario: key })
-                }
+                onClick={() => patch({ scenario: key })}
               />
             ))}
           </SegGroup>
@@ -171,9 +172,7 @@ export function SimulationControls({ value, onChange }: Props) {
                 key={n}
                 label={`${n}`}
                 active={value.simulations === n}
-                onClick={() =>
-                  onChange({ ...value, simulations: n })
-                }
+                onClick={() => patch({ simulations: n })}
               />
             ))}
           </SegGroup>
