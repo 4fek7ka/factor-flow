@@ -1,7 +1,6 @@
-import { useMemo } from "react";
-import historyJson from "../data/mock-history.json";
+import { useEffect, useMemo, useState } from "react";
 
-import type { HistoryPoint } from "../services/portfolioService";
+import type { AssetRow } from "../services/assetsService";
 import { buildAssetsTable } from "../services/assetsService";
 
 import { AssetsTable } from "../components/assets/AssetsTable";
@@ -11,10 +10,32 @@ import { BtcEthAltCard } from "../components/assets/BtcEthAltCard";
 import { TopGainer7dCard } from "../components/assets/TopGainer7dCard";
 
 export function AssetsPage() {
-  const history = historyJson as unknown as HistoryPoint[];
-  const assets = useMemo(() => buildAssetsTable(history), [history]);
+  const [assets, setAssets] = useState<AssetRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // mock-данные
+  useEffect(() => {
+    const ac = new AbortController();
+
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const rows = await buildAssetsTable(null);
+        setAssets(rows);
+      } catch (e) {
+        if ((e as any)?.name === "AbortError") return;
+        setError((e as Error)?.message || "Failed to load assets");
+      } finally {
+        setLoading(false);
+      }
+    })();
+
+    return () => ac.abort();
+  }, []);
+
+  // верхние карточки — временно mock
   const fakeMarketCap = 3_140_000_000_000;
   const fakeChangePct = 1.75;
   const fakeSpark = [1, 2, 3, 5, 4, 5, 5.2, 5.1, 5.3];
@@ -31,9 +52,14 @@ export function AssetsPage() {
     pct7d: 32.45,
   };
 
+  const table = useMemo(() => {
+    if (loading) return <div className="text-muted p-3">Loading assets…</div>;
+    if (error) return <div className="text-danger p-3">{error}</div>;
+    return <AssetsTable assets={assets} />;
+  }, [assets, loading, error]);
+
   return (
     <div>
-      {/* Верхний блок карточек — БЕЗ заголовков страницы */}
       <div className="row row-cards mb-2">
         <div className="col-12 col-md-6 col-lg-3 d-flex">
           <MarketCapCard
@@ -48,11 +74,7 @@ export function AssetsPage() {
         </div>
 
         <div className="col-12 col-md-6 col-lg-3 d-flex">
-          <BtcEthAltCard
-            btc={fakeBtcDom}
-            eth={fakeEthDom}
-            alt={fakeAltDom}
-          />
+          <BtcEthAltCard btc={fakeBtcDom} eth={fakeEthDom} alt={fakeAltDom} />
         </div>
 
         <div className="col-12 col-md-6 col-lg-3 d-flex">
@@ -65,10 +87,7 @@ export function AssetsPage() {
         </div>
       </div>
 
-      {/* Таблица активов */}
-      <div style={{ marginTop: 15 }}>
-        <AssetsTable assets={assets} />
-      </div>
+      <div style={{ marginTop: 15 }}>{table}</div>
     </div>
   );
 }
