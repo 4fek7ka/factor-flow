@@ -13,6 +13,7 @@ import {
 } from "../components/simulation/SimulationControls";
 
 import { OutcomeDistributionCard } from "../components/simulation/OutcomeDistributionCard";
+import { FinalOutcomeCard } from "../components/simulation/FinalOutcomeCard";
 
 function periodFromHorizon(h: 30 | 90 | 180 | 365) {
   if (h === 30) return "month";
@@ -39,7 +40,7 @@ export function SimulationPage() {
     return filterHistoryByPeriod(history, period);
   }, [history, params.horizonDays]);
 
-  // 🔒 FIXED PARAMETERS
+  // 🔒 fixed parameters
   const drift = 0.00035;
   const volatility = 0.01237;
 
@@ -62,6 +63,11 @@ export function SimulationPage() {
     params.scenario,
     startValue,
   ]);
+
+  const medianFinal =
+    sim.median.length > 0
+      ? sim.median[sim.median.length - 1]
+      : startValue;
 
   return (
     <div>
@@ -126,6 +132,11 @@ export function SimulationPage() {
           marginTop: 14,
         }}
       >
+        <FinalOutcomeCard
+          startValue={startValue}
+          median={medianFinal}
+        />
+
         <OutcomeDistributionCard paths={sim.paths} />
       </div>
     </div>
