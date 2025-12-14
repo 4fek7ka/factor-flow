@@ -31,7 +31,6 @@ export type SimulationChartCardProps = {
   showRepresentative?: boolean;
   showRange: boolean;
 
-  // NEW: inline legend callbacks
   onToggleCloud?: () => void;
   onToggleMedian?: () => void;
   onToggleRepresentative?: () => void;
@@ -68,7 +67,6 @@ export function SimulationChartCard({
   showMedian,
   showRepresentative = true,
   showRange,
-
   onToggleCloud,
   onToggleMedian,
   onToggleRepresentative,
@@ -104,7 +102,9 @@ export function SimulationChartCard({
       1;
 
     const base =
-      Number.isFinite(baseCandidate) && baseCandidate !== 0 ? baseCandidate : 1;
+      Number.isFinite(baseCandidate) && baseCandidate !== 0
+        ? baseCandidate
+        : 1;
 
     const medianPct = toPercentFromBase(median, base);
     const repPct = toPercentFromBase(representative, base);
@@ -125,10 +125,13 @@ export function SimulationChartCard({
       const max = Math.max(...all);
       const pad = (max - min) * 0.08;
 
-      yDomainRef.current = { min: min - pad, max: max + pad };
+      yDomainRef.current = {
+        min: min - pad,
+        max: max + pad,
+      };
     }
 
-    const yDomain = yDomainRef.current;
+    const yDomain = yDomainRef.current!;
 
     const ts = resample(timestamps, TARGET_POINTS);
     const med = resample(medianPct, TARGET_POINTS);
@@ -155,7 +158,7 @@ export function SimulationChartCard({
       grid: {
         left: 40,
         right: 24,
-        top: 44, // space for inline legend
+        top: 44,
         bottom: 40,
       },
 
@@ -169,7 +172,7 @@ export function SimulationChartCard({
           formatter: (v: number) => `${Math.round(v)}d`,
         },
         axisLine: { lineStyle: { color: "#334155" } },
-        splitLine: { lineStyle: { color: "#1e293b" } },
+        splitLine: { lineStyle: { color: "#1e293b" } }, // вертикальные линии ОСТАЛИСЬ
       },
 
       yAxis: {
@@ -179,14 +182,18 @@ export function SimulationChartCard({
         animation: false,
         axisLabel: {
           color: "#94a3b8",
-          formatter: (v: number) => `${v}%`,
+          formatter: (v: number) => {
+            if (v === yDomain.min || v === yDomain.max) return "";
+            return `${v}%`;
+          },
         },
         axisLine: { lineStyle: { color: "#334155" } },
-        splitLine: { lineStyle: { color: "#1e293b" } },
+        splitLine: {
+          show: false, // ⬅️ ГОРИЗОНТАЛЬНЫЕ ЛИНИИ УБРАНЫ
+        },
       },
 
       series: [
-        // CLOUD
         ...cloudPct.map((p) => ({
           type: "line",
           data: ts.map((t, i) => [t, resample(p, TARGET_POINTS)[i]]),
@@ -203,7 +210,6 @@ export function SimulationChartCard({
           z: 1,
         })),
 
-        // RANGE
         {
           type: "custom",
           silent: true,
@@ -226,12 +232,14 @@ export function SimulationChartCard({
             return {
               type: "polygon",
               shape: { points },
-              style: { fill: RANGE_FILL, opacity: rangeOpacity },
+              style: {
+                fill: RANGE_FILL,
+                opacity: rangeOpacity,
+              },
             };
           },
         },
 
-        // LOWER
         {
           type: "line",
           data: ts.map((t, i) => [t, low[i]]),
@@ -246,7 +254,6 @@ export function SimulationChartCard({
           z: 4,
         },
 
-        // UPPER
         {
           type: "line",
           data: ts.map((t, i) => [t, up[i]]),
@@ -261,7 +268,6 @@ export function SimulationChartCard({
           z: 4,
         },
 
-        // MEDIAN
         {
           type: "line",
           data: ts.map((t, i) => [t, med[i]]),
@@ -277,14 +283,17 @@ export function SimulationChartCard({
           z: 10,
         },
 
-        // REPRESENTATIVE
         {
           type: "line",
           data: ts.map((t, i) => [t, rep[i]]),
           showSymbol: false,
           tooltip: showRepresentative ? undefined : { show: false },
           emphasis: showRepresentative ? undefined : { disabled: true },
-          lineStyle: { color: "#0ea5e9", width: 2, opacity: repOpacity },
+          lineStyle: {
+            color: "#0ea5e9",
+            width: 2,
+            opacity: repOpacity,
+          },
           z: 8,
         },
       ],
@@ -328,7 +337,6 @@ export function SimulationChartCard({
           background: rgba(2, 6, 23, 0.35);
           border: 1px solid rgba(255,255,255,0.05);
           backdrop-filter: blur(10px);
-          -webkit-backdrop-filter: blur(10px);
         }
 
         .sim-legend-item {
@@ -337,17 +345,10 @@ export function SimulationChartCard({
           gap: 6px;
           font-size: 12px;
           font-weight: 800;
-          letter-spacing: 0.15px;
           padding: 4px 6px;
           border-radius: 8px;
           cursor: pointer;
           color: rgba(226,232,240,0.75);
-          transition: background 120ms ease, color 120ms ease;
-        }
-
-        .sim-legend-item:hover {
-          background: rgba(15,23,42,0.45);
-          color: rgba(226,232,240,0.9);
         }
 
         .sim-legend-item.is-on {
@@ -358,21 +359,6 @@ export function SimulationChartCard({
           width: 10px;
           height: 10px;
           border-radius: 999px;
-          opacity: 0.95;
-        }
-
-        .sim-legend-item.is-off .sim-legend-dot {
-          opacity: 0.30;
-        }
-
-        .sim-legend-item.is-disabled {
-          cursor: default;
-          opacity: 0.55;
-        }
-
-        .sim-legend-item.is-disabled:hover {
-          background: transparent;
-          color: rgba(226,232,240,0.75);
         }
       `}</style>
 
@@ -380,72 +366,48 @@ export function SimulationChartCard({
         <div
           className={[
             "sim-legend-item",
-            showRepresentative ? "is-on" : "is-off",
+            showRepresentative ? "is-on" : "",
             canToggle.rep ? "" : "is-disabled",
           ].join(" ")}
-          onClick={() => {
-            if (!canToggle.rep) return;
-            onToggleRepresentative?.();
-          }}
+          onClick={() => canToggle.rep && onToggleRepresentative?.()}
         >
-          <span
-            className="sim-legend-dot"
-            style={{ background: "#0ea5e9" }}
-          />
+          <span className="sim-legend-dot" style={{ background: "#0ea5e9" }} />
           Main
         </div>
 
         <div
           className={[
             "sim-legend-item",
-            showRange ? "is-on" : "is-off",
+            showRange ? "is-on" : "",
             canToggle.range ? "" : "is-disabled",
           ].join(" ")}
-          onClick={() => {
-            if (!canToggle.range) return;
-            onToggleRange?.();
-          }}
+          onClick={() => canToggle.range && onToggleRange?.()}
         >
-          <span
-            className="sim-legend-dot"
-            style={{ background: BOUND_COLOR }}
-          />
+          <span className="sim-legend-dot" style={{ background: BOUND_COLOR }} />
           Range
         </div>
 
         <div
           className={[
             "sim-legend-item",
-            showMedian ? "is-on" : "is-off",
+            showMedian ? "is-on" : "",
             canToggle.median ? "" : "is-disabled",
           ].join(" ")}
-          onClick={() => {
-            if (!canToggle.median) return;
-            onToggleMedian?.();
-          }}
+          onClick={() => canToggle.median && onToggleMedian?.()}
         >
-          <span
-            className="sim-legend-dot"
-            style={{ background: "#ef4444" }}
-          />
+          <span className="sim-legend-dot" style={{ background: "#ef4444" }} />
           Median
         </div>
 
         <div
           className={[
             "sim-legend-item",
-            showCloud ? "is-on" : "is-off",
+            showCloud ? "is-on" : "",
             canToggle.cloud ? "" : "is-disabled",
           ].join(" ")}
-          onClick={() => {
-            if (!canToggle.cloud) return;
-            onToggleCloud?.();
-          }}
+          onClick={() => canToggle.cloud && onToggleCloud?.()}
         >
-          <span
-            className="sim-legend-dot"
-            style={{ background: "#64748b" }}
-          />
+          <span className="sim-legend-dot" style={{ background: "#64748b" }} />
           Cloud
         </div>
       </div>
