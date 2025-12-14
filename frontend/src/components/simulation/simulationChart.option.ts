@@ -47,7 +47,7 @@ export function buildSimulationChartOption({
 
     grid: {
       left: 40,
-      right: 24,
+      right: 48,
       top: 44,
       bottom: 40,
     },
@@ -69,26 +69,28 @@ export function buildSimulationChartOption({
       type: "value",
       min: yDomain.min,
       max: yDomain.max,
+      position: "right",
       animation: false,
 
       axisLabel: {
         color: "#94a3b8",
+        align: "left",
+        margin: 8,
         formatter: (v: number) => {
           if (v === yDomain.min || v === yDomain.max) return "";
           return `${v}%`;
         },
       },
 
-      axisLine: { lineStyle: { color: "#334155" } },
+      // ❌ убираем вертикальную линию возле процентов
+      axisLine: {
+        show: false,
+      },
 
       splitLine: {
         show: true,
-
-        // ✅ убираем только крайние (верх/низ)
-        // (в новых версиях ECharts это поддерживается)
         showMinLine: false,
         showMaxLine: false,
-
         lineStyle: {
           color: "#334155",
           width: 1,
@@ -147,12 +149,12 @@ export function buildSimulationChartOption({
         type: "line",
         data: timestamps.map((t, i) => [t, lower[i]]),
         showSymbol: false,
-        animation: false,
         silent: true,
+        animation: false,
         lineStyle: {
           color: BOUND_COLOR,
           width: 1.5,
-          opacity: flags.showRange ? 0.5 : 0,
+          opacity: flags.showRange ? 1 : 0,
         },
         z: 4,
       },
@@ -161,12 +163,12 @@ export function buildSimulationChartOption({
         type: "line",
         data: timestamps.map((t, i) => [t, upper[i]]),
         showSymbol: false,
-        animation: false,
         silent: true,
+        animation: false,
         lineStyle: {
           color: BOUND_COLOR,
           width: 1.5,
-          opacity: flags.showRange ? 0.5 : 0,
+          opacity: flags.showRange ? 1 : 0,
         },
         z: 4,
       },
