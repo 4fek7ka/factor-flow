@@ -81,7 +81,7 @@ function readJSON<T>(key: string): T | null {
 }
 
 /* =========================
-   Assets table (7d sparkline)
+   Assets table
 ========================= */
 
 export function getAssetsTableFromCache(): AssetRow[] {
@@ -133,14 +133,20 @@ export function getDominance() {
 }
 
 /* =========================
-   Top gainer
+   Top Gainer (TOP-30 by market cap)
 ========================= */
 
 export function getTopGainer7d() {
   const markets = readJSON<CoinGeckoMarket[]>(MARKETS_KEY);
   if (!markets || markets.length === 0) return null;
 
-  const best = markets.reduce((a, b) =>
+  // 1️⃣ сортируем по капитализации
+  const top30 = [...markets]
+    .sort((a, b) => b.market_cap - a.market_cap)
+    .slice(0, 30);
+
+  // 2️⃣ ищем максимальный рост цены за 7d
+  const best = top30.reduce((a, b) =>
     (b.price_change_percentage_7d_in_currency ?? -Infinity) >
     (a.price_change_percentage_7d_in_currency ?? -Infinity)
       ? b
