@@ -31,6 +31,13 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
   const sign = model.deltaPct >= 0 ? "+" : "";
   const deltaText = `${sign}${model.deltaPct.toFixed(1)}%`;
 
+  // центр шкалы
+  const centerPct = 50;
+
+  // параметры заливки
+  const fillLeft = model.isPositive ? centerPct : model.posPct;
+  const fillWidth = Math.abs(model.posPct - centerPct);
+
   return (
     <div
       className="card card-sm w-100"
@@ -50,13 +57,14 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
           Final outcome
         </div>
 
+        {/* PRICE + PERCENT */}
         <div
           style={{
             display: "flex",
-            alignItems: "center",
+            alignItems: "baseline",
             gap: 10,
             marginBottom: 14,
-            flexWrap: "nowrap",
+            whiteSpace: "nowrap",
           }}
         >
           <div
@@ -64,7 +72,7 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
               fontSize: 28,
               fontWeight: 800,
               color: "rgba(226,232,240,0.95)",
-              lineHeight: 1.2,
+              lineHeight: "28px",
             }}
           >
             {formatMoney(median)}
@@ -75,9 +83,7 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
               fontSize: 16,
               fontWeight: 800,
               color: COLOR,
-              lineHeight: 1,
-              whiteSpace: "nowrap",
-              paddingTop: 2,
+              lineHeight: "28px",
             }}
           >
             {deltaText}
@@ -86,21 +92,33 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
 
         {/* === DELTA SCALE === */}
         <div style={{ position: "relative", height: 20 }}>
-          {/* 
-            👇 ТОЛЩИНА ОСНОВНОЙ ЛИНИИ РЕГУЛИРУЕТСЯ ЗДЕСЬ
-            height: 7  ← было 8, стало ещё чуть тоньше
-          */}
+          {/* base line */}
           <div
             style={{
               position: "absolute",
               top: "50%",
               left: 0,
               right: 0,
-              height: 7, // ← ТОЛЩИНА ЛИНИИ
+              height: 7,
               transform: "translateY(-50%)",
               borderRadius: 999,
               background: "rgba(255,255,255,0.22)",
-              boxShadow: "0 0 8px rgba(255,255,255,0.06)",
+            }}
+          />
+
+          {/* filled progress from center */}
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: `${fillLeft}%`,
+              width: `${fillWidth}%`,
+              height: 7,
+              transform: "translateY(-50%)",
+              borderRadius: 999,
+              background: model.isPositive
+                ? "rgba(34,197,94,0.55)"
+                : "rgba(239,68,68,0.55)",
             }}
           />
 
@@ -131,8 +149,8 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
               border: "1px solid rgba(148,163,184,0.65)",
               boxShadow:
                 model.isPositive
-                  ? "0 0 9px rgba(34,197,94,0.2)"
-                  : "0 0 9px rgba(239,68,68,0.2)",
+                  ? "0 0 9px rgba(34,197,94,0.25)"
+                  : "0 0 9px rgba(239,68,68,0.25)",
             }}
           />
         </div>
@@ -148,7 +166,7 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
             color: "rgba(148,163,184,0.95)",
           }}
         >
-          <div style={{ position: "absolute", left: 0, top: 0 }}>
+          <div style={{ position: "absolute", left: 0 }}>
             -{model.RANGE}%
           </div>
 
@@ -156,16 +174,13 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
             style={{
               position: "absolute",
               left: "50%",
-              top: 0,
               transform: "translateX(-50%)",
-              width: 40,
-              textAlign: "center",
             }}
           >
             0%
           </div>
 
-          <div style={{ position: "absolute", right: 0, top: 0 }}>
+          <div style={{ position: "absolute", right: 0 }}>
             +{model.RANGE}%
           </div>
         </div>

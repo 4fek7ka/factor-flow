@@ -4,6 +4,7 @@ import historyJson from "../data/mock-history.json";
 import type { HistoryPoint } from "../services/portfolioService";
 import { filterHistoryByPeriod } from "../services/portfolioService";
 
+import { estimatePortfolioParams } from "../services/portfolioStatsService";
 import { runMonteCarloAdvanced } from "../services/monteCarloService";
 
 import { SimulationChartCard } from "../components/simulation/SimulationChartCard";
@@ -12,8 +13,8 @@ import {
   type SimulationParams,
 } from "../components/simulation/SimulationControls";
 
-import { OutcomeDistributionCard } from "../components/simulation/OutcomeDistributionCard";
 import { FinalOutcomeCard } from "../components/simulation/FinalOutcomeCard";
+import { OutcomeDistributionCard } from "../components/simulation/OutcomeDistributionCard";
 
 function periodFromHorizon(h: 30 | 90 | 180 | 365) {
   if (h === 30) return "month";
@@ -40,9 +41,9 @@ export function SimulationPage() {
     return filterHistoryByPeriod(history, period);
   }, [history, params.horizonDays]);
 
-  // 🔒 fixed parameters
-  const drift = 0.00035;
-  const volatility = 0.01237;
+  const { drift, volatility } = useMemo(() => {
+    return estimatePortfolioParams(filteredHistory);
+  }, [filteredHistory]);
 
   const startValue = 100;
 
@@ -64,80 +65,87 @@ export function SimulationPage() {
     startValue,
   ]);
 
-  const medianFinal =
-    sim.median.length > 0
-      ? sim.median[sim.median.length - 1]
-      : startValue;
+  const finalMedian = sim.median.at(-1) ?? startValue;
 
   return (
-    <div>
+    <div style={{ marginTop: 10 }}>
       <div
         style={{
           display: "grid",
           gridTemplateColumns: "minmax(0, 1fr) 320px",
           gap: 14,
-          alignItems: "stretch",
-          marginTop: 10,
         }}
       >
+        {/* LEFT COLUMN */}
         <div
           style={{
-            background: "#0f172a",
-            border: "1px solid rgba(255,255,255,0.06)",
-            borderRadius: 12,
-            padding: 8,
-            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            gap: 14,
+            minWidth: 0,
           }}
         >
-          <SimulationChartCard
-            timestamps={sim.timestamps}
-            median={sim.median}
-            representative={sim.representative}
-            upper={sim.upper}
-            lower={sim.lower}
-            cloud={sim.paths}
-            showCloud={params.showCloud}
-            showMedian={params.showMedian}
-            showRepresentative={params.showRepresentative}
-            showRange={params.showRange}
-            onToggleCloud={() =>
-              setParams((p) => ({ ...p, showCloud: !p.showCloud }))
-            }
-            onToggleMedian={() =>
-              setParams((p) => ({ ...p, showMedian: !p.showMedian }))
-            }
-            onToggleRepresentative={() =>
-              setParams((p) => ({
-                ...p,
-                showRepresentative: !p.showRepresentative,
-              }))
-            }
-            onToggleRange={() =>
-              setParams((p) => ({ ...p, showRange: !p.showRange }))
-            }
-          />
+          {/* chart */}
+          <div
+            style={{
+              background: "#0f172a",
+              border: "1px solid rgba(255,255,255,0.06)",
+              borderRadius: 12,
+              padding: 8,
+            }}
+          >
+            <SimulationChartCard
+              timestamps={sim.timestamps}
+              median={sim.median}
+              representative={sim.representative}
+              upper={sim.upper}
+              lower={sim.lower}
+              cloud={sim.paths}
+              showCloud={params.showCloud}
+              showMedian={params.showMedian}
+              showRepresentative={params.showRepresentative}
+              showRange={params.showRange}
+              onToggleCloud={() =>
+                setParams((p) => ({ ...p, showCloud: !p.showCloud }))
+              }
+              onToggleMedian={() =>
+                setParams((p) => ({ ...p, showMedian: !p.showMedian }))
+              }
+              onToggleRepresentative={() =>
+                setParams((p) => ({
+                  ...p,
+                  showRepresentative: !p.showRepresentative,
+                }))
+              }
+              onToggleRange={() =>
+                setParams((p) => ({ ...p, showRange: !p.showRange }))
+              }
+            />
+          </div>
+
+          {/* cards under chart */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+              gap: 14,
+            }}
+          >
+            {/* LEFT */}
+            <FinalOutcomeCard
+              startValue={startValue}
+              median={finalMedian}
+            />
+
+            {/* RIGHT */}
+            <OutcomeDistributionCard paths={sim.paths} />
+          </div>
         </div>
 
-        <div className="h-100" style={{ minHeight: 0 }}>
+        {/* RIGHT COLUMN */}
+        <div>
           <SimulationControls value={params} onChange={setParams} />
         </div>
-      </div>
-
-      {/* cards under chart */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-          gap: 14,
-          marginTop: 14,
-        }}
-      >
-        <FinalOutcomeCard
-          startValue={startValue}
-          median={medianFinal}
-        />
-
-        <OutcomeDistributionCard paths={sim.paths} />
       </div>
     </div>
   );

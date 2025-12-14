@@ -43,19 +43,14 @@ export function OutcomeDistributionCard({
     const step = (max - min) / BUCKETS || 1;
 
     for (const v of finals) {
-      const i = Math.min(
-        BUCKETS - 1,
-        Math.floor((v - min) / step)
-      );
+      const i = Math.min(BUCKETS - 1, Math.floor((v - min) / step));
       counts[i]++;
     }
 
     const maxCount = Math.max(...counts) || 1;
     const bins = counts.map((c) => c / maxCount);
 
-    const medianPos =
-      ((median - min) / (max - min || 1)) * 100;
-
+    const medianPos = ((median - min) / (max - min || 1)) * 100;
     const isPositive = median >= start;
 
     return {
@@ -71,6 +66,12 @@ export function OutcomeDistributionCard({
   if (!model) return null;
 
   const MEDIAN_COLOR = model.isPositive ? "#22c55e" : "#ef4444";
+
+  const BAR_GRADIENT = `linear-gradient(180deg,
+    rgba(125,211,252,0.70) 0%,
+    rgba(56,189,248,0.56) 45%,
+    rgba(14,165,233,0.34) 100%
+  )`;
 
   return (
     <div
@@ -133,22 +134,25 @@ export function OutcomeDistributionCard({
                 flex: 1,
                 height: `${Math.max(0.06, v) * 100}%`,
                 borderRadius: 4,
-                background:
-                  "linear-gradient(180deg, rgba(14,165,233,0.85), rgba(14,165,233,0.4))",
+                background: BAR_GRADIENT,
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.12)",
                 transition: "height 200ms ease",
               }}
             />
           ))}
 
+          {/* median marker: чуть толще + rounded ends */}
           <div
             style={{
               position: "absolute",
               left: `${model.medianPos}%`,
-              bottom: 0,
-              transform: "translateX(-1px)",
-              width: 2,
-              height: "100%",
+              top: -6,
+              bottom: -6,
+              transform: "translateX(-50%)",
+              width: 3, // ← чуть толще (было 2)
               background: MEDIAN_COLOR,
+              borderRadius: 999,
+              boxShadow: "0 0 10px rgba(226,232,240,0.07)",
             }}
           />
         </div>
