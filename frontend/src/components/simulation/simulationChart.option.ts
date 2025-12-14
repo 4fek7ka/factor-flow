@@ -4,9 +4,8 @@ import type { EChartsCoreOption } from "echarts/core";
 const BOUND_COLOR = "#64748b";
 const RANGE_FILL = "rgba(255, 255, 255, 0.12)";
 
-// Fan (quantile bands) — мягкий, читабельный
-const FAN_OUTER_FILL = "rgba(14, 165, 233, 0.10)"; // q05-q95
-const FAN_INNER_FILL = "rgba(14, 165, 233, 0.18)"; // q25-q75
+const FAN_OUTER = "rgba(148,163,184,0.12)";
+const FAN_INNER = "rgba(148,163,184,0.20)";
 
 type FanQuantiles = {
   q05: number[];
@@ -23,81 +22,66 @@ type BuildOptionParams = {
   upper: number[];
   lower: number[];
   cloud: number[][];
+  fan?: FanQuantiles;
   yDomain: { min: number; max: number };
   flags: {
     showCloud: boolean;
     showMedian: boolean;
     showRepresentative: boolean;
     showRange: boolean;
-
-    // NEW: Quantile Fan
-    showFan?: boolean;
+    showFan: boolean;
   };
-
-  // NEW: Quantile Fan data
-  fan?: FanQuantiles;
 };
 
-function buildBandPolygon(
+function buildPolygon(
   timestamps: number[],
-  upperArr: number[],
-  lowerArr: number[],
+  upper: number[],
+  lower: number[],
   api: any
-): number[][] | null {
-  const n = timestamps.length;
-  if (n === 0) return null;
-  if (upperArr.length !== n || lowerArr.length !== n) return null;
-
-  const points: number[][] = [];
-
-  for (let i = 0; i < n; i++) {
-    const x = timestamps[i];
-    const y = upperArr[i];
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-    points.push(api.coord([x, y]));
+) {
+  const pts: number[][] = [];
+  for (let i = 0; i < timestamps.length; i++) {
+    pts.push(api.coord([timestamps[i], upper[i]]));
   }
-
-  for (let i = n - 1; i >= 0; i--) {
-    const x = timestamps[i];
-    const y = lowerArr[i];
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-    points.push(api.coord([x, y]));
+  for (let i = timestamps.length - 1; i >= 0; i--) {
+    pts.push(api.coord([timestamps[i], lower[i]]));
   }
-
-  return points;
+  return pts;
 }
 
-function bandSeries(opts: {
-  enabled: boolean;
-  timestamps: number[];
-  upper: number[];
-  lower: number[];
-  fill: string;
-  z: number;
-}) {
-  const { enabled, timestamps, upper, lower, fill, z } = opts;
+function tooltipRow(
+  label: string,
+  value: number,
+  color: string,
+  bold = false
+) {
+  return `
+    <div style="
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-top:4px;
+      font-weight:${bold ? 800 : 700};
+    ">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="
+          width:8px;
+          height:8px;
+          border-radius:50%;
+          background:${color};
+          display:inline-block;
+        "></span>
+        <span style="color:rgba(148,163,184,0.9)">
+          ${label}
+        </span>
+      </div>
 
-  return {
-    type: "custom" as const,
-    silent: true,
-    animation: false,
-    data: [0],
-    z,
-    renderItem: (_p: unknown, api: any) => {
-      if (!enabled) return null;
-
-      const points = buildBandPolygon(timestamps, upper, lower, api);
-      if (!points) return null;
-
-      return {
-        type: "polygon",
-        shape: { points },
-        style: {
-          fill,
-        },
-      };
-    },
-  };
+      <span style="color:rgba(30,41,59,0.95)">
+        ${value.toFixed(2)}%
+      </span>
+    </div>
+  `;
 }
 
 export function buildSimulationChartOption({
@@ -107,26 +91,54 @@ export function buildSimulationChartOption({
   upper,
   lower,
   cloud,
+  fan,
   yDomain,
   flags,
-  fan,
 }: BuildOptionParams): EChartsCoreOption {
   const cloudOpacity = flags.showCloud ? 0.15 : 0;
+  const rangeOpacity = flags.showRange ? 1 : 0;
   const medianOpacity = flags.showMedian ? 0.45 : 0;
   const repOpacity = flags.showRepresentative ? 0.7 : 0;
-  const rangeOpacity = flags.showRange ? 1 : 0;
-
-  const showFan = Boolean(flags.showFan && fan);
+  const fanOpacity = flags.showFan ? 1 : 0;
 
   return {
     backgroundColor: "transparent",
-
-    animationDurationUpdate: 300,
-    animationEasingUpdate: "cubicOut",
+    animation: false,
 
     tooltip: {
       trigger: "axis",
-      valueFormatter: (v: number) => `${v.toFixed(2)}%`,
+      axisPointer: {
+        type: "line",
+        lineStyle: {
+          color: "rgba(148,163,184,0.45)",
+          width: 1,
+          type: "dashed",
+        },
+      },
+      formatter: (params: any[]) => {
+        const main = params.find((p) => p.seriesName === "Main");
+        if (!main) return "";
+
+        const idx = main.dataIndex;
+        const day = Math.round(main.value[0]);
+
+        let html = `
+          <div style="font-weight:800;margin-bottom:6px">
+            ${day}d
+          </div>
+        `;
+
+        // TOP: upper
+        html += tooltipRow("Upper", upper[idx], BOUND_COLOR);
+
+        // CENTER: main
+        html += tooltipRow("Main", representative[idx], "#0ea5e9", true);
+
+        // BOTTOM: lower
+        html += tooltipRow("Lower", lower[idx], BOUND_COLOR);
+
+        return html;
+      },
     },
 
     grid: {
@@ -145,12 +157,8 @@ export function buildSimulationChartOption({
         color: "#94a3b8",
         formatter: (v: number) => `${Math.round(v)}d`,
       },
-      axisLine: {
-        lineStyle: { color: "#334155" },
-      },
-      splitLine: {
-        show: false,
-      },
+      axisLine: { lineStyle: { color: "#334155" } },
+      splitLine: { show: false },
     },
 
     yAxis: {
@@ -159,42 +167,30 @@ export function buildSimulationChartOption({
       max: yDomain.max,
       position: "right",
       animation: false,
-
       axisLabel: {
         color: "#94a3b8",
-        align: "left",
-        margin: 8,
-        formatter: (v: number) => {
-          if (v === yDomain.min || v === yDomain.max) return "";
-          return `${v}%`;
-        },
+        formatter: (v: number) =>
+          v === yDomain.min || v === yDomain.max ? "" : `${v}%`,
       },
-
       axisLine: { show: false },
       axisTick: { show: false },
-
       splitLine: {
         show: true,
         showMinLine: false,
         showMaxLine: false,
-        lineStyle: {
-          color: "#334155",
-          width: 1,
-          opacity: 0.7,
-        },
+        lineStyle: { color: "#334155", width: 1, opacity: 0.7 },
       },
     },
 
     series: [
-      // cloud
       ...cloud.map((p) => ({
-        type: "line" as const,
+        type: "line",
+        name: "Cloud",
         data: timestamps.map((t, i) => [t, p[i]]),
         showSymbol: false,
         silent: true,
-        animation: false,
         tooltip: { show: false },
-        emphasis: { disabled: true },
+        animation: false,
         lineStyle: {
           color: "#64748b",
           width: 1,
@@ -203,89 +199,64 @@ export function buildSimulationChartOption({
         z: 1,
       })),
 
-      // NEW: Fan bands (quantiles)
-      ...(showFan
-        ? [
-            bandSeries({
-              enabled: true,
-              timestamps,
-              upper: fan!.q95,
-              lower: fan!.q05,
-              fill: FAN_OUTER_FILL,
-              z: 2,
-            }),
-            bandSeries({
-              enabled: true,
-              timestamps,
-              upper: fan!.q75,
-              lower: fan!.q25,
-              fill: FAN_INNER_FILL,
-              z: 3,
-            }),
-          ]
-        : []),
+      fan && {
+        type: "custom",
+        name: "FanOuter",
+        silent: true,
+        tooltip: { show: false },
+        animation: false,
+        data: [0],
+        z: 2,
+        renderItem: (_: unknown, api: any) => ({
+          type: "polygon",
+          shape: {
+            points: buildPolygon(timestamps, fan.q95, fan.q05, api),
+          },
+          style: { fill: FAN_OUTER, opacity: fanOpacity },
+        }),
+      },
 
-      // range fill (Simple/Advanced)
+      fan && {
+        type: "custom",
+        name: "FanInner",
+        silent: true,
+        tooltip: { show: false },
+        animation: false,
+        data: [0],
+        z: 3,
+        renderItem: (_: unknown, api: any) => ({
+          type: "polygon",
+          shape: {
+            points: buildPolygon(timestamps, fan.q75, fan.q25, api),
+          },
+          style: { fill: FAN_INNER, opacity: fanOpacity },
+        }),
+      },
+
       {
         type: "custom",
+        name: "Range",
         silent: true,
+        tooltip: { show: false },
         animation: false,
         data: [0],
         z: 4,
-        renderItem: (_p: unknown, api: any) => {
-          if (!flags.showRange) return null;
-
-          const points = buildBandPolygon(timestamps, upper, lower, api);
-          if (!points) return null;
-
-          return {
-            type: "polygon",
-            shape: { points },
-            style: {
-              fill: RANGE_FILL,
-              opacity: rangeOpacity,
-            },
-          };
-        },
+        renderItem: (_: unknown, api: any) => ({
+          type: "polygon",
+          shape: {
+            points: buildPolygon(timestamps, upper, lower, api),
+          },
+          style: { fill: RANGE_FILL, opacity: rangeOpacity },
+        }),
       },
 
-      // lower bound
       {
         type: "line",
-        data: timestamps.map((t, i) => [t, lower[i]]),
-        showSymbol: false,
-        silent: true,
-        animation: false,
-        lineStyle: {
-          color: BOUND_COLOR,
-          width: 1.5,
-          opacity: flags.showRange ? 1 : 0,
-        },
-        z: 6,
-      },
-
-      // upper bound
-      {
-        type: "line",
-        data: timestamps.map((t, i) => [t, upper[i]]),
-        showSymbol: false,
-        silent: true,
-        animation: false,
-        lineStyle: {
-          color: BOUND_COLOR,
-          width: 1.5,
-          opacity: flags.showRange ? 1 : 0,
-        },
-        z: 6,
-      },
-
-      // median
-      {
-        type: "line",
+        name: "Median",
         data: timestamps.map((t, i) => [t, median[i]]),
         showSymbol: false,
-        tooltip: flags.showMedian ? undefined : { show: false },
-        emphasis: flags.showMedian ? undefined : { disabled: true },
+        tooltip: { show: false },
+        animation: false,
         lineStyle: {
           color: "#ef4444",
           width: 2,
@@ -295,13 +266,12 @@ export function buildSimulationChartOption({
         z: 10,
       },
 
-      // representative
       {
         type: "line",
+        name: "Main",
         data: timestamps.map((t, i) => [t, representative[i]]),
         showSymbol: false,
-        tooltip: flags.showRepresentative ? undefined : { show: false },
-        emphasis: flags.showRepresentative ? undefined : { disabled: true },
+        animation: false,
         lineStyle: {
           color: "#0ea5e9",
           width: 2,
@@ -309,6 +279,6 @@ export function buildSimulationChartOption({
         },
         z: 12,
       },
-    ],
+    ].filter(Boolean),
   };
 }
