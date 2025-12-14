@@ -1,9 +1,5 @@
 // simulationChart.option.ts
 import type { EChartsCoreOption } from "echarts/core";
-
-const BOUND_COLOR = "#64748b";
-const RANGE_FILL = "rgba(255, 255, 255, 0.12)";
-
 const FAN_OUTER = "rgba(148,163,184,0.12)";
 const FAN_INNER = "rgba(148,163,184,0.20)";
 
