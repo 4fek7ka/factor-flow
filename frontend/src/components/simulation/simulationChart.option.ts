@@ -29,9 +29,9 @@ export function buildSimulationChartOption({
   yDomain,
   flags,
 }: BuildOptionParams): EChartsCoreOption {
-  const cloudOpacity = flags.showCloud ? 0.22 : 0;
-  const medianOpacity = flags.showMedian ? 0.6 : 0;
-  const repOpacity = flags.showRepresentative ? 0.9 : 0;
+  const cloudOpacity = flags.showCloud ? 0.15 : 0;
+  const medianOpacity = flags.showMedian ? 0.45 : 0;
+  const repOpacity = flags.showRepresentative ? 0.7 : 0;
   const rangeOpacity = flags.showRange ? 1 : 0;
 
   return {
@@ -62,7 +62,7 @@ export function buildSimulationChartOption({
         formatter: (v: number) => `${Math.round(v)}d`,
       },
       axisLine: { lineStyle: { color: "#334155" } },
-      splitLine: { lineStyle: { color: "#1e293b" } },
+      splitLine: { show: false },
     },
 
     yAxis: {
@@ -70,6 +70,7 @@ export function buildSimulationChartOption({
       min: yDomain.min,
       max: yDomain.max,
       animation: false,
+
       axisLabel: {
         color: "#94a3b8",
         formatter: (v: number) => {
@@ -77,12 +78,26 @@ export function buildSimulationChartOption({
           return `${v}%`;
         },
       },
+
       axisLine: { lineStyle: { color: "#334155" } },
-      splitLine: { show: false },
+
+      splitLine: {
+        show: true,
+
+        // ✅ убираем только крайние (верх/низ)
+        // (в новых версиях ECharts это поддерживается)
+        showMinLine: false,
+        showMaxLine: false,
+
+        lineStyle: {
+          color: "#334155",
+          width: 1,
+          opacity: 0.7,
+        },
+      },
     },
 
     series: [
-      // cloud paths
       ...cloud.map((p) => ({
         type: "line",
         data: timestamps.map((t, i) => [t, p[i]]),
@@ -99,7 +114,6 @@ export function buildSimulationChartOption({
         z: 1,
       })),
 
-      // range fill
       {
         type: "custom",
         silent: true,
@@ -129,7 +143,6 @@ export function buildSimulationChartOption({
         },
       },
 
-      // lower bound
       {
         type: "line",
         data: timestamps.map((t, i) => [t, lower[i]]),
@@ -138,13 +151,12 @@ export function buildSimulationChartOption({
         silent: true,
         lineStyle: {
           color: BOUND_COLOR,
-          width: 2,
-          opacity: flags.showRange ? 0.7 : 0,
+          width: 1.5,
+          opacity: flags.showRange ? 0.5 : 0,
         },
         z: 4,
       },
 
-      // upper bound
       {
         type: "line",
         data: timestamps.map((t, i) => [t, upper[i]]),
@@ -153,13 +165,12 @@ export function buildSimulationChartOption({
         silent: true,
         lineStyle: {
           color: BOUND_COLOR,
-          width: 2,
-          opacity: flags.showRange ? 0.7 : 0,
+          width: 1.5,
+          opacity: flags.showRange ? 0.5 : 0,
         },
         z: 4,
       },
 
-      // median
       {
         type: "line",
         data: timestamps.map((t, i) => [t, median[i]]),
@@ -175,7 +186,6 @@ export function buildSimulationChartOption({
         z: 10,
       },
 
-      // representative
       {
         type: "line",
         data: timestamps.map((t, i) => [t, representative[i]]),
