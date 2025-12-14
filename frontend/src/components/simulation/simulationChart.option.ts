@@ -8,8 +8,8 @@ const FAN_OUTER = "rgba(148,163,184,0.12)";
 const FAN_INNER = "rgba(148,163,184,0.20)";
 
 const COLOR_MAIN = "#0ea5e9";
-const COLOR_UPPER = "#22c55e"; // green
-const COLOR_LOWER = "#ef4444"; // red
+const COLOR_UPPER = "#22c55e";
+const COLOR_LOWER = "#ef4444";
 
 type FanQuantiles = {
   q05: number[];
@@ -74,13 +74,9 @@ function tooltipRow(
           height:8px;
           border-radius:50%;
           background:${dotColor};
-          display:inline-block;
         "></span>
-        <span style="color:rgba(148,163,184,0.9)">
-          ${label}
-        </span>
+        <span style="color:rgba(148,163,184,0.9)">${label}</span>
       </div>
-
       <span style="color:rgba(30,41,59,0.95)">
         ${value.toFixed(2)}%
       </span>
@@ -99,15 +95,12 @@ export function buildSimulationChartOption({
   yDomain,
   flags,
 }: BuildOptionParams): EChartsCoreOption {
-  const cloudOpacity = flags.showCloud ? 0.15 : 0;
-  const rangeOpacity = flags.showRange ? 1 : 0;
-  const medianOpacity = flags.showMedian ? 0.45 : 0;
-  const repOpacity = flags.showRepresentative ? 0.7 : 0;
-  const fanOpacity = flags.showFan ? 1 : 0;
-
   return {
     backgroundColor: "transparent",
-    animation: false,
+
+    // ✅ ключевая часть
+    animationDurationUpdate: 420,
+    animationEasingUpdate: "cubicOut",
 
     tooltip: {
       trigger: "axis",
@@ -123,34 +116,18 @@ export function buildSimulationChartOption({
         const main = params.find((p) => p.seriesName === "Main");
         if (!main) return "";
 
-        const idx = main.dataIndex;
+        const i = main.dataIndex;
         const day = Math.round(main.value[0]);
 
-        let html = `
-          <div style="font-weight:800;margin-bottom:6px">
-            ${day}d
-          </div>
-        `;
-
-        // TOP
-        html += tooltipRow("Upper", upper[idx], COLOR_UPPER);
-
-        // CENTER
-        html += tooltipRow("Main", representative[idx], COLOR_MAIN, true);
-
-        // BOTTOM
-        html += tooltipRow("Lower", lower[idx], COLOR_LOWER);
-
+        let html = `<div style="font-weight:800;margin-bottom:6px">${day}d</div>`;
+        html += tooltipRow("Upper", upper[i], COLOR_UPPER);
+        html += tooltipRow("Main", representative[i], COLOR_MAIN, true);
+        html += tooltipRow("Lower", lower[i], COLOR_LOWER);
         return html;
       },
     },
 
-    grid: {
-      left: 40,
-      right: 48,
-      top: 44,
-      bottom: 40,
-    },
+    grid: { left: 40, right: 48, top: 44, bottom: 40 },
 
     xAxis: {
       type: "value",
@@ -180,8 +157,6 @@ export function buildSimulationChartOption({
       axisTick: { show: false },
       splitLine: {
         show: true,
-        showMinLine: false,
-        showMaxLine: false,
         lineStyle: { color: "#334155", width: 1, opacity: 0.7 },
       },
     },
@@ -198,7 +173,7 @@ export function buildSimulationChartOption({
         lineStyle: {
           color: "#64748b",
           width: 1,
-          opacity: cloudOpacity,
+          opacity: flags.showCloud ? 0.15 : 0,
         },
         z: 1,
       })),
@@ -213,10 +188,8 @@ export function buildSimulationChartOption({
         z: 2,
         renderItem: (_: unknown, api: any) => ({
           type: "polygon",
-          shape: {
-            points: buildPolygon(timestamps, fan.q95, fan.q05, api),
-          },
-          style: { fill: FAN_OUTER, opacity: fanOpacity },
+          shape: { points: buildPolygon(timestamps, fan.q95, fan.q05, api) },
+          style: { fill: FAN_OUTER, opacity: flags.showFan ? 1 : 0 },
         }),
       },
 
@@ -230,27 +203,8 @@ export function buildSimulationChartOption({
         z: 3,
         renderItem: (_: unknown, api: any) => ({
           type: "polygon",
-          shape: {
-            points: buildPolygon(timestamps, fan.q75, fan.q25, api),
-          },
-          style: { fill: FAN_INNER, opacity: fanOpacity },
-        }),
-      },
-
-      {
-        type: "custom",
-        name: "Range",
-        silent: true,
-        tooltip: { show: false },
-        animation: false,
-        data: [0],
-        z: 4,
-        renderItem: (_: unknown, api: any) => ({
-          type: "polygon",
-          shape: {
-            points: buildPolygon(timestamps, upper, lower, api),
-          },
-          style: { fill: RANGE_FILL, opacity: rangeOpacity },
+          shape: { points: buildPolygon(timestamps, fan.q75, fan.q25, api) },
+          style: { fill: FAN_INNER, opacity: flags.showFan ? 1 : 0 },
         }),
       },
 
@@ -259,12 +213,11 @@ export function buildSimulationChartOption({
         name: "Median",
         data: timestamps.map((t, i) => [t, median[i]]),
         showSymbol: false,
-        tooltip: { show: false },
-        animation: false,
+        animation: true,
         lineStyle: {
           color: "#ef4444",
           width: 2,
-          opacity: medianOpacity,
+          opacity: flags.showMedian ? 0.45 : 0,
         },
         z: 10,
       },
@@ -274,11 +227,11 @@ export function buildSimulationChartOption({
         name: "Main",
         data: timestamps.map((t, i) => [t, representative[i]]),
         showSymbol: false,
-        animation: false,
+        animation: true,
         lineStyle: {
           color: COLOR_MAIN,
           width: 2,
-          opacity: repOpacity,
+          opacity: flags.showRepresentative ? 0.7 : 0,
         },
         z: 12,
       },
