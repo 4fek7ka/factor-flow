@@ -13,6 +13,8 @@ import {
   type SimulationParams,
 } from "../components/simulation/SimulationControls";
 
+import { OutcomeDistributionCard } from "../components/simulation/OutcomeDistributionCard";
+
 function periodFromHorizon(h: 30 | 90 | 180 | 365) {
   if (h === 30) return "month";
   if (h === 90) return "month";
@@ -71,19 +73,6 @@ export function SimulationPage() {
     startValue,
   ]);
 
-  const finalMedian = sim.median[sim.median.length - 1] ?? startValue;
-  const finalUpper = sim.upper[sim.upper.length - 1] ?? startValue;
-  const finalLower = sim.lower[sim.lower.length - 1] ?? startValue;
-
-  const probGain = useMemo(() => {
-    if (!sim.paths.length) return 0;
-    let wins = 0;
-    for (const p of sim.paths) {
-      if (p[p.length - 1] > startValue) wins++;
-    }
-    return (wins / sim.paths.length) * 100;
-  }, [sim.paths, startValue]);
-
   return (
     <div>
       <div
@@ -115,8 +104,6 @@ export function SimulationPage() {
             showMedian={params.showMedian}
             showRepresentative={params.showRepresentative}
             showRange={params.showRange}
-
-            /* 🔑 INLINE LEGEND CALLBACKS */
             onToggleCloud={() =>
               setParams((p) => ({ ...p, showCloud: !p.showCloud }))
             }
@@ -140,39 +127,16 @@ export function SimulationPage() {
         </div>
       </div>
 
-      <div className="row row-cards" style={{ marginTop: 14 }}>
-        <div className="col-12 col-md-4 d-flex">
-          <div className="card card-sm w-100">
-            <div className="card-body">
-              <div className="text-muted">Median (T)</div>
-              <div style={{ fontSize: 20, fontWeight: 800 }}>
-                {formatMoney(finalMedian)}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="col-12 col-md-4 d-flex">
-          <div className="card card-sm w-100">
-            <div className="card-body">
-              <div className="text-muted">P(Value &gt; Start)</div>
-              <div style={{ fontSize: 20, fontWeight: 800 }}>
-                {probGain.toFixed(0)}%
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="col-12 col-md-4 d-flex">
-          <div className="card card-sm w-100">
-            <div className="card-body">
-              <div className="text-muted">Expected range (T)</div>
-              <div style={{ fontSize: 18, fontWeight: 800 }}>
-                {formatMoney(finalLower)} – {formatMoney(finalUpper)}
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* cards under chart */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          gap: 14,
+          marginTop: 14,
+        }}
+      >
+        <OutcomeDistributionCard paths={sim.paths} />
       </div>
 
       <div style={{ marginTop: 10, fontSize: 12, color: "#94a3b8" }}>
