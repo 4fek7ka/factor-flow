@@ -4,7 +4,6 @@ import historyJson from "../data/mock-history.json";
 import type { HistoryPoint } from "../services/portfolioService";
 import { filterHistoryByPeriod } from "../services/portfolioService";
 
-import { estimatePortfolioParams } from "../services/portfolioStatsService";
 import { runMonteCarloAdvanced } from "../services/monteCarloService";
 
 import { SimulationChartCard } from "../components/simulation/SimulationChartCard";
@@ -20,15 +19,6 @@ function periodFromHorizon(h: 30 | 90 | 180 | 365) {
   if (h === 90) return "month";
   if (h === 180) return "year";
   return "year";
-}
-
-function formatMoney(v: number) {
-  if (!Number.isFinite(v)) return "-";
-  return v.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  });
 }
 
 export function SimulationPage() {
@@ -49,9 +39,9 @@ export function SimulationPage() {
     return filterHistoryByPeriod(history, period);
   }, [history, params.horizonDays]);
 
-  const { drift, volatility } = useMemo(() => {
-    return estimatePortfolioParams(filteredHistory);
-  }, [filteredHistory]);
+  // 🔒 FIXED PARAMETERS
+  const drift = 0.00035;
+  const volatility = 0.01237;
 
   const startValue = 100;
 
@@ -137,10 +127,6 @@ export function SimulationPage() {
         }}
       >
         <OutcomeDistributionCard paths={sim.paths} />
-      </div>
-
-      <div style={{ marginTop: 10, fontSize: 12, color: "#94a3b8" }}>
-        drift={drift.toFixed(5)}, volatility={volatility.toFixed(5)}
       </div>
     </div>
   );

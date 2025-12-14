@@ -23,7 +23,9 @@ export function OutcomeDistributionCard({
   title = "Outcome distribution",
 }: Props) {
   const model = useMemo(() => {
-    if (!paths.length) return null;
+    if (!paths.length || !paths[0]?.length) return null;
+
+    const start = paths[0][0];
 
     const finals = paths
       .map((p) => p[p.length - 1])
@@ -36,7 +38,7 @@ export function OutcomeDistributionCard({
     const max = finals[finals.length - 1];
     const median = medianOf(finals);
 
-    const BUCKETS = 12;
+    const BUCKETS = 14;
     const counts = Array(BUCKETS).fill(0);
     const step = (max - min) / BUCKETS || 1;
 
@@ -54,10 +56,21 @@ export function OutcomeDistributionCard({
     const medianPos =
       ((median - min) / (max - min || 1)) * 100;
 
-    return { bins, min, max, median, medianPos };
+    const isPositive = median >= start;
+
+    return {
+      bins,
+      min,
+      max,
+      median,
+      medianPos,
+      isPositive,
+    };
   }, [paths]);
 
   if (!model) return null;
+
+  const MEDIAN_COLOR = model.isPositive ? "#22c55e" : "#ef4444";
 
   return (
     <div
@@ -96,7 +109,7 @@ export function OutcomeDistributionCard({
             <div
               style={{
                 fontWeight: 800,
-                color: "rgba(226,232,240,0.95)",
+                color: MEDIAN_COLOR,
               }}
             >
               {formatMoney(model.median)}
@@ -104,14 +117,13 @@ export function OutcomeDistributionCard({
           </div>
         </div>
 
-        {/* histogram */}
         <div
           style={{
             position: "relative",
             height: 72,
             display: "flex",
             alignItems: "flex-end",
-            gap: 6,
+            gap: 5,
           }}
         >
           {model.bins.map((v, i) => (
@@ -119,8 +131,8 @@ export function OutcomeDistributionCard({
               key={i}
               style={{
                 flex: 1,
-                height: `${Math.max(0.08, v) * 100}%`,
-                borderRadius: 6,
+                height: `${Math.max(0.06, v) * 100}%`,
+                borderRadius: 4,
                 background:
                   "linear-gradient(180deg, rgba(14,165,233,0.85), rgba(14,165,233,0.4))",
                 transition: "height 200ms ease",
@@ -128,7 +140,6 @@ export function OutcomeDistributionCard({
             />
           ))}
 
-          {/* median */}
           <div
             style={{
               position: "absolute",
@@ -137,7 +148,7 @@ export function OutcomeDistributionCard({
               transform: "translateX(-1px)",
               width: 2,
               height: "100%",
-              background: "#22c55e",
+              background: MEDIAN_COLOR,
             }}
           />
         </div>
