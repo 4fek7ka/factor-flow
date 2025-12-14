@@ -6,7 +6,8 @@ export type SimulationParams = {
   simulations: 50 | 100 | 200;
   showCloud: boolean;
   showMedian: boolean;
-  showRepresentative: boolean; // ⬅️ NEW
+  showRepresentative: boolean;
+  showRange: boolean;
 };
 
 type Props = {
@@ -125,10 +126,21 @@ export function SimulationControls({ value, onChange }: Props) {
       <Section title="Visual layers">
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <Chip
-            label={`Cloud ${value.showCloud ? "On" : "Off"}`}
-            active={value.showCloud}
+            label={`Main ${value.showRepresentative ? "On" : "Off"}`}
+            active={value.showRepresentative}
             onClick={() =>
-              onChange({ ...value, showCloud: !value.showCloud })
+              onChange({
+                ...value,
+                showRepresentative: !value.showRepresentative,
+              })
+            }
+          />
+
+          <Chip
+            label={`Range ${value.showRange ? "On" : "Off"}`}
+            active={value.showRange}
+            onClick={() =>
+              onChange({ ...value, showRange: !value.showRange })
             }
           />
 
@@ -141,13 +153,10 @@ export function SimulationControls({ value, onChange }: Props) {
           />
 
           <Chip
-            label={`Main ${value.showRepresentative ? "On" : "Off"}`}
-            active={value.showRepresentative}
+            label={`Cloud ${value.showCloud ? "On" : "Off"}`}
+            active={value.showCloud}
             onClick={() =>
-              onChange({
-                ...value,
-                showRepresentative: !value.showRepresentative,
-              })
+              onChange({ ...value, showCloud: !value.showCloud })
             }
           />
         </div>

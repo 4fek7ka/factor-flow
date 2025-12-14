@@ -19,9 +19,6 @@ const TARGET_POINTS = 250;
 const BOUND_COLOR = "#64748b";
 const RANGE_FILL = "rgba(255, 255, 255, 0.12)";
 
-const UPPER_START = 5;
-const LOWER_START = -5;
-
 export type SimulationChartCardProps = {
   timestamps: number[];
   median: number[];
@@ -31,7 +28,8 @@ export type SimulationChartCardProps = {
   cloud: number[][];
   showCloud: boolean;
   showMedian: boolean;
-  showRepresentative?: boolean; // ⬅️ NEW
+  showRepresentative?: boolean;
+  showRange: boolean;
 };
 
 function resample<T>(arr: T[], target: number): T[] {
@@ -47,18 +45,10 @@ function resample<T>(arr: T[], target: number): T[] {
   return res;
 }
 
-function toPercent(values: number[]): number[] {
+function toPercentFromBase(values: number[], base: number): number[] {
   if (values.length === 0) return values;
-  const base = values[0];
   if (!Number.isFinite(base) || base === 0) return values.map(() => 0);
   return values.map((v) => ((v - base) / base) * 100);
-}
-
-function shiftToStart(values: number[], targetStart: number): number[] {
-  if (values.length === 0) return values;
-  const first = values[0];
-  const delta = targetStart - first;
-  return values.map((v) => v + delta);
 }
 
 export function SimulationChartCard({
@@ -70,11 +60,11 @@ export function SimulationChartCard({
   cloud,
   showCloud,
   showMedian,
-  showRepresentative = true, // ⬅️ default ON
+  showRepresentative = true,
+  showRange,
 }: SimulationChartCardProps) {
   const ref = useRef<HTMLDivElement>(null);
   const chartRef = useRef<EChartsType | null>(null);
-
   const yDomainRef = useRef<{ min: number; max: number } | null>(null);
 
   useEffect(() => {
@@ -97,11 +87,19 @@ export function SimulationChartCard({
     const chart = chartRef.current;
     if (!chart) return;
 
-    const medianPct = toPercent(median);
-    const repPct = toPercent(representative);
-    const upperPct = shiftToStart(toPercent(upper), UPPER_START);
-    const lowerPct = shiftToStart(toPercent(lower), LOWER_START);
-    const cloudPct = cloud.map(toPercent);
+    const baseCandidate =
+      (median.length ? median[0] : undefined) ??
+      (representative.length ? representative[0] : undefined) ??
+      1;
+
+    const base =
+      Number.isFinite(baseCandidate) && baseCandidate !== 0 ? baseCandidate : 1;
+
+    const medianPct = toPercentFromBase(median, base);
+    const repPct = toPercentFromBase(representative, base);
+    const upperPct = toPercentFromBase(upper, base);
+    const lowerPct = toPercentFromBase(lower, base);
+    const cloudPct = cloud.map((p) => toPercentFromBase(p, base));
 
     if (!yDomainRef.current) {
       const all = [
@@ -127,9 +125,10 @@ export function SimulationChartCard({
     const up = resample(upperPct, TARGET_POINTS);
     const low = resample(lowerPct, TARGET_POINTS);
 
-    const cloudOpacity = showCloud ? 0.14 : 0;
+    const cloudOpacity = showCloud ? 0.22 : 0;
     const medianOpacity = showMedian ? 0.6 : 0;
     const repOpacity = showRepresentative ? 0.9 : 0;
+    const rangeOpacity = showRange ? 1 : 0;
 
     const option: EChartsCoreOption = {
       backgroundColor: "transparent",
@@ -201,10 +200,15 @@ export function SimulationChartCard({
           data: [0],
           z: 2,
           renderItem: (_p: any, api: any) => {
+            if (!showRange) return null;
             const points: number[][] = [];
             for (let i = 0; i < ts.length; i++) points.push(api.coord([ts[i], up[i]]));
             for (let i = ts.length - 1; i >= 0; i--) points.push(api.coord([ts[i], low[i]]));
-            return { type: "polygon", shape: { points }, style: { fill: RANGE_FILL } };
+            return {
+              type: "polygon",
+              shape: { points },
+              style: { fill: RANGE_FILL, opacity: rangeOpacity },
+            };
           },
         },
 
@@ -215,7 +219,7 @@ export function SimulationChartCard({
           showSymbol: false,
           animation: false,
           silent: true,
-          lineStyle: { color: BOUND_COLOR, width: 2, opacity: 0.7 },
+          lineStyle: { color: BOUND_COLOR, width: 2, opacity: showRange ? 0.7 : 0 },
           z: 4,
         },
 
@@ -226,7 +230,7 @@ export function SimulationChartCard({
           showSymbol: false,
           animation: false,
           silent: true,
-          lineStyle: { color: BOUND_COLOR, width: 2, opacity: 0.7 },
+          lineStyle: { color: BOUND_COLOR, width: 2, opacity: showRange ? 0.7 : 0 },
           z: 4,
         },
 
@@ -237,27 +241,18 @@ export function SimulationChartCard({
           showSymbol: false,
           tooltip: showMedian ? undefined : { show: false },
           emphasis: showMedian ? undefined : { disabled: true },
-          lineStyle: {
-            color: "#ef4444",
-            width: 2,
-            type: "dashed",
-            opacity: medianOpacity,
-          },
+          lineStyle: { color: "#ef4444", width: 2, type: "dashed", opacity: medianOpacity },
           z: 10,
         },
 
-        // REPRESENTATIVE (TOGGLE)
+        // REPRESENTATIVE
         {
           type: "line",
           data: ts.map((t, i) => [t, rep[i]]),
           showSymbol: false,
           tooltip: showRepresentative ? undefined : { show: false },
           emphasis: showRepresentative ? undefined : { disabled: true },
-          lineStyle: {
-            color: "#0ea5e9",
-            width: 2,
-            opacity: repOpacity,
-          },
+          lineStyle: { color: "#0ea5e9", width: 2, opacity: repOpacity },
           z: 8,
         },
       ],
@@ -274,6 +269,7 @@ export function SimulationChartCard({
     showCloud,
     showMedian,
     showRepresentative,
+    showRange,
   ]);
 
   return <div ref={ref} style={{ width: "100%", height: 380 }} />;

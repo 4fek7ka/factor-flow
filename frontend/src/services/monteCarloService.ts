@@ -2,8 +2,8 @@ export type Scenario = "conservative" | "baseline" | "stress";
 
 export type MonteCarloInput = {
   startValue: number;
-  drift: number;       // μ, log-return per day
-  volatility: number;  // σ, log-return std per day
+  drift: number;
+  volatility: number;
   horizonDays: number;
   simulations: number;
   scenario: Scenario;
@@ -24,11 +24,14 @@ const SCENARIO_VOL_MULTIPLIER: Record<Scenario, number> = {
   stress: 1.5,
 };
 
-/* ================================
-   Deterministic RNG (fixed seed)
-   ================================ */
+const START_RANGE_PCT: Record<Scenario, number> = {
+  conservative: 0.03,
+  baseline: 0.05,
+  stress: 0.07,
+};
 
 const FIXED_SEED = 42;
+const END_PENALTY_LAMBDA = 12;
 
 function mulberry32(seed: number) {
   let t = seed >>> 0;
@@ -47,10 +50,6 @@ function randomNormal(rng: () => number): number {
   while (v === 0) v = rng();
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
-
-/* ================================
-   Monte Carlo Simulation (GBM)
-   ================================ */
 
 export function runMonteCarloAdvanced(
   input: MonteCarloInput
@@ -92,25 +91,7 @@ export function runMonteCarloAdvanced(
       : (values[m - 1] + values[m]) / 2;
   });
 
-  // 3) representative
-  let bestIdx = 0;
-  let bestDist = Infinity;
-
-  for (let k = 0; k < paths.length; k++) {
-    let dist = 0;
-    for (let i = 0; i < median.length; i++) {
-      const d = paths[k][i] - median[i];
-      dist += d * d;
-    }
-    if (dist < bestDist) {
-      bestDist = dist;
-      bestIdx = k;
-    }
-  }
-
-  const representative = paths[bestIdx];
-
-  // 4) horizon bounds (20%)
+  // 3) bounds
   const endValues = paths.map((p) => p[horizonDays]).sort((a, b) => a - b);
   const k = Math.max(1, Math.floor(simulations * 0.2));
 
@@ -120,9 +101,9 @@ export function runMonteCarloAdvanced(
   const lowerEnd = avg(endValues.slice(0, k));
   const upperEnd = avg(endValues.slice(endValues.length - k));
 
-  // 5) start bounds ±5%
-  const lowerStart = median[0] * 0.95;
-  const upperStart = median[0] * 1.05;
+  const startPct = START_RANGE_PCT[scenario];
+  const lowerStart = median[0] * (1 - startPct);
+  const upperStart = median[0] * (1 + startPct);
 
   const lower: number[] = [];
   const upper: number[] = [];
@@ -133,10 +114,55 @@ export function runMonteCarloAdvanced(
     upper.push(upperStart + (upperEnd - upperStart) * t);
   }
 
+  // 4) candidate filter: path must stay inside bounds
+  const validIndices: number[] = [];
+
+  for (let p = 0; p < paths.length; p++) {
+    let ok = true;
+    for (let i = 0; i <= horizonDays; i++) {
+      if (paths[p][i] < lower[i] || paths[p][i] > upper[i]) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) validIndices.push(p);
+  }
+
+  const candidates =
+    validIndices.length > 0
+      ? validIndices
+      : paths.map((_, i) => i); // fallback
+
+  // 5) representative selection
+  let bestIdx = candidates[0];
+  let bestDist = Infinity;
+
+  const N = median.length - 1 || 1;
+  const T = horizonDays;
+  const medianEnd = median[T];
+
+  for (const idx of candidates) {
+    let dist = 0;
+
+    for (let i = 0; i < median.length; i++) {
+      const w = (i / N) ** 2;
+      const d = paths[idx][i] - median[i];
+      dist += w * d * d;
+    }
+
+    const endDiff = paths[idx][T] - medianEnd;
+    dist += END_PENALTY_LAMBDA * endDiff * endDiff;
+
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestIdx = idx;
+    }
+  }
+
   return {
     timestamps,
     median,
-    representative,
+    representative: paths[bestIdx],
     upper,
     lower,
     paths,

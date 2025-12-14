@@ -38,7 +38,8 @@ export function SimulationPage() {
     simulations: 50,
     showCloud: false,
     showMedian: false,
-    showRepresentative: true, // ⬅️ NEW (default ON)
+    showRepresentative: true,
+    showRange: true,
   });
 
   const filteredHistory = useMemo(() => {
@@ -118,7 +119,8 @@ export function SimulationPage() {
             cloud={sim.paths}
             showCloud={params.showCloud}
             showMedian={params.showMedian}
-            showRepresentative={params.showRepresentative} // ⬅️ NEW
+            showRepresentative={params.showRepresentative}
+            showRange={params.showRange}
           />
         </div>
 
