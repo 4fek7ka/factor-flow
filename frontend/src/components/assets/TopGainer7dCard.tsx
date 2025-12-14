@@ -1,7 +1,7 @@
 type Props = {
   name: string;
   symbol: string;
-  image: string; // URL
+  image?: string | null;
   pct7d: number;
 };
 
@@ -24,13 +24,13 @@ export function TopGainer7dCard({ name, symbol, image, pct7d }: Props) {
         className="text-muted"
         style={{
           fontSize: "0.9rem",
-          marginBottom: 4, // ← ещё выше (было 6)
+          marginBottom: 4,
         }}
       >
         Top Gainer (7d)
       </div>
 
-      {/* Центрированный основной блок */}
+      {/* Центрированный контент */}
       <div
         style={{
           flex: 1,
@@ -46,30 +46,32 @@ export function TopGainer7dCard({ name, symbol, image, pct7d }: Props) {
             gap: 16,
           }}
         >
-          {/* Плоский круглый контур с иконкой */}
-          <div
-            style={{
-              width: 66,
-              height: 66,
-              borderRadius: "999px",
-              border: "1px solid rgba(148, 163, 184, 0.7)",
-              background: "transparent",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <img
-              src={image}
-              alt={name}
+          {/* Иконка (ТОЛЬКО если есть image) */}
+          {image ? (
+            <div
               style={{
-                width: 40,
-                height: 40,
-                borderRadius: "50%",
-                objectFit: "cover",
+                width: 66,
+                height: 66,
+                borderRadius: "999px",
+                border: "1px solid rgba(148, 163, 184, 0.7)",
+                background: "transparent",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
-            />
-          </div>
+            >
+              <img
+                src={image}
+                alt={name}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                }}
+              />
+            </div>
+          ) : null}
 
           {/* Название + процент */}
           <div

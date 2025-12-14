@@ -1,4 +1,6 @@
-import type { HistoryPoint } from "./portfolioService";
+/* =========================================
+   Types (UI contracts)
+========================================= */
 
 export type AssetRow = {
   symbol: string;
@@ -14,9 +16,20 @@ export type AssetRow = {
   sparkline: number[];
 };
 
-/* ---------------------------------- */
-/* CoinGecko helpers */
-/* ---------------------------------- */
+export type AssetsGlobalData = {
+  totalMarketCapUsd: number;
+  btcDominance: number;
+  ethDominance: number;
+};
+
+export type AssetsDataSnapshot = {
+  assets: AssetRow[];
+  global: AssetsGlobalData;
+};
+
+/* =========================================
+   CoinGecko raw types
+========================================= */
 
 type CoinGeckoMarketCoin = {
   symbol: string;
@@ -28,12 +41,61 @@ type CoinGeckoMarketCoin = {
   price_change_percentage_24h_in_currency?: number | null;
   price_change_percentage_7d_in_currency?: number | null;
 
-  sparkline_in_7d?: { price?: number[] };
+  sparkline_in_7d?: {
+    price?: number[];
+  };
 };
+
+type CoinGeckoGlobal = {
+  data: {
+    total_market_cap: {
+      usd: number;
+    };
+    market_cap_percentage: {
+      btc: number;
+      eth: number;
+    };
+  };
+};
+
+/* =========================================
+   Config
+========================================= */
 
 const COINGECKO_BASE = "https://api.coingecko.com/api/v3";
 
-async function fetchFromCoinGecko(): Promise<AssetRow[]> {
+const CACHE_KEY_MARKETS = "assets.cache.markets";
+const CACHE_KEY_GLOBAL = "assets.cache.global";
+const CACHE_KEY_FETCHED_AT = "assets.cache.fetchedAt";
+
+const ONE_HOUR = 60 * 60 * 1000;
+
+/* =========================================
+   Utils
+========================================= */
+
+function now(): number {
+  return Date.now();
+}
+
+function isFresh(ts: number): boolean {
+  return now() - ts < ONE_HOUR;
+}
+
+function safeParse<T>(raw: string | null): T | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+/* =========================================
+   Fetchers
+========================================= */
+
+async function fetchMarkets(): Promise<CoinGeckoMarketCoin[]> {
   const url = new URL(`${COINGECKO_BASE}/coins/markets`);
   url.searchParams.set("vs_currency", "usd");
   url.searchParams.set("order", "market_cap_desc");
@@ -44,11 +106,26 @@ async function fetchFromCoinGecko(): Promise<AssetRow[]> {
 
   const res = await fetch(url.toString());
   if (!res.ok) {
-    throw new Error("Failed to fetch assets from CoinGecko");
+    throw new Error("Failed to fetch CoinGecko markets");
   }
 
-  const data = (await res.json()) as CoinGeckoMarketCoin[];
+  return res.json();
+}
 
+async function fetchGlobal(): Promise<CoinGeckoGlobal> {
+  const res = await fetch(`${COINGECKO_BASE}/global`);
+  if (!res.ok) {
+    throw new Error("Failed to fetch CoinGecko global data");
+  }
+
+  return res.json();
+}
+
+/* =========================================
+   Normalization
+========================================= */
+
+function normalizeAssets(data: CoinGeckoMarketCoin[]): AssetRow[] {
   return data.map((c) => ({
     symbol: c.symbol.toUpperCase(),
     price: c.current_price ?? 0,
@@ -64,68 +141,93 @@ async function fetchFromCoinGecko(): Promise<AssetRow[]> {
   }));
 }
 
-/* ---------------------------------- */
-/* PUBLIC API */
-/* ---------------------------------- */
+function normalizeGlobal(data: CoinGeckoGlobal): AssetsGlobalData {
+  return {
+    totalMarketCapUsd: data.data.total_market_cap.usd,
+    btcDominance: data.data.market_cap_percentage.btc,
+    ethDominance: data.data.market_cap_percentage.eth,
+  };
+}
 
-/**
- * Формирует таблицу активов.
- *
- * - history !== null → старый MVP (mock-history)
- * - history === null → реальные данные CoinGecko
- */
-export async function buildAssetsTable(
-  history: HistoryPoint[] | null
-): Promise<AssetRow[]> {
-  if (!history) {
-    return fetchFromCoinGecko();
+/* =========================================
+   Cache helpers
+========================================= */
+
+function readCache(): AssetsDataSnapshot | null {
+  const marketsRaw = localStorage.getItem(CACHE_KEY_MARKETS);
+  const globalRaw = localStorage.getItem(CACHE_KEY_GLOBAL);
+  const fetchedAtRaw = localStorage.getItem(CACHE_KEY_FETCHED_AT);
+
+  const markets = safeParse<CoinGeckoMarketCoin[]>(marketsRaw);
+  const global = safeParse<CoinGeckoGlobal>(globalRaw);
+  const fetchedAt = fetchedAtRaw ? Number(fetchedAtRaw) : null;
+
+  if (!markets || !global || !fetchedAt) return null;
+
+  return {
+    assets: normalizeAssets(markets),
+    global: normalizeGlobal(global),
+  };
+}
+
+function writeCache(
+  markets: CoinGeckoMarketCoin[],
+  global: CoinGeckoGlobal
+) {
+  localStorage.setItem(CACHE_KEY_MARKETS, JSON.stringify(markets));
+  localStorage.setItem(CACHE_KEY_GLOBAL, JSON.stringify(global));
+  localStorage.setItem(CACHE_KEY_FETCHED_AT, String(now()));
+}
+
+/* =========================================
+   Public API
+========================================= */
+
+export async function getAssetsData(): Promise<AssetsDataSnapshot> {
+  const cachedMarkets = localStorage.getItem(CACHE_KEY_MARKETS);
+  const cachedGlobal = localStorage.getItem(CACHE_KEY_GLOBAL);
+  const fetchedAt = Number(localStorage.getItem(CACHE_KEY_FETCHED_AT) || 0);
+
+  const hasCache = Boolean(cachedMarkets && cachedGlobal && fetchedAt);
+
+  // 1️⃣ Если есть кеш → сразу отдаём
+  if (hasCache) {
+    const snapshot = readCache();
+    if (snapshot) {
+      // lazy refresh
+      if (!isFresh(fetchedAt)) {
+        void refreshInBackground();
+      }
+      return snapshot;
+    }
   }
 
-  /* ---------- СТАРЫЙ MVP-КОД (без изменений) ---------- */
+  // 2️⃣ Кеша нет → блокирующий fetch
+  const [markets, global] = await Promise.all([
+    fetchMarkets(),
+    fetchGlobal(),
+  ]);
 
-  if (!history.length) return [];
+  writeCache(markets, global);
 
-  const lastPoint = history[history.length - 1];
-  const lastPrices = lastPoint.prices;
+  return {
+    assets: normalizeAssets(markets),
+    global: normalizeGlobal(global),
+  };
+}
 
-  const lastTs = lastPoint.timestamp;
-  const cutoff24 = lastTs - 24 * 3600;
+/* =========================================
+   Background refresh
+========================================= */
 
-  const last24h = history.filter((p) => p.timestamp >= cutoff24);
-  const first24h = last24h[0] ?? history[0];
-  const firstPrices = first24h.prices;
-
-  const symbols = Object.keys(lastPrices);
-
-  const rows: AssetRow[] = symbols.map((symbol) => {
-    const priceNow = lastPrices[symbol as keyof typeof lastPrices];
-    const price24h = firstPrices[symbol as keyof typeof firstPrices];
-
-    const change24 =
-      price24h && price24h > 0 ? ((priceNow - price24h) / price24h) * 100 : 0;
-
-    const change1h = (Math.random() - 0.5) * 2;
-    const change7d = (Math.random() - 0.5) * 20;
-
-    const marketCap = 1_000_000_000 + Math.random() * 300_000_000_000;
-    const volume24h = 10_000_000 + Math.random() * 20_000_000_000;
-
-    const spark = last24h.map((p) => {
-      const v = p.prices[symbol as keyof typeof p.prices];
-      return v;
-    });
-
-    return {
-      symbol,
-      price: priceNow,
-      change1hPct: change1h,
-      change24hPct: change24,
-      change7dPct: change7d,
-      marketCapUsd: marketCap,
-      volume24hUsd: volume24h,
-      sparkline: spark,
-    };
-  });
-
-  return rows.sort((a, b) => b.price - a.price);
+async function refreshInBackground() {
+  try {
+    const [markets, global] = await Promise.all([
+      fetchMarkets(),
+      fetchGlobal(),
+    ]);
+    writeCache(markets, global);
+  } catch {
+    // молча оставляем старый кеш
+  }
 }
