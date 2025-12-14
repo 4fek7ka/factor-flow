@@ -1,3 +1,4 @@
+// SimulationChartCard.tsx
 import { useEffect, useRef } from "react";
 import * as echarts from "echarts/core";
 import type { EChartsType } from "echarts/core";
@@ -6,7 +7,12 @@ import { LineChart, CustomChart } from "echarts/charts";
 import { TooltipComponent, GridComponent } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 
-import { resample, toPercentFromBase } from "./simulationChart.utils";
+import {
+  resample,
+  resampleFan,
+  toPercentFromBase,
+  buildFanQuantiles,
+} from "./simulationChart.utils";
 import { buildSimulationChartOption } from "./simulationChart.option";
 
 echarts.use([
@@ -36,10 +42,16 @@ export type SimulationChartCardProps = {
   showRepresentative?: boolean;
   showRange: boolean;
 
+  // NEW: Quantile Fan
+  showFan?: boolean;
+
   onToggleCloud?: () => void;
   onToggleMedian?: () => void;
   onToggleRepresentative?: () => void;
   onToggleRange?: () => void;
+
+  // NEW: Quantile Fan
+  onToggleFan?: () => void;
 };
 
 export function SimulationChartCard({
@@ -53,10 +65,12 @@ export function SimulationChartCard({
   showMedian,
   showRepresentative = true,
   showRange,
+  showFan = false,
   onToggleCloud,
   onToggleMedian,
   onToggleRepresentative,
   onToggleRange,
+  onToggleFan,
 }: SimulationChartCardProps) {
   const ref = useRef<HTMLDivElement>(null);
   const chartRef = useRef<EChartsType | null>(null);
@@ -94,6 +108,9 @@ export function SimulationChartCard({
     const lowerPct = toPercentFromBase(lower, base);
     const cloudPct = cloud.map((p) => toPercentFromBase(p, base));
 
+    const fanPctRaw = buildFanQuantiles(cloudPct);
+    const fanPct = fanPctRaw ? resampleFan(fanPctRaw, TARGET_POINTS) : null;
+
     if (!yDomainRef.current) {
       const all = [
         ...medianPct,
@@ -101,6 +118,15 @@ export function SimulationChartCard({
         ...upperPct,
         ...lowerPct,
         ...cloudPct.flat(),
+        ...(fanPct
+          ? [
+              ...fanPct.q05,
+              ...fanPct.q25,
+              ...fanPct.q50,
+              ...fanPct.q75,
+              ...fanPct.q95,
+            ]
+          : []),
       ];
       const min = Math.min(...all);
       const max = Math.max(...all);
@@ -124,7 +150,9 @@ export function SimulationChartCard({
           showMedian,
           showRepresentative,
           showRange,
+          showFan,
         },
+        fan: fanPct ?? undefined,
       }),
       { notMerge: true }
     );
@@ -139,6 +167,7 @@ export function SimulationChartCard({
     showMedian,
     showRepresentative,
     showRange,
+    showFan,
   ]);
 
   return (
@@ -220,6 +249,14 @@ export function SimulationChartCard({
         >
           <span className="sim-legend-dot" />
           Cloud
+        </div>
+
+        <div
+          className={`sim-legend-item ${showFan ? "is-on" : ""}`}
+          onClick={onToggleFan}
+        >
+          <span className="sim-legend-dot" />
+          Fan
         </div>
       </div>
 

@@ -1,3 +1,4 @@
+// SimulationPage.tsx
 import { useMemo, useState } from "react";
 import historyJson from "../data/mock-history.json";
 
@@ -34,6 +35,9 @@ export function SimulationPage() {
     showMedian: false,
     showRepresentative: true,
     showRange: true,
+
+    // NEW: Quantile Fan
+    showFan: false,
   });
 
   const filteredHistory = useMemo(() => {
@@ -105,6 +109,7 @@ export function SimulationPage() {
               showMedian={params.showMedian}
               showRepresentative={params.showRepresentative}
               showRange={params.showRange}
+              showFan={params.showFan}
               onToggleCloud={() =>
                 setParams((p) => ({ ...p, showCloud: !p.showCloud }))
               }
@@ -120,6 +125,9 @@ export function SimulationPage() {
               onToggleRange={() =>
                 setParams((p) => ({ ...p, showRange: !p.showRange }))
               }
+              onToggleFan={() =>
+                setParams((p) => ({ ...p, showFan: !p.showFan }))
+              }
             />
           </div>
 
@@ -131,13 +139,7 @@ export function SimulationPage() {
               gap: 14,
             }}
           >
-            {/* LEFT */}
-            <FinalOutcomeCard
-              startValue={startValue}
-              median={finalMedian}
-            />
-
-            {/* RIGHT */}
+            <FinalOutcomeCard startValue={startValue} median={finalMedian} />
             <OutcomeDistributionCard paths={sim.paths} />
           </div>
         </div>

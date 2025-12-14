@@ -1,7 +1,20 @@
+// simulationChart.option.ts
 import type { EChartsCoreOption } from "echarts/core";
 
 const BOUND_COLOR = "#64748b";
 const RANGE_FILL = "rgba(255, 255, 255, 0.12)";
+
+// Fan (quantile bands) — мягкий, читабельный
+const FAN_OUTER_FILL = "rgba(14, 165, 233, 0.10)"; // q05-q95
+const FAN_INNER_FILL = "rgba(14, 165, 233, 0.18)"; // q25-q75
+
+type FanQuantiles = {
+  q05: number[];
+  q25: number[];
+  q50: number[];
+  q75: number[];
+  q95: number[];
+};
 
 type BuildOptionParams = {
   timestamps: number[];
@@ -16,8 +29,76 @@ type BuildOptionParams = {
     showMedian: boolean;
     showRepresentative: boolean;
     showRange: boolean;
+
+    // NEW: Quantile Fan
+    showFan?: boolean;
   };
+
+  // NEW: Quantile Fan data
+  fan?: FanQuantiles;
 };
+
+function buildBandPolygon(
+  timestamps: number[],
+  upperArr: number[],
+  lowerArr: number[],
+  api: any
+): number[][] | null {
+  const n = timestamps.length;
+  if (n === 0) return null;
+  if (upperArr.length !== n || lowerArr.length !== n) return null;
+
+  const points: number[][] = [];
+
+  for (let i = 0; i < n; i++) {
+    const x = timestamps[i];
+    const y = upperArr[i];
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    points.push(api.coord([x, y]));
+  }
+
+  for (let i = n - 1; i >= 0; i--) {
+    const x = timestamps[i];
+    const y = lowerArr[i];
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    points.push(api.coord([x, y]));
+  }
+
+  return points;
+}
+
+function bandSeries(opts: {
+  enabled: boolean;
+  timestamps: number[];
+  upper: number[];
+  lower: number[];
+  fill: string;
+  z: number;
+}) {
+  const { enabled, timestamps, upper, lower, fill, z } = opts;
+
+  return {
+    type: "custom" as const,
+    silent: true,
+    animation: false,
+    data: [0],
+    z,
+    renderItem: (_p: unknown, api: any) => {
+      if (!enabled) return null;
+
+      const points = buildBandPolygon(timestamps, upper, lower, api);
+      if (!points) return null;
+
+      return {
+        type: "polygon",
+        shape: { points },
+        style: {
+          fill,
+        },
+      };
+    },
+  };
+}
 
 export function buildSimulationChartOption({
   timestamps,
@@ -28,11 +109,14 @@ export function buildSimulationChartOption({
   cloud,
   yDomain,
   flags,
+  fan,
 }: BuildOptionParams): EChartsCoreOption {
   const cloudOpacity = flags.showCloud ? 0.15 : 0;
   const medianOpacity = flags.showMedian ? 0.45 : 0;
   const repOpacity = flags.showRepresentative ? 0.7 : 0;
   const rangeOpacity = flags.showRange ? 1 : 0;
+
+  const showFan = Boolean(flags.showFan && fan);
 
   return {
     backgroundColor: "transparent",
@@ -86,15 +170,8 @@ export function buildSimulationChartOption({
         },
       },
 
-      // ❌ убираем вертикальную ось
-      axisLine: {
-        show: false,
-      },
-
-      // ❌ убираем "пипки" (засечки)
-      axisTick: {
-        show: false,
-      },
+      axisLine: { show: false },
+      axisTick: { show: false },
 
       splitLine: {
         show: true,
@@ -111,7 +188,7 @@ export function buildSimulationChartOption({
     series: [
       // cloud
       ...cloud.map((p) => ({
-        type: "line",
+        type: "line" as const,
         data: timestamps.map((t, i) => [t, p[i]]),
         showSymbol: false,
         silent: true,
@@ -126,24 +203,40 @@ export function buildSimulationChartOption({
         z: 1,
       })),
 
-      // range fill
+      // NEW: Fan bands (quantiles)
+      ...(showFan
+        ? [
+            bandSeries({
+              enabled: true,
+              timestamps,
+              upper: fan!.q95,
+              lower: fan!.q05,
+              fill: FAN_OUTER_FILL,
+              z: 2,
+            }),
+            bandSeries({
+              enabled: true,
+              timestamps,
+              upper: fan!.q75,
+              lower: fan!.q25,
+              fill: FAN_INNER_FILL,
+              z: 3,
+            }),
+          ]
+        : []),
+
+      // range fill (Simple/Advanced)
       {
         type: "custom",
         silent: true,
         animation: false,
         data: [0],
-        z: 2,
+        z: 4,
         renderItem: (_p: unknown, api: any) => {
           if (!flags.showRange) return null;
 
-          const points: number[][] = [];
-
-          for (let i = 0; i < timestamps.length; i++) {
-            points.push(api.coord([timestamps[i], upper[i]]));
-          }
-          for (let i = timestamps.length - 1; i >= 0; i--) {
-            points.push(api.coord([timestamps[i], lower[i]]));
-          }
+          const points = buildBandPolygon(timestamps, upper, lower, api);
+          if (!points) return null;
 
           return {
             type: "polygon",
@@ -168,7 +261,7 @@ export function buildSimulationChartOption({
           width: 1.5,
           opacity: flags.showRange ? 1 : 0,
         },
-        z: 4,
+        z: 6,
       },
 
       // upper bound
@@ -183,7 +276,7 @@ export function buildSimulationChartOption({
           width: 1.5,
           opacity: flags.showRange ? 1 : 0,
         },
-        z: 4,
+        z: 6,
       },
 
       // median
@@ -214,7 +307,7 @@ export function buildSimulationChartOption({
           width: 2,
           opacity: repOpacity,
         },
-        z: 8,
+        z: 12,
       },
     ],
   };

@@ -27,14 +27,11 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
     return { deltaPct, isPositive, posPct, RANGE };
   }, [startValue, median]);
 
-  const COLOR = model.isPositive ? "#22c55e" : "#ef4444";
+  const ACCENT_COLOR = model.isPositive ? "#22c55e" : "#ef4444";
   const sign = model.deltaPct >= 0 ? "+" : "";
-  const deltaText = `${sign}${model.deltaPct.toFixed(1)}%`;
 
-  // центр шкалы
+
   const centerPct = 50;
-
-  // параметры заливки
   const fillLeft = model.isPositive ? centerPct : model.posPct;
   const fillWidth = Math.abs(model.posPct - centerPct);
 
@@ -61,7 +58,7 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
         <div
           style={{
             display: "flex",
-            alignItems: "baseline",
+            alignItems: "center",
             gap: 10,
             marginBottom: 14,
             whiteSpace: "nowrap",
@@ -72,7 +69,6 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
               fontSize: 28,
               fontWeight: 800,
               color: "rgba(226,232,240,0.95)",
-              lineHeight: "28px",
             }}
           >
             {formatMoney(median)}
@@ -82,11 +78,11 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
             style={{
               fontSize: 16,
               fontWeight: 800,
-              color: COLOR,
-              lineHeight: "28px",
+              color: "rgba(226,232,240,0.95)", // ← проценты белые
             }}
           >
-            {deltaText}
+            <span style={{ color: ACCENT_COLOR }}>{sign}</span>
+            {Math.abs(model.deltaPct).toFixed(1)}%
           </div>
         </div>
 
@@ -117,21 +113,21 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
               transform: "translateY(-50%)",
               borderRadius: 999,
               background: model.isPositive
-                ? "rgba(34,197,94,0.55)"
-                : "rgba(239,68,68,0.55)",
+                ? "rgba(34,197,94,0.45)"
+                : "rgba(239,68,68,0.45)",
             }}
           />
 
-          {/* zero marker */}
+          {/* zero marker (СТРОГО ПО ЦЕНТРУ) */}
           <div
             style={{
               position: "absolute",
               top: "50%",
               left: "50%",
-              transform: "translate(-1px, -50%)",
+              transform: "translate(-50%, -50%)",
               width: 2,
               height: 14,
-              background: "rgba(226,232,240,0.78)",
+              background: "rgba(226,232,240,0.85)",
             }}
           />
 
@@ -145,12 +141,12 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
               width: 16,
               height: 16,
               borderRadius: "50%",
-              background: COLOR,
+              background: ACCENT_COLOR,
               border: "1px solid rgba(148,163,184,0.65)",
               boxShadow:
                 model.isPositive
-                  ? "0 0 9px rgba(34,197,94,0.25)"
-                  : "0 0 9px rgba(239,68,68,0.25)",
+                  ? "0 0 8px rgba(34,197,94,0.25)"
+                  : "0 0 8px rgba(239,68,68,0.25)",
             }}
           />
         </div>
