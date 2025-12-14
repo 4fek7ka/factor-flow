@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 
-import type {
-  AssetRow,
-  AssetsGlobalData,
+import type { AssetRow } from "../services/assetsService";
+import {
+  getAssetsTableFromCache,
+  getGlobalMarketCap,
+  getDominance,
+  getTopGainer7d,
 } from "../services/assetsService";
-import { getAssetsData } from "../services/assetsService";
 
 import { AssetsTable } from "../components/assets/AssetsTable";
 import { MarketCapCard } from "../components/assets/MarketCapCard";
@@ -14,67 +16,32 @@ import { TopGainer7dCard } from "../components/assets/TopGainer7dCard";
 
 export function AssetsPage() {
   const [assets, setAssets] = useState<AssetRow[]>([]);
-  const [global, setGlobal] = useState<AssetsGlobalData | null>(null);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    try {
+      setLoading(true);
+      setError(null);
 
-    (async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const snapshot = await getAssetsData();
-        if (cancelled) return;
-
-        setAssets(snapshot.assets);
-        setGlobal(snapshot.global);
-      } catch (e) {
-        if (cancelled) return;
-        setError((e as Error)?.message || "Failed to load assets");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
+      const rows = getAssetsTableFromCache();
+      setAssets(rows);
+    } catch (e) {
+      setError((e as Error)?.message || "Failed to load assets");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  /* -------------------------------------------------
-     Верхние карточки
-     (MarketCap + Dominance — уже из real data,
-      Fear & Greed — пока mock)
-  -------------------------------------------------- */
+  /* ===== GLOBAL DATA (FROM CACHE) ===== */
 
-  const marketCapUsd = global?.totalMarketCapUsd ?? 0;
-  const btcDom = global?.btcDominance ?? 0;
-  const ethDom = global?.ethDominance ?? 0;
-  const altDom = 100 - btcDom - ethDom;
-
-  const fakeChangePct = 0;
-  const fakeSpark: number[] = [];
-  const fakeFearIndex = 30;
-
-  const topGainer = useMemo(() => {
-    if (!assets.length) return null;
-
-    return assets.reduce((best, a) =>
-      a.change7dPct > best.change7dPct ? a : best
-    );
-  }, [assets]);
+  const marketCap = getGlobalMarketCap();
+  const dominance = getDominance();
+  const topGainer = getTopGainer7d();
 
   const table = useMemo(() => {
-    if (loading) {
-      return <div className="text-muted p-3">Loading assets…</div>;
-    }
-    if (error) {
-      return <div className="text-danger p-3">{error}</div>;
-    }
+    if (loading) return <div className="text-muted p-3">Loading assets…</div>;
+    if (error) return <div className="text-danger p-3">{error}</div>;
     return <AssetsTable assets={assets} />;
   }, [assets, loading, error]);
 
@@ -82,28 +49,36 @@ export function AssetsPage() {
     <div>
       <div className="row row-cards mb-2">
         <div className="col-12 col-md-6 col-lg-3 d-flex">
-          <MarketCapCard
-            capUsd={marketCapUsd}
-            changePct={fakeChangePct}
-            spark={fakeSpark}
-          />
+          {marketCap && (
+            <MarketCapCard
+              capUsd={marketCap.capUsd}
+              changePct={marketCap.changePct24h}
+              spark={[]}
+            />
+          )}
         </div>
 
         <div className="col-12 col-md-6 col-lg-3 d-flex">
-          <FearGreedCard value={fakeFearIndex} />
+          <FearGreedCard value={30} />
         </div>
 
         <div className="col-12 col-md-6 col-lg-3 d-flex">
-          <BtcEthAltCard btc={btcDom} eth={ethDom} alt={altDom} />
+          {dominance && (
+            <BtcEthAltCard
+              btc={dominance.btc}
+              eth={dominance.eth}
+              alt={dominance.alt}
+            />
+          )}
         </div>
 
         <div className="col-12 col-md-6 col-lg-3 d-flex">
           {topGainer && (
             <TopGainer7dCard
-              name={topGainer.symbol}
+              name={topGainer.name}
               symbol={topGainer.symbol}
-              image=""
-              pct7d={topGainer.change7dPct}
+              image={topGainer.image}
+              pct7d={topGainer.pct7d}
             />
           )}
         </div>
