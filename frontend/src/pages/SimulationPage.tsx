@@ -86,19 +86,12 @@ export function SimulationPage() {
 
   return (
     <div>
-      <div className="page-header mb-2">
-        <h2 className="page-title">Monte Carlo Simulation</h2>
-        <div className="text-muted">
-          Forecast based on historical portfolio drift + volatility
-        </div>
-      </div>
-
       <div
         style={{
           display: "grid",
           gridTemplateColumns: "minmax(0, 1fr) 320px",
           gap: 14,
-          alignItems: "start",
+          alignItems: "stretch",
           marginTop: 10,
         }}
       >
@@ -106,8 +99,9 @@ export function SimulationPage() {
           style={{
             background: "#0f172a",
             border: "1px solid rgba(255,255,255,0.06)",
-            borderRadius: 10,
+            borderRadius: 12,
             padding: 8,
+            height: "100%",
           }}
         >
           <SimulationChartCard
@@ -121,10 +115,29 @@ export function SimulationPage() {
             showMedian={params.showMedian}
             showRepresentative={params.showRepresentative}
             showRange={params.showRange}
+
+            /* 🔑 INLINE LEGEND CALLBACKS */
+            onToggleCloud={() =>
+              setParams((p) => ({ ...p, showCloud: !p.showCloud }))
+            }
+            onToggleMedian={() =>
+              setParams((p) => ({ ...p, showMedian: !p.showMedian }))
+            }
+            onToggleRepresentative={() =>
+              setParams((p) => ({
+                ...p,
+                showRepresentative: !p.showRepresentative,
+              }))
+            }
+            onToggleRange={() =>
+              setParams((p) => ({ ...p, showRange: !p.showRange }))
+            }
           />
         </div>
 
-        <SimulationControls value={params} onChange={setParams} />
+        <div className="h-100" style={{ minHeight: 0 }}>
+          <SimulationControls value={params} onChange={setParams} />
+        </div>
       </div>
 
       <div className="row row-cards" style={{ marginTop: 14 }}>

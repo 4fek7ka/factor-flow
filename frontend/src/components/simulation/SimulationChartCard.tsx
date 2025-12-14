@@ -30,6 +30,12 @@ export type SimulationChartCardProps = {
   showMedian: boolean;
   showRepresentative?: boolean;
   showRange: boolean;
+
+  // NEW: inline legend callbacks
+  onToggleCloud?: () => void;
+  onToggleMedian?: () => void;
+  onToggleRepresentative?: () => void;
+  onToggleRange?: () => void;
 };
 
 function resample<T>(arr: T[], target: number): T[] {
@@ -62,6 +68,11 @@ export function SimulationChartCard({
   showMedian,
   showRepresentative = true,
   showRange,
+
+  onToggleCloud,
+  onToggleMedian,
+  onToggleRepresentative,
+  onToggleRange,
 }: SimulationChartCardProps) {
   const ref = useRef<HTMLDivElement>(null);
   const chartRef = useRef<EChartsType | null>(null);
@@ -144,7 +155,7 @@ export function SimulationChartCard({
       grid: {
         left: 40,
         right: 24,
-        top: 20,
+        top: 44, // space for inline legend
         bottom: 40,
       },
 
@@ -199,11 +210,19 @@ export function SimulationChartCard({
           animation: false,
           data: [0],
           z: 2,
-          renderItem: (_p: any, api: any) => {
+          renderItem: (_p: unknown, api: unknown) => {
             if (!showRange) return null;
+
+            const a = api as any;
             const points: number[][] = [];
-            for (let i = 0; i < ts.length; i++) points.push(api.coord([ts[i], up[i]]));
-            for (let i = ts.length - 1; i >= 0; i--) points.push(api.coord([ts[i], low[i]]));
+
+            for (let i = 0; i < ts.length; i++) {
+              points.push(a.coord([ts[i], up[i]]));
+            }
+            for (let i = ts.length - 1; i >= 0; i--) {
+              points.push(a.coord([ts[i], low[i]]));
+            }
+
             return {
               type: "polygon",
               shape: { points },
@@ -219,7 +238,11 @@ export function SimulationChartCard({
           showSymbol: false,
           animation: false,
           silent: true,
-          lineStyle: { color: BOUND_COLOR, width: 2, opacity: showRange ? 0.7 : 0 },
+          lineStyle: {
+            color: BOUND_COLOR,
+            width: 2,
+            opacity: showRange ? 0.7 : 0,
+          },
           z: 4,
         },
 
@@ -230,7 +253,11 @@ export function SimulationChartCard({
           showSymbol: false,
           animation: false,
           silent: true,
-          lineStyle: { color: BOUND_COLOR, width: 2, opacity: showRange ? 0.7 : 0 },
+          lineStyle: {
+            color: BOUND_COLOR,
+            width: 2,
+            opacity: showRange ? 0.7 : 0,
+          },
           z: 4,
         },
 
@@ -241,7 +268,12 @@ export function SimulationChartCard({
           showSymbol: false,
           tooltip: showMedian ? undefined : { show: false },
           emphasis: showMedian ? undefined : { disabled: true },
-          lineStyle: { color: "#ef4444", width: 2, type: "dashed", opacity: medianOpacity },
+          lineStyle: {
+            color: "#ef4444",
+            width: 2,
+            type: "dashed",
+            opacity: medianOpacity,
+          },
           z: 10,
         },
 
@@ -272,5 +304,153 @@ export function SimulationChartCard({
     showRange,
   ]);
 
-  return <div ref={ref} style={{ width: "100%", height: 380 }} />;
+  const canToggle = {
+    rep: typeof onToggleRepresentative === "function",
+    range: typeof onToggleRange === "function",
+    median: typeof onToggleMedian === "function",
+    cloud: typeof onToggleCloud === "function",
+  };
+
+  return (
+    <div style={{ position: "relative", width: "100%", height: 380 }}>
+      <style>{`
+        .sim-legend {
+          position: absolute;
+          top: 10px;
+          left: 12px;
+          display: flex;
+          gap: 12px;
+          z-index: 3;
+          align-items: center;
+          user-select: none;
+          padding: 6px 8px;
+          border-radius: 10px;
+          background: rgba(2, 6, 23, 0.35);
+          border: 1px solid rgba(255,255,255,0.05);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+        }
+
+        .sim-legend-item {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 12px;
+          font-weight: 800;
+          letter-spacing: 0.15px;
+          padding: 4px 6px;
+          border-radius: 8px;
+          cursor: pointer;
+          color: rgba(226,232,240,0.75);
+          transition: background 120ms ease, color 120ms ease;
+        }
+
+        .sim-legend-item:hover {
+          background: rgba(15,23,42,0.45);
+          color: rgba(226,232,240,0.9);
+        }
+
+        .sim-legend-item.is-on {
+          color: rgba(226,232,240,0.96);
+        }
+
+        .sim-legend-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 999px;
+          opacity: 0.95;
+        }
+
+        .sim-legend-item.is-off .sim-legend-dot {
+          opacity: 0.30;
+        }
+
+        .sim-legend-item.is-disabled {
+          cursor: default;
+          opacity: 0.55;
+        }
+
+        .sim-legend-item.is-disabled:hover {
+          background: transparent;
+          color: rgba(226,232,240,0.75);
+        }
+      `}</style>
+
+      <div className="sim-legend">
+        <div
+          className={[
+            "sim-legend-item",
+            showRepresentative ? "is-on" : "is-off",
+            canToggle.rep ? "" : "is-disabled",
+          ].join(" ")}
+          onClick={() => {
+            if (!canToggle.rep) return;
+            onToggleRepresentative?.();
+          }}
+        >
+          <span
+            className="sim-legend-dot"
+            style={{ background: "#0ea5e9" }}
+          />
+          Main
+        </div>
+
+        <div
+          className={[
+            "sim-legend-item",
+            showRange ? "is-on" : "is-off",
+            canToggle.range ? "" : "is-disabled",
+          ].join(" ")}
+          onClick={() => {
+            if (!canToggle.range) return;
+            onToggleRange?.();
+          }}
+        >
+          <span
+            className="sim-legend-dot"
+            style={{ background: BOUND_COLOR }}
+          />
+          Range
+        </div>
+
+        <div
+          className={[
+            "sim-legend-item",
+            showMedian ? "is-on" : "is-off",
+            canToggle.median ? "" : "is-disabled",
+          ].join(" ")}
+          onClick={() => {
+            if (!canToggle.median) return;
+            onToggleMedian?.();
+          }}
+        >
+          <span
+            className="sim-legend-dot"
+            style={{ background: "#ef4444" }}
+          />
+          Median
+        </div>
+
+        <div
+          className={[
+            "sim-legend-item",
+            showCloud ? "is-on" : "is-off",
+            canToggle.cloud ? "" : "is-disabled",
+          ].join(" ")}
+          onClick={() => {
+            if (!canToggle.cloud) return;
+            onToggleCloud?.();
+          }}
+        >
+          <span
+            className="sim-legend-dot"
+            style={{ background: "#64748b" }}
+          />
+          Cloud
+        </div>
+      </div>
+
+      <div ref={ref} style={{ width: "100%", height: "100%" }} />
+    </div>
+  );
 }
