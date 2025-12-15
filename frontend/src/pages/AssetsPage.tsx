@@ -1,13 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
 
-import type { AssetRow } from "../services/assetsService";
 import {
-  getAssetsTableFromCache,
-  getGlobalMarketCapWithBtcSurrogate,
+  fetchMarkets,
+  fetchGlobal,
+  fetchFearGreed,
+} from "../services/assetsApi";
+
+import {
+  saveMarkets,
+  readMarkets,
+  isMarketsFresh,
+  saveGlobal,
+  readGlobal,
+  saveFearGreed,
+  readFearGreed,
+} from "../services/assetsCache";
+
+import {
+  buildAssetsTable,
   getDominance,
+  getGlobalMarketCapSnapshot,
   getTopGainer7d,
-  getFearGreedIndex,
-} from "../services/assetsService";
+  type AssetRow,
+} from "../services/assetsSelectors";
 
 import { fetchBinancePrices } from "../services/binanceService";
 
@@ -28,20 +43,64 @@ export function AssetsPage() {
     sparkline: number[];
   } | null>(null);
 
-  const dominance = getDominance();
-  const topGainer = getTopGainer7d();
+  const [dominance, setDominance] = useState<{
+    btc: number;
+    eth: number;
+    alt: number;
+  } | null>(null);
 
-  /* ===== BASE DATA (CoinGecko cache) ===== */
+  const [topGainer, setTopGainer] = useState<{
+    name: string;
+    symbol: string;
+    image?: string;
+    pct7d: number;
+  } | null>(null);
+
+  /* ===== BASE DATA (CoinGecko → cache → selectors) ===== */
   useEffect(() => {
-    setAssets(getAssetsTableFromCache());
-    getGlobalMarketCapWithBtcSurrogate().then(setMarketCap);
-    getFearGreedIndex().then(setFearGreed);
+    async function load() {
+      if (!isMarketsFresh()) {
+        const [markets, global, fear] = await Promise.all([
+          fetchMarkets(),
+          fetchGlobal(),
+          fetchFearGreed(),
+        ]);
+
+        saveMarkets(markets);
+        saveGlobal(global);
+        if (fear !== null) saveFearGreed(fear);
+      }
+
+      const markets = readMarkets() ?? [];
+      const global = readGlobal();
+      const fear = readFearGreed();
+
+      setAssets(buildAssetsTable(markets));
+      setFearGreed(fear);
+
+      if (global) {
+        const snap = getGlobalMarketCapSnapshot(global);
+        setMarketCap({
+          capUsd: snap.capUsd,
+          changePct24h: snap.changePct24h,
+          sparkline: markets[0]?.sparkline_in_7d?.price ?? [],
+        });
+
+        setDominance(getDominance(global));
+      }
+
+      setTopGainer(getTopGainer7d(markets));
+    }
+
+    load().catch(console.error);
   }, []);
 
-  // символы ровно тех активов, которые сейчас отрисовываются в таблице
-  const visibleSymbols = useMemo(() => assets.map((a) => a.symbol), [assets]);
+  /* ===== LIVE PRICES (Binance) ===== */
+  const visibleSymbols = useMemo(
+    () => assets.map((a) => a.symbol),
+    [assets]
+  );
 
-  /* ===== LIVE PRICES (Binance, 10s) ===== */
   useEffect(() => {
     if (!visibleSymbols.length) return;
 

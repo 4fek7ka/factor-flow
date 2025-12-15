@@ -1,4 +1,4 @@
-import type { AssetRow } from "../../services/assetsService";
+import type { AssetRow } from "../../services/assetsSelectors";
 import { AssetRowItem } from "./AssetRow";
 
 type Props = {
@@ -125,7 +125,7 @@ export function AssetsTable({ assets, livePrices }: Props) {
           <tbody>
             {assets.map((asset, i) => (
               <AssetRowItem
-                key={asset.symbol}
+                key={`${asset.symbol}-${i}`}
                 asset={asset}
                 index={i}
                 livePrice={livePrices?.[asset.symbol]}
