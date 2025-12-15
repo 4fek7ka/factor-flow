@@ -9,6 +9,8 @@ import {
   getFearGreedIndex,
 } from "../services/assetsService";
 
+import { fetchBinancePrices } from "../services/binanceService";
+
 import { AssetsTable } from "../components/assets/AssetsTable";
 import { MarketCapCard } from "../components/assets/MarketCapCard";
 import { FearGreedCard } from "../components/assets/FearGreedCard";
@@ -17,31 +19,51 @@ import { TopGainer7dCard } from "../components/assets/TopGainer7dCard";
 
 export function AssetsPage() {
   const [assets, setAssets] = useState<AssetRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [livePrices, setLivePrices] = useState<Record<string, number>>({});
 
+  const [fearGreed, setFearGreed] = useState<number | null>(null);
   const [marketCap, setMarketCap] = useState<{
     capUsd: number;
     changePct24h: number;
     sparkline: number[];
   } | null>(null);
 
-  const [fearGreed, setFearGreed] = useState<number | null>(null);
+  const dominance = getDominance();
+  const topGainer = getTopGainer7d();
 
+  /* ===== BASE DATA (CoinGecko cache) ===== */
   useEffect(() => {
     setAssets(getAssetsTableFromCache());
-    setLoading(false);
-
     getGlobalMarketCapWithBtcSurrogate().then(setMarketCap);
     getFearGreedIndex().then(setFearGreed);
   }, []);
 
-  const dominance = getDominance();
-  const topGainer = getTopGainer7d();
+  // символы ровно тех активов, которые сейчас отрисовываются в таблице
+  const visibleSymbols = useMemo(() => assets.map((a) => a.symbol), [assets]);
 
-  const table = useMemo(() => {
-    if (loading) return <div className="text-muted p-3">Loading assets…</div>;
-    return <AssetsTable assets={assets} />;
-  }, [assets, loading]);
+  /* ===== LIVE PRICES (Binance, 10s) ===== */
+  useEffect(() => {
+    if (!visibleSymbols.length) return;
+
+    let active = true;
+
+    async function tick() {
+      try {
+        const prices = await fetchBinancePrices();
+        if (active) setLivePrices(prices);
+      } catch {
+        /* silent */
+      }
+    }
+
+    tick();
+    const id = setInterval(tick, 4_000);
+
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, [visibleSymbols]);
 
   return (
     <div>
@@ -82,7 +104,9 @@ export function AssetsPage() {
         </div>
       </div>
 
-      <div style={{ marginTop: 15 }}>{table}</div>
+      <div style={{ marginTop: 15 }}>
+        <AssetsTable assets={assets} livePrices={livePrices} />
+      </div>
     </div>
   );
 }

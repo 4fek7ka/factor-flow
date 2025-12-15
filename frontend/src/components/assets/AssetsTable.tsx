@@ -1,11 +1,12 @@
-import { AssetRowItem } from "./AssetRow";
 import type { AssetRow } from "../../services/assetsService";
+import { AssetRowItem } from "./AssetRow";
 
 type Props = {
   assets: AssetRow[];
+  livePrices?: Record<string, number>;
 };
 
-export function AssetsTable({ assets }: Props) {
+export function AssetsTable({ assets, livePrices }: Props) {
   return (
     <>
       <style>{`
@@ -44,11 +45,14 @@ export function AssetsTable({ assets }: Props) {
         }
       `}</style>
 
-      <div className="card" style={{ padding: 0, overflowX: "auto", marginTop: 8 }}>
+      <div
+        className="card"
+        style={{ padding: 0, overflowX: "auto", marginTop: 8 }}
+      >
         <table className="assets-table">
           <colgroup>
             <col style={{ width: "60px" }} />
-            <col style={{ width: "130px" }} />
+            <col style={{ width: "160px" }} />
             <col style={{ width: "150px" }} />
             <col style={{ width: "110px" }} />
             <col style={{ width: "110px" }} />
@@ -60,7 +64,7 @@ export function AssetsTable({ assets }: Props) {
           <thead>
             <tr>
               <th>
-                <div className="cell" style={{ paddingLeft: 24, textAlign: "left" }}>
+                <div className="cell" style={{ paddingLeft: 24 }}>
                   #
                 </div>
               </th>
@@ -72,7 +76,10 @@ export function AssetsTable({ assets }: Props) {
               </th>
 
               <th>
-                <div className="cell" style={{ textAlign: "right", paddingRight: 16 }}>
+                <div
+                  className="cell"
+                  style={{ textAlign: "right", paddingRight: 16 }}
+                >
                   PRICE
                 </div>
               </th>
@@ -96,13 +103,19 @@ export function AssetsTable({ assets }: Props) {
               </th>
 
               <th>
-                <div className="cell" style={{ textAlign: "right", paddingRight: 16 }}>
+                <div
+                  className="cell"
+                  style={{ textAlign: "right", paddingRight: 16 }}
+                >
                   Market Cap
                 </div>
               </th>
 
               <th>
-                <div className="cell" style={{ textAlign: "right", paddingRight: 32 }}>
+                <div
+                  className="cell"
+                  style={{ textAlign: "right", paddingRight: 32 }}
+                >
                   Sparkline
                 </div>
               </th>
@@ -111,7 +124,12 @@ export function AssetsTable({ assets }: Props) {
 
           <tbody>
             {assets.map((asset, i) => (
-              <AssetRowItem key={asset.symbol} asset={asset} index={i} />
+              <AssetRowItem
+                key={asset.symbol}
+                asset={asset}
+                index={i}
+                livePrice={livePrices?.[asset.symbol]}
+              />
             ))}
           </tbody>
         </table>
