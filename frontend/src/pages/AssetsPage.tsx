@@ -32,9 +32,12 @@ import { FearGreedCard } from "../components/assets/FearGreedCard";
 import { BtcEthAltCard } from "../components/assets/BtcEthAltCard";
 import { TopGainer7dCard } from "../components/assets/TopGainer7dCard";
 
+const PAGE_SIZE = 20;
+
 export function AssetsPage() {
   const [assets, setAssets] = useState<AssetRow[]>([]);
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
+  const [page, setPage] = useState(1);
 
   const [fearGreed, setFearGreed] = useState<number | null>(null);
   const [marketCap, setMarketCap] = useState<{
@@ -56,7 +59,7 @@ export function AssetsPage() {
     pct7d: number;
   } | null>(null);
 
-  /* ===== BASE DATA (CoinGecko → cache → selectors) ===== */
+  /* ===== BASE DATA ===== */
   useEffect(() => {
     async function load() {
       if (!isMarketsFresh()) {
@@ -95,10 +98,22 @@ export function AssetsPage() {
     load().catch(console.error);
   }, []);
 
-  /* ===== LIVE PRICES (Binance) ===== */
+  /* ===== PAGINATION ===== */
+  const totalPages = Math.max(1, Math.ceil(assets.length / PAGE_SIZE));
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const pagedAssets = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return assets.slice(start, start + PAGE_SIZE);
+  }, [assets, page]);
+
+  /* ===== LIVE PRICES ===== */
   const visibleSymbols = useMemo(
-    () => assets.map((a) => a.symbol),
-    [assets]
+    () => pagedAssets.map((a) => a.symbol),
+    [pagedAssets]
   );
 
   useEffect(() => {
@@ -110,9 +125,7 @@ export function AssetsPage() {
       try {
         const prices = await fetchBinancePrices();
         if (active) setLivePrices(prices);
-      } catch {
-        /* silent */
-      }
+      } catch {}
     }
 
     tick();
@@ -164,7 +177,48 @@ export function AssetsPage() {
       </div>
 
       <div style={{ marginTop: 15 }}>
-        <AssetsTable assets={assets} livePrices={livePrices} />
+        <AssetsTable assets={pagedAssets} livePrices={livePrices} />
+      </div>
+
+      {/* Pagination */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          marginTop: 16,
+          gap: 8,
+        }}
+      >
+        <button
+          className="btn btn-sm"
+          disabled={page === 1}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+        >
+          Prev
+        </button>
+
+        {Array.from({ length: totalPages }).map((_, i) => {
+          const p = i + 1;
+          const active = p === page;
+
+          return (
+            <button
+              key={p}
+              className={`btn btn-sm ${active ? "btn-primary" : ""}`}
+              onClick={() => setPage(p)}
+            >
+              {p}
+            </button>
+          );
+        })}
+
+        <button
+          className="btn btn-sm"
+          disabled={page === totalPages}
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+        >
+          Next
+        </button>
       </div>
     </div>
   );

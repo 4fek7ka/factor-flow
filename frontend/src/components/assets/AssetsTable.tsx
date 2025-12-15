@@ -45,10 +45,7 @@ export function AssetsTable({ assets, livePrices }: Props) {
         }
       `}</style>
 
-      <div
-        className="card"
-        style={{ padding: 0, overflowX: "auto", marginTop: 8 }}
-      >
+      <div className="card" style={{ padding: 0, overflowX: "auto" }}>
         <table className="assets-table">
           <colgroup>
             <col style={{ width: "60px" }} />
@@ -68,13 +65,9 @@ export function AssetsTable({ assets, livePrices }: Props) {
                   #
                 </div>
               </th>
-
               <th>
-                <div className="cell" style={{ textAlign: "left" }}>
-                  ASSET
-                </div>
+                <div className="cell">ASSET</div>
               </th>
-
               <th>
                 <div
                   className="cell"
@@ -83,25 +76,21 @@ export function AssetsTable({ assets, livePrices }: Props) {
                   PRICE
                 </div>
               </th>
-
               <th>
                 <div className="cell" style={{ textAlign: "center" }}>
                   1h %
                 </div>
               </th>
-
               <th>
                 <div className="cell" style={{ textAlign: "center" }}>
                   24h %
                 </div>
               </th>
-
               <th>
                 <div className="cell" style={{ textAlign: "center" }}>
                   7d %
                 </div>
               </th>
-
               <th>
                 <div
                   className="cell"
@@ -110,7 +99,6 @@ export function AssetsTable({ assets, livePrices }: Props) {
                   Market Cap
                 </div>
               </th>
-
               <th>
                 <div
                   className="cell"
