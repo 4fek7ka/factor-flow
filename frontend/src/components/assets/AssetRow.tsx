@@ -34,7 +34,7 @@ export function AssetRowItem({ asset, index, livePrice }: Props) {
 
     if (price !== prev) {
       const t1 = setTimeout(() => setFade(true), 50);     // включаем fade
-      const t2 = setTimeout(() => setFlash(null), 1500); // сбрасываем flash
+      const t2 = setTimeout(() => setFlash(null), 300); // сбрасываем flash
 
       return () => {
         clearTimeout(t1);
