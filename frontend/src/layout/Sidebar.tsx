@@ -4,9 +4,7 @@ import { useState } from "react";
 import { SidebarItem } from "./SidebarItem";
 import {
   IconLayoutDashboard,
-  IconChartLine,
   IconTable,
-  IconSettings,
   IconChartDots,
 } from "@tabler/icons-react";
 
