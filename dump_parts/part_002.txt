@@ -1,0 +1,963 @@
+import  { useMemo } from "react";
+import type { HistoryPoint } from "../../services/portfolioService";
+import { AssetSparklineCard } from "./AssetSparklineCard";
+
+type Props = {
+  history: HistoryPoint[];
+};
+
+const ASSETS = ["ETH", "WBTC", "USDC", "DAI", "UNI"] as const;
+
+/* ----------------------------------
+   📌 Downsampling до N точек
+----------------------------------- */
+function downsample(values: number[], target: number) {
+  const n = values.length;
+  if (n <= target) return values;
+
+  const step = Math.ceil(n / target);
+  const out: number[] = [];
+
+  for (let i = 0; i < n; i += step) {
+    out.push(values[i]);
+  }
+
+  return out;
+}
+
+/* ----------------------------------
+   📌 Основной компонент
+----------------------------------- */
+export function AssetSparklinesSection({ history }: Props) {
+  const data = useMemo(() => {
+    if (!history.length) return [];
+
+    // timestamp последней точки
+    const lastTs = history[history.length - 1].timestamp;
+
+    // 24 часа в секундах
+    const cutoff = lastTs - 24 * 3600;
+
+    // Берём последние 24 часа
+    const last24h = history.filter((p) => p.timestamp >= cutoff);
+
+    // Если мало данных – fallback
+    const src = last24h.length > 1 ? last24h : history.slice(-24);
+
+    return ASSETS.map((asset) => {
+      const rawValues = src.map((p) => p.prices[asset]);
+
+      const first = rawValues[0];
+      const last = rawValues[rawValues.length - 1];
+      const pct = first ? ((last - first) / first) * 100 : 0;
+
+      // Downsampling до 60 точек
+      const values = downsample(rawValues, 13);
+
+      return {
+        name: asset,
+        values,
+        pct,
+      };
+    });
+  }, [history]);
+
+  return (
+    <div className="row row-cards mt-3">
+      <div className="col-12">
+        <div
+          style={{
+            display: "flex",
+            gap: "16px",
+            width: "100%",
+            justifyContent: "space-between",
+          }}
+        >
+          {data.map((d) => (
+            <AssetSparklineCard
+              key={d.name}
+              name={d.name}
+              values={d.values}
+              pct={d.pct}
+              label="24H"  // ← теперь работает
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}\nfrontend/src/components/portfolio/PortfolioAllocationSection.tsx\n
+import type { HistoryPoint } from "../../services/portfolioService";
+
+import { PortfolioAllocation } from "./PortfolioAllocation";
+import { VolatilityArcCard } from "./VolatilityArcCard";
+
+type Props = {
+  history: HistoryPoint[];
+};
+
+export function PortfolioAllocationSection({ history }: Props) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: "24px",
+        marginTop: "24px",
+        alignItems: "stretch",
+        width: "100%",
+      }}
+    >
+      {/* LEFT – fixed 620px */}
+      <div
+        style={{
+          width: "620px",
+          flexShrink: 0,
+          display: "flex",
+        }}
+      >
+        <PortfolioAllocation history={history} />
+      </div>
+
+      {/* RIGHT – expands to fill all remaining space */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+        }}
+      >
+        <VolatilityArcCard history={history} />
+      </div>
+    </div>
+  );
+}\nfrontend/src/components/portfolio/PortfolioAllocation.tsx\nimport { useEffect, useRef, useMemo } from "react";
+import * as echarts from "echarts";
+import type { HistoryPoint } from "../../services/portfolioService";
+
+const ASSET_COLORS: Record<string, string> = {
+  ETH: "#8A7FFF",
+  WBTC: "#FFB45A",
+  USDC: "#5DA7FF",
+  DAI: "#FFD86B",
+  UNI: "#FF6F9E",
+  Others: "#6B7280", // серый для суммарной группы
+};
+
+const AMOUNTS = {
+  ETH: 2,
+  WBTC: 0.03,
+  USDC: 80,
+  DAI: 40,
+  UNI: 400,
+};
+
+type Props = {
+  history: HistoryPoint[];
+};
+
+export function PortfolioAllocation({ history }: Props) {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const chart = useRef<echarts.ECharts | null>(null);
+
+  // ============================
+  // 📌 Расчёт TOP-3 + Others
+  // ============================
+  const allocation = useMemo(() => {
+    if (!history.length) return [];
+
+    const last = history[history.length - 1];
+
+    // 1) считаем стоимость всех активов
+    const values = Object.entries(AMOUNTS).map(([symbol, amount]) => {
+      const price = last.prices[symbol as keyof typeof last.prices];
+      const valueUsd = price * amount;
+      return { symbol, valueUsd };
+    });
+
+    // 2) сортировка по убыванию стоимости
+    const sorted = values.sort((a, b) => b.valueUsd - a.valueUsd);
+
+    // 3) топ 3
+    const top3 = sorted.slice(0, 3);
+
+    // 4) остальные → Others
+    const others = sorted.slice(3);
+    const othersTotal = others.reduce((s, v) => s + v.valueUsd, 0);
+
+    const finalList = [...top3];
+
+    if (othersTotal > 0) {
+      finalList.push({
+        symbol: "Others",
+        valueUsd: othersTotal,
+      });
+    }
+
+    // 5) проценты только внутри finalList
+    const total = finalList.reduce((s, v) => s + v.valueUsd, 0);
+
+    return finalList.map((v) => ({
+      ...v,
+      pct: total ? (v.valueUsd / total) * 100 : 0,
+    }));
+  }, [history]);
+
+  // ============================
+  // 📌 Инициализация donut один раз
+  // ============================
+  useEffect(() => {
+    if (!chartRef.current) return;
+
+    chart.current = echarts.init(chartRef.current);
+    const inst = chart.current;
+
+    const ro = new ResizeObserver(() => inst.resize());
+    ro.observe(chartRef.current);
+
+    return () => {
+      ro.disconnect();
+      inst.dispose();
+      chart.current = null;
+    };
+  }, []);
+
+  // ============================
+  // 📌 Обновление данных без пересоздания
+  // ============================
+  useEffect(() => {
+    if (!chart.current) return;
+    if (!allocation.length) return;
+
+    const inst = chart.current;
+
+    const option = {
+      backgroundColor: "transparent",
+      series: [
+        {
+          type: "pie",
+          radius: ["55%", "78%"],
+          center: ["50%", "50%"],
+          label: { show: false },
+          labelLine: { show: false },
+          minAngle: 2, // гарантирует видимость сегментов
+          data: allocation.map((a) => ({
+            value: a.valueUsd,
+            name: a.symbol,
+            itemStyle: { color: ASSET_COLORS[a.symbol] },
+          })),
+        },
+      ],
+    };
+
+    inst.setOption(option, {
+      notMerge: false,
+      lazyUpdate: false,
+      silent: true,
+    });
+  }, [allocation]);
+
+  if (!allocation.length) return null;
+
+  return (
+    <div
+      className="card"
+      style={{
+        borderRadius: "10px",
+        height: "100%",
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <div
+        className="card-body"
+        style={{
+          display: "flex",
+          gap: "24px",
+          alignItems: "center",
+        }}
+      >
+        {/* ----------------------------------------------------
+           Donut
+        ---------------------------------------------------- */}
+        <div
+          ref={chartRef}
+          style={{
+            width: "190px",
+            height: "190px",
+            flexShrink: 0,
+          }}
+        />
+
+        {/* ----------------------------------------------------
+            Легенда TOP-3 + Others
+        ---------------------------------------------------- */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "14px",
+            width: "100%",
+          }}
+        >
+          {/* Заголовок */}
+          <h4
+            style={{
+              margin: 0,
+              fontSize: "20px",
+              color: "#FAFAFA",
+              fontWeight: 600,
+              letterSpacing: "0.2px",
+            }}
+          >
+            Portfolio Allocation
+          </h4>
+
+          {/* Header */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "18px 110px 110px 70px",
+              fontSize: "14px",
+              color: "#E8E8E8",
+              paddingBottom: "6px",
+              borderBottom: "1px solid rgba(255,255,255,0.08)",
+              fontWeight: 500,
+            }}
+          >
+            <div></div>
+            <div>Asset</div>
+            <div>Value</div>
+            <div style={{ textAlign: "right" }}>Share</div>
+          </div>
+
+          {/* Rows */}
+          {allocation.map((a) => (
+            <div
+              key={a.symbol}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "18px 110px 110px 70px",
+                alignItems: "center",
+                fontSize: "15px",
+                color: "#EFEFEF",
+              }}
+            >
+              {/* Colored dot */}
+              <div
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: "50%",
+                  background: ASSET_COLORS[a.symbol],
+                  justifySelf: "center",
+                }}
+              />
+
+              {/* Asset name */}
+              <div style={{ fontWeight: 500 }}>{a.symbol}</div>
+
+              {/* USD value */}
+              <div>${a.valueUsd.toFixed(0)}</div>
+
+              {/* percentage */}
+              <div
+                style={{
+                  textAlign: "right",
+                  fontWeight: 500,
+                  color: "#EFEFEF",
+                }}
+              >
+                {a.pct.toFixed(1)}%
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}\nfrontend/src/components/portfolio/PortfolioChartCard.tsx\nimport { useEffect, useRef } from "react";
+import * as echarts from "echarts";
+
+import {
+  buildPortfolioSeries,
+  filterHistoryByPeriod,
+} from "../../services/portfolioService";
+
+import type { HistoryPoint, Period } from "../../services/portfolioService";
+
+import { buildPortfolioChartOption } from "../../charts/portfolioChartOptions";
+
+type Props = {
+  history: HistoryPoint[];
+  period: Period;
+  onPeriodChange: (p: Period) => void;
+};
+
+export function PortfolioChartCard({
+  history,
+  period,
+  onPeriodChange,
+}: Props) {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const chartInstance = useRef<echarts.ECharts | null>(null);
+
+  const seriesCounterRef = useRef(0);
+  const seriesIdRef = useRef("portfolio-line-0");
+
+  // Init chart
+  useEffect(() => {
+    if (!chartRef.current) return;
+
+    chartInstance.current = echarts.init(chartRef.current, "dark");
+    const chart = chartInstance.current;
+
+    const observer = new ResizeObserver(() => chart.resize());
+    observer.observe(chartRef.current);
+
+    return () => {
+      observer.disconnect();
+      chart.dispose();
+      chartInstance.current = null;
+    };
+  }, []);
+
+  // Update chart (анимация как раньше)
+  useEffect(() => {
+    const chart = chartInstance.current;
+    if (!chart) return;
+
+    const filteredHistory = filterHistoryByPeriod(history, period);
+    const { timestamps, percentValues } =
+      buildPortfolioSeries(filteredHistory, period);
+
+    if (!percentValues.length) return;
+
+    const option = buildPortfolioChartOption(timestamps, percentValues, {
+      seriesId: seriesIdRef.current,
+      initial: true, // всегда проигрываем "первичную" анимацию линии
+      opacity: 1,
+    });
+
+    chart.setOption(option, {
+      notMerge: true,   // создаём новую серию
+      lazyUpdate: true,
+      silent: true,
+    });
+  }, [history, period]);
+
+  // Переключение табов — только смена id серии + периода
+  const switchPeriod = (next: Period) => {
+    if (next === period) return;
+
+    seriesCounterRef.current += 1;
+    seriesIdRef.current = `portfolio-line-${seriesCounterRef.current}`;
+
+    onPeriodChange(next);
+  };
+
+  const tabClass = (key: Period) =>
+    `period-tab ${period === key ? "active" : ""}`;
+
+  return (
+    <div className="card p-3">
+      <style>{`
+        .period-tabs-wrap {
+          display: flex;
+          justify-content: center;
+          margin-bottom: 12px;
+        }
+
+        .period-tabs {
+          display: flex;
+          gap: 28px;
+          border-bottom: 1px solid rgba(255,255,255,0.08);
+          position: relative;
+          padding-bottom: 4px;
+        }
+
+        .period-tab {
+          background: none;
+          border: none;
+          padding: 8px 2px;
+          color: #9ca3af;
+          font-size: 16px;
+          cursor: pointer;
+          position: relative;
+          transition: color 200ms ease;
+        }
+
+        .period-tab:hover {
+          color: #d1d5db;
+        }
+
+        .period-tab.active {
+          color: #b351f9;
+        }
+
+        .period-underline {
+          position: absolute;
+          bottom: -1px;
+          height: 2px;
+          background: #b351f9;
+          border-radius: 2px;
+          transition: transform 320ms cubic-bezier(0.25, 0.1, 0.25, 1),
+                      width 320ms cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+      `}</style>
+
+      {/* Tabs */}
+      <div className="period-tabs-wrap">
+        <div className="period-tabs">
+          <div
+            className="period-underline"
+            style={{
+              width: period === "year" ? 36 : period === "month" ? 52 : 44,
+              transform:
+                period === "year"
+                  ? "translateX(0px)"
+                  : period === "month"
+                  ? "translateX(64px)"
+                  : "translateX(144px)",
+            }}
+          />
+
+          <button className={tabClass("year")} onClick={() => switchPeriod("year")}>
+            Year
+          </button>
+
+          <button className={tabClass("month")} onClick={() => switchPeriod("month")}>
+            Month
+          </button>
+
+          <button className={tabClass("week")} onClick={() => switchPeriod("week")}>
+            Week
+          </button>
+        </div>
+      </div>
+
+      {/* Chart без внешнего fade/blur */}
+      <div style={{ width: "100%", height: "350px" }}>
+        <div ref={chartRef} style={{ width: "100%", height: "100%" }} />
+      </div>
+    </div>
+  );
+}\nfrontend/src/components/portfolio/PortfolioChart.tsx\nimport { useEffect, useRef } from "react";
+import * as echarts from "echarts";
+
+import { buildPortfolioSeries } from "../../services/portfolioService";
+import type { HistoryPoint, Period } from "../../services/portfolioService";
+
+import { buildPortfolioChartOption } from "../../charts/portfolioChartOptions";
+
+type Props = {
+  history: HistoryPoint[];
+  period: Period;
+};
+
+export function PortfolioChart({ history, period }: Props) {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const chartInstance = useRef<echarts.ECharts | null>(null);
+
+  useEffect(() => {
+    if (!chartRef.current) return;
+
+    chartInstance.current = echarts.init(chartRef.current, "dark");
+    const chart = chartInstance.current;
+
+    const observer = new ResizeObserver(() => chart.resize());
+    observer.observe(chartRef.current);
+
+    return () => {
+      observer.disconnect();
+      chart.dispose();
+      chartInstance.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const chart = chartInstance.current;
+    if (!chart) return;
+
+    const { timestamps, percentValues } = buildPortfolioSeries(history, period);
+
+    if (!percentValues.length) return;
+
+    const option = buildPortfolioChartOption(timestamps, percentValues, {
+      initial: true,
+      opacity: 1,
+    });
+
+    chart.setOption(option, { notMerge: true, lazyUpdate: false });
+  }, [history, period]);
+
+  return <div ref={chartRef} style={{ width: "100%", height: "350px" }} />;
+}\nfrontend/src/components/portfolio/PortfolioMetricsRow.tsx\nimport type { Period } from "../../services/portfolioService";
+
+type Props = {
+  tvl: number;
+  lastTsMs: number;
+  changeUsd: number;
+  changePct: number;
+  vsBtcPp: number;
+  btcPct: number;
+  period: Period;
+};
+
+function fmtUsd(v: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(v);
+}
+
+function fmtSignedUsd(v: number) {
+  const sign = v >= 0 ? "+" : "-";
+  return `${sign}${fmtUsd(Math.abs(v))}`;
+}
+
+function fmtSignedPct(v: number, digits = 2) {
+  const sign = v >= 0 ? "+" : "";
+  return `${sign}${v.toFixed(digits)}%`;
+}
+
+export function PortfolioMetricsRow({
+  tvl,
+  lastTsMs,
+  changeUsd,
+  changePct,
+  vsBtcPp,
+  btcPct,
+  period,
+}: Props) {
+  const changeColor = changeUsd >= 0 ? "text-success" : "text-danger";
+  const vsBtcColor = vsBtcPp >= 0 ? "text-success" : "text-danger";
+
+  return (
+    <div className="row row-cards mb-3">
+      <style>{`
+        .fade-number {
+          opacity: 0;
+          animation: fadeIn 220ms ease-out forwards;
+        }
+
+        .fade-sub {
+          opacity: 0;
+          animation: fadeIn 220ms ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+      `}</style>
+
+      {/* TVL — без анимации, не меняется от периода */}
+      <div className="col-12 col-md-4">
+        <div className="card card-sm">
+          <div className="card-body">
+            <div className="text-muted">TVL</div>
+
+            {/* ❗ НЕТ key → нет анимации */}
+            <div className="h2 m-0">{fmtUsd(tvl)}</div>
+
+            <div className="text-muted mt-1 fade-sub" key={`asof`}>
+              {lastTsMs
+                ? `As of ${new Date(lastTsMs).toLocaleDateString("en-GB")}`
+                : "—"}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Net Change */}
+      <div className="col-12 col-md-4">
+        <div className="card card-sm">
+          <div className="card-body">
+            <div className="text-muted">Net Change</div>
+
+            <div
+              key={`net-${period}`}
+              className={`h2 m-0 fade-number ${changeColor}`}
+            >
+              {fmtSignedUsd(changeUsd)}
+            </div>
+
+            <div key={`netpct-${period}`} className="text-muted mt-1 fade-sub">
+              ({fmtSignedPct(changePct)})
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Vs BTC */}
+      <div className="col-12 col-md-4">
+        <div className="card card-sm">
+          <div className="card-body">
+            <div className="text-muted">Vs BTC</div>
+
+            <div
+              key={`vsbtc-${period}`}
+              className={`h2 m-0 fade-number ${vsBtcColor}`}
+            >
+              {fmtSignedPct(vsBtcPp)}
+            </div>
+
+            <div
+              key={`vsbtc-details-${period}`}
+              className="text-muted mt-1 fade-sub"
+            >
+              (Portfolio: {fmtSignedPct(changePct)} · BTC: {fmtSignedPct(btcPct)})
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}\nfrontend/src/components/portfolio/VolatilityArcCard.tsx\nimport { useMemo } from "react";
+import type { HistoryPoint } from "../../services/portfolioService";
+
+function calcPortfolioValue(p: HistoryPoint) {
+  const AMOUNTS = { ETH: 2, WBTC: 0.03, USDC: 80, DAI: 40, UNI: 400 };
+  return (
+    p.prices.ETH * AMOUNTS.ETH +
+    p.prices.WBTC * AMOUNTS.WBTC +
+    p.prices.USDC * AMOUNTS.USDC +
+    p.prices.DAI * AMOUNTS.DAI +
+    p.prices.UNI * AMOUNTS.UNI
+  );
+}
+
+type Props = {
+  history: HistoryPoint[];
+};
+
+export function VolatilityArcCard({ history }: Props) {
+  const {
+    volatility,
+    minVol,
+    maxVol,
+    avgMove,
+    stdDev,
+  } = useMemo(() => {
+    if (history.length < 24 * 7) {
+      return {
+        volatility: 0,
+        minVol: 0,
+        maxVol: 0,
+        avgMove: 0,
+        stdDev: 0,
+      };
+    }
+
+    const points = 24 * 7;
+    const lastWeek = history.slice(-points);
+
+    const vals = lastWeek.map(calcPortfolioValue);
+    const minVal = Math.min(...vals);
+    const maxVal = Math.max(...vals);
+    const avg = vals.reduce((s, x) => s + x, 0) / vals.length || 1;
+
+    const volatilityRange = ((maxVal - minVal) / avg) * 100;
+
+    const minPct = ((minVal - avg) / avg) * 100;
+    const maxPct = ((maxVal - avg) / avg) * 100;
+
+    const avgMoveCalc =
+      vals.length > 1
+        ? vals
+            .slice(1)
+            .reduce((s, v, i) => s + Math.abs(v - vals[i]), 0) /
+          (vals.length - 1)
+        : 0;
+
+    const avgMovePct = (avgMoveCalc / avg) * 100;
+
+    const std =
+      vals.length > 1
+        ? Math.sqrt(
+            vals.map((v) => Math.pow(v - avg, 2)).reduce((a, b) => a + b, 0) /
+              vals.length
+          )
+        : 0;
+
+    const stdDevPct = (std / avg) * 100;
+
+    return {
+      volatility: volatilityRange,
+      minVol: minPct,
+      maxVol: maxPct,
+      avgMove: avgMovePct,
+      stdDev: stdDevPct,
+    };
+  }, [history]);
+
+  // ---- arc math ----
+  const pct = Math.min(Math.max(volatility / 40, 0), 1); // 0..1
+
+  const radius = 100;
+  const circumference = Math.PI * radius;
+  const filled = pct * circumference;
+  const empty = circumference - filled;
+
+  const TEXT_PRIMARY = "#EFEFEF";
+  const TEXT_SECONDARY = "rgba(255,255,255,0.75)";
+
+  return (
+    <div
+      className="card"
+      style={{
+        borderRadius: "10px",
+        height: "100%",
+        width: "100%",
+      }}
+    >
+      <div
+        className="card-body"
+        style={{
+          display: "flex",
+          gap: "28px",
+          alignItems: "center",
+          paddingTop: 20,
+          paddingBottom: 20,
+        }}
+      >
+        {/* ======================= GAUGE ======================= */}
+        <div style={{ flex: "0 0 260px" }}>
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            <svg width="260" height="170" viewBox="0 0 260 170">
+
+              {/* ---- DEFINING GRADIENT ---- */}
+              <defs>
+                <linearGradient id="volaGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%"   stopColor="#22c55e" />  {/* green */}
+                  <stop offset="50%"  stopColor="#eab308" />  {/* yellow */}
+                  <stop offset="100%" stopColor="#ef4444" />  {/* red */}
+                </linearGradient>
+              </defs>
+
+              {/* Background arc */}
+              <path
+                d="M30 120 A100 100 0 0 1 230 120"
+                stroke="rgba(255,255,255,0.08)"
+                strokeWidth="16"
+                fill="none"
+              />
+
+              {/* Foreground arc — GRADIENT */}
+              <path
+                d="M30 120 A100 100 0 0 1 230 120"
+                stroke="url(#volaGradient)"
+                strokeWidth="16"
+                fill="none"
+                strokeDasharray={`${filled} ${empty}`}
+                strokeLinecap="round"
+              />
+
+              {/* Percentage */}
+              <text
+                x="130"
+                y="108"
+                fill={TEXT_PRIMARY}
+                fontSize="28"
+                fontWeight="700"
+                dominantBaseline="middle"
+                textAnchor="middle"
+              >
+                {volatility.toFixed(2)}%
+              </text>
+
+              {/* Low */}
+              <text
+                x="12"
+                y="155"
+                fill={TEXT_PRIMARY}
+                fontSize="15"
+                fontWeight="600"
+                textAnchor="start"
+              >
+                Low
+              </text>
+
+              {/* High */}
+              <text
+                x="248"
+                y="155"
+                fill={TEXT_PRIMARY}
+                fontSize="15"
+                fontWeight="600"
+                textAnchor="end"
+              >
+                High
+              </text>
+            </svg>
+          </div>
+
+          <div
+            style={{
+              textAlign: "center",
+              marginTop: 8,
+              fontSize: 15,
+              color: TEXT_SECONDARY,
+            }}
+          >
+            7D Range Volatility
+          </div>
+        </div>
+
+        {/* ======================= ANALYTICS ======================= */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px",
+            paddingLeft: "32px",
+            flex: 1,
+            color: TEXT_PRIMARY,
+            fontSize: "15px",
+          }}
+        >
+          <div
+            style={{
+              marginBottom: "6px",
+              opacity: 0.9,
+              fontWeight: 600,
+              fontSize: "16px",
+            }}
+          >
+            Analytics
+          </div>
+
+          {[
+            { label: "Min", value: minVol },
+            { label: "Max", value: maxVol },
+            { label: "Avg Abs Move", value: avgMove },
+            { label: "Std Dev (7D)", value: stdDev },
+          ].map((m, i) => (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                borderBottom:
+                  i < 3 ? "1px solid rgba(255,255,255,0.06)" : "none",
+                paddingBottom: "6px",
+                paddingTop: "4px",
+              }}
+            >
+              <span style={{ opacity: 0.75 }}>{m.label}</span>
+              <span
+                style={{
+                  fontFamily: "monospace",
+                  opacity: 0.95,
+                }}
+              >
+                {m.value.toFixed(2)}%
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}\nfrontend/src/components/simulation/FinalOutcomeCard.tsx\n

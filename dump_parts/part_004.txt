@@ -1,0 +1,1135 @@
+// SimulationControls.tsx
+import type { ReactNode } from "react";
+import type { Scenario } from "../../services/monteCarloService";
+
+export type SimulationParams = {
+  horizonDays: 30 | 90 | 180 | 365;
+  scenario: Scenario;
+  simulations: 50 | 100 | 200;
+
+  showCloud: boolean;
+  showMedian: boolean;
+  showRepresentative: boolean;
+  showRange: boolean;
+
+  showFan: boolean;
+};
+
+type Props = {
+  value: SimulationParams;
+  onChange: (next: SimulationParams) => void;
+};
+
+const HORIZONS = [30, 90, 180, 365] as const;
+const SIMULATIONS = [50, 100, 200] as const;
+
+const SCENARIOS = [
+  ["conservative", "Conservative"],
+  ["baseline", "Baseline"],
+  ["stress", "Stress"],
+] as const satisfies readonly (readonly [Scenario, string])[];
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 800,
+          letterSpacing: 0.4,
+          textTransform: "uppercase",
+          color: "rgba(148,163,184,0.75)",
+          marginBottom: 6,
+        }}
+      >
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function SegButton({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        height: 32,
+        padding: "0 10px",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+
+        fontSize: 12,
+        fontWeight: 800,
+        lineHeight: "16px",
+        borderRadius: 8,
+
+        border: active
+          ? "1px solid rgba(56,189,248,0.55)"
+          : "1px solid rgba(255,255,255,0.10)",
+
+        background: active
+          ? "rgba(14,165,233,0.22)"
+          : "rgba(15,23,42,0.45)",
+
+        color: active
+          ? "rgba(226,232,240,0.95)"
+          : "rgba(226,232,240,0.75)",
+
+        cursor: "pointer",
+        transition: "all 120ms ease",
+        userSelect: "none",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function SegGroup({ children, cols }: { children: ReactNode; cols: number }) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+        gap: 6,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function ToggleRow({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        height: 34,
+        width: "100%",
+        padding: "0 10px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        borderRadius: 10,
+
+        border: active
+          ? "1px solid rgba(56,189,248,0.45)"
+          : "1px solid rgba(255,255,255,0.08)",
+
+        background: active
+          ? "rgba(14,165,233,0.14)"
+          : "rgba(15,23,42,0.28)",
+
+        color: active
+          ? "rgba(226,232,240,0.95)"
+          : "rgba(226,232,240,0.80)",
+
+        cursor: "pointer",
+        userSelect: "none",
+      }}
+    >
+      <span style={{ fontSize: 12, fontWeight: 800 }}>{label}</span>
+      <span
+        style={{
+          width: 10,
+          height: 10,
+          borderRadius: 999,
+          background: active ? "rgba(14,165,233,1)" : "rgba(100,116,139,1)",
+        }}
+      />
+    </button>
+  );
+}
+
+export function SimulationControls({ value, onChange }: Props) {
+  const patch = (next: Partial<SimulationParams>) =>
+    onChange({ ...value, ...next });
+
+  return (
+    <div
+      style={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        borderRadius: 12,
+        background: "rgba(15,23,42,0.34)",
+        backdropFilter: "blur(12px)",
+        border: "1px solid rgba(255,255,255,0.05)",
+      }}
+    >
+      <div style={{ padding: 14, flexShrink: 0 }}>
+        <div style={{ fontWeight: 800, fontSize: 14 }}>Simulation settings</div>
+        <div style={{ fontSize: 12, color: "rgba(148,163,184,0.8)" }}>
+          Horizon, scenario and runs
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "0 14px 14px",
+          overflowY: "auto",
+          flex: 1,
+        }}
+      >
+        <Section title="Horizon">
+          <SegGroup cols={4}>
+            {HORIZONS.map((d) => (
+              <SegButton
+                key={d}
+                label={`${d}d`}
+                active={value.horizonDays === d}
+                onClick={() => patch({ horizonDays: d })}
+              />
+            ))}
+          </SegGroup>
+        </Section>
+
+        <Section title="Scenario">
+          <SegGroup cols={3}>
+            {SCENARIOS.map(([key, label]) => (
+              <SegButton
+                key={key}
+                label={label}
+                active={value.scenario === key}
+                onClick={() => patch({ scenario: key })}
+              />
+            ))}
+          </SegGroup>
+        </Section>
+
+        <Section title="Simulations">
+          <SegGroup cols={3}>
+            {SIMULATIONS.map((n) => (
+              <SegButton
+                key={n}
+                label={`${n}`}
+                active={value.simulations === n}
+                onClick={() => patch({ simulations: n })}
+              />
+            ))}
+          </SegGroup>
+        </Section>
+
+        <Section title="Overlays">
+          <div style={{ display: "grid", gap: 8 }}>
+            <ToggleRow
+              label="Main"
+              active={value.showRepresentative}
+              onClick={() =>
+                patch({ showRepresentative: !value.showRepresentative })
+              }
+            />
+
+            <ToggleRow
+              label="Fan (Quantiles)"
+              active={value.showFan}
+              onClick={() => patch({ showFan: !value.showFan })}
+            />
+
+            <ToggleRow
+              label="Median"
+              active={value.showMedian}
+              onClick={() => patch({ showMedian: !value.showMedian })}
+            />
+
+            <ToggleRow
+              label="Cloud"
+              active={value.showCloud}
+              onClick={() => patch({ showCloud: !value.showCloud })}
+            />
+
+            <ToggleRow
+              label="Range"
+              active={value.showRange}
+              onClick={() => patch({ showRange: !value.showRange })}
+            />
+          </div>
+        </Section>
+      </div>
+    </div>
+  );
+}\nfrontend/src/layout/AppLayout.tsx\nimport { Outlet } from "react-router-dom";
+import { Sidebar } from "./Sidebar";
+
+export function AppLayout() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        width: "100vw",
+        height: "100vh",
+        background: "#020617",
+        color: "#e5e7eb",
+        overflow: "hidden",
+      }}
+    >
+      {/* Левый сайдбар */}
+      <Sidebar />
+
+      {/* Правая часть: navbar + контент */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 0,
+        }}
+      >
+        {/* TOP NAVBAR */}
+        <header
+          style={{
+            height: 56,
+            flexShrink: 0,
+            borderBottom: "1px solid rgba(148,163,184,0.2)",
+            display: "flex",
+            alignItems: "center",
+            padding: "0 24px",
+            background: "#020617",
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 1280,
+              margin: "0 auto",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 18,
+                fontWeight: 600,
+                letterSpacing: 0.3,
+              }}
+            >
+              Factor Flow
+            </div>
+          </div>
+        </header>
+
+        {/* MAIN CONTENT */}
+        <main
+          style={{
+            flex: 1,
+            overflowY: "auto",
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 1280,
+              margin: "0 auto",
+              padding: "20px 24px 32px",
+            }}
+          >
+            <Outlet />
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}\nfrontend/src/layout/Navbar.tsx\nimport { NavLink } from "react-router-dom";
+
+export function Navbar() {
+  return (
+    <header
+      className="navbar navbar-expand-md navbar-dark"
+      style={{
+        background: "#111827",
+        borderBottom: "1px solid rgba(255,255,255,0.08)",
+      }}
+    >
+      <div className="container-xl d-flex justify-content-between">
+        {/* ЛОГО */}
+        <NavLink
+          to="/"
+          className="navbar-brand"
+          style={{
+            fontWeight: 600,
+            fontSize: "20px",
+          }}
+        >
+          Factor Flow
+        </NavLink>
+
+        {/* НАВИГАЦИЯ */}
+        <ul className="navbar-nav flex-row">
+          <NavItem to="/" label="Dashboard" />
+          <NavItem to="/prices" label="Prices" />
+          <NavItem to="/assets" label="Assets" />
+          <NavItem to="/settings" label="Settings" />
+        </ul>
+      </div>
+    </header>
+  );
+}
+
+function NavItem({ to, label }: { to: string; label: string }) {
+  return (
+    <li className="nav-item mx-2">
+      <NavLink
+        to={to}
+        end
+        className={({ isActive }) =>
+          "nav-link px-3" + (isActive ? " active" : "")
+        }
+        style={({ isActive }) => ({
+          color: isActive ? "#b351f9" : "#d1d5db",
+          fontWeight: isActive ? 600 : 400,
+        })}
+      >
+        {label}
+      </NavLink>
+    </li>
+  );
+}\nfrontend/src/layout/SidebarItem.tsx\nimport { NavLink } from "react-router-dom";
+import type { ReactNode } from "react";
+
+type Props = {
+  to: string;
+  icon: ReactNode;
+  label: string;
+  expanded: boolean;
+};
+
+export function SidebarItem({ to, icon, label, expanded }: Props) {
+  return (
+    <NavLink
+      to={to}
+      end
+      className={({ isActive }) =>
+        `nav-link d-flex align-items-center ${isActive ? "active" : ""}`
+      }
+      style={({ isActive }) => ({
+        padding: "10px 12px",
+        gap: "14px",
+        color: isActive ? "#b351f9" : "#9ca3af",
+        transition: "color 0.2s ease-in-out",
+        whiteSpace: "nowrap",
+      })}
+      title={!expanded ? label : undefined}
+    >
+      {/* ICON — теперь тоже двигается чуть-чуть */}
+      <div
+        style={{
+          width: 32,
+          minWidth: 32,
+          display: "flex",
+          justifyContent: "center",
+          transition: "transform 0.35s ease-in-out",
+          transform: expanded ? "translateX(6px)" : "translateX(0px)",
+        }}
+      >
+        {icon}
+      </div>
+
+      {/* LABEL — фирменная mask-анимация */}
+      <span
+        style={{
+          fontSize: "15px",
+          fontWeight: 500,
+          opacity: expanded ? 1 : 0,
+          transition:
+            "opacity 0.25s ease-in-out, mask-image 0.35s ease-in-out, -webkit-mask-image 0.35s ease-in-out",
+
+          maskImage: expanded
+            ? "linear-gradient(90deg, black 100%, transparent 100%)"
+            : "linear-gradient(90deg, black 0%, transparent 0%)",
+
+          WebkitMaskImage: expanded
+            ? "linear-gradient(90deg, black 100%, transparent 100%)"
+            : "linear-gradient(90deg, black 0%, transparent 0%)",
+
+          maskSize: "200% 100%",
+          WebkitMaskSize: "200% 100%",
+
+          overflow: "hidden",
+          display: "inline-block",
+
+          marginLeft: expanded ? "2px" : "-4px", // лёгкое движение текста
+          transitionProperty: "opacity, margin-left, mask-image, -webkit-mask-image",
+        }}
+      >
+        {label}
+      </span>
+    </NavLink>
+  );
+}\nfrontend/src/layout/SidebarToggle.tsx\nimport { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
+
+type Props = {
+  expanded: boolean;
+  onToggle: () => void;
+};
+
+export function SidebarToggle({ expanded, onToggle }: Props) {
+  return (
+    <button
+      onClick={onToggle}
+      style={{
+        width: "100%",
+        height: 38,
+        border: "none",
+        background: "transparent",
+        color: "#9ca3af",
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        paddingLeft: expanded ? 16 : 0,
+      }}
+      title="Toggle sidebar"
+    >
+      <div style={{ width: 28, textAlign: "center" }}>
+        {expanded ? <IconChevronLeft size={20} /> : <IconChevronRight size={20} />}
+      </div>
+
+      {expanded && (
+        <span style={{ fontSize: "14px", color: "#e5e7eb" }}>Collapse</span>
+      )}
+    </button>
+  );
+}\nfrontend/src/layout/Sidebar.tsx\n// src/layout/Sidebar.tsx
+
+import { useState } from "react";
+import { SidebarItem } from "./SidebarItem";
+import {
+  IconLayoutDashboard,
+  IconTable,
+  IconChartDots,
+} from "@tabler/icons-react";
+
+export function Sidebar() {
+  const [expanded, setExpanded] = useState(false);
+
+  const WIDTH_COLLAPSED = 70;
+  const WIDTH_EXPANDED = 220;
+
+  return (
+    <aside
+      onMouseEnter={() => setExpanded(true)}
+      onMouseLeave={() => setExpanded(false)}
+      style={{
+        width: expanded ? WIDTH_EXPANDED : WIDTH_COLLAPSED,
+        transition: "width 0.35s ease-in-out",
+        background: "#111827",
+        borderRight: "1px solid rgba(255,255,255,0.05)",
+        paddingTop: "20px",
+        height: "calc(100vh - 55px)",
+        position: "fixed",
+        top: 55,
+        left: 0,
+        overflow: "hidden",
+        zIndex: 20,
+      }}
+    >
+      <div style={{ display: "flex", flexDirection: "column", marginTop: 10 }}>
+        <SidebarItem
+          to="/"
+          label="Dashboard"
+          icon={<IconLayoutDashboard size={22} />}
+          expanded={expanded}
+        />
+        <SidebarItem
+          to="/assets"
+          label="Assets"
+          icon={<IconTable size={22} />}
+          expanded={expanded}
+        />
+
+        {/* ➜ Новый пункт меню Simulation */}
+        <SidebarItem
+          to="/simulation"
+          label="Simulation"
+          icon={<IconChartDots size={22} />}
+          expanded={expanded}
+        />
+
+       
+      </div>
+    </aside>
+  );
+}\nfrontend/src/main.tsx\nimport { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import App from "./App.tsx";
+
+import "@tabler/core/dist/css/tabler.min.css";
+import "@tabler/core/dist/js/tabler.min.js";
+
+// Включаем тёмную тему Tabler
+document.documentElement.setAttribute("data-bs-theme", "dark");
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);\nfrontend/src/pages/AssetsPage.tsx\nimport { useEffect, useMemo, useState } from "react";
+
+import {
+  fetchMarkets,
+  fetchGlobal,
+  fetchFearGreed,
+} from "../services/assetsApi";
+
+import {
+  saveMarkets,
+  readMarkets,
+  isMarketsFresh,
+  saveGlobal,
+  readGlobal,
+  saveFearGreed,
+  readFearGreed,
+} from "../services/assetsCache";
+
+import {
+  buildAssetsTable,
+  getDominance,
+  getGlobalMarketCapSnapshot,
+  getTopGainer7d,
+  type AssetRow,
+} from "../services/assetsSelectors";
+
+import { fetchBinancePrices } from "../services/binanceService";
+
+import { AssetsTable } from "../components/assets/AssetsTable";
+import { MarketCapCard } from "../components/assets/MarketCapCard";
+import { FearGreedCard } from "../components/assets/FearGreedCard";
+import { BtcEthAltCard } from "../components/assets/BtcEthAltCard";
+import { TopGainer7dCard } from "../components/assets/TopGainer7dCard";
+
+const PAGE_SIZE = 20;
+
+export function AssetsPage() {
+  const [assets, setAssets] = useState<AssetRow[]>([]);
+  const [livePrices, setLivePrices] = useState<Record<string, number>>({});
+  const [page, setPage] = useState(1);
+
+  const [fearGreed, setFearGreed] = useState<number | null>(null);
+  const [marketCap, setMarketCap] = useState<{
+    capUsd: number;
+    changePct24h: number;
+    sparkline: number[];
+  } | null>(null);
+
+  const [dominance, setDominance] = useState<{
+    btc: number;
+    eth: number;
+    alt: number;
+  } | null>(null);
+
+  const [topGainer, setTopGainer] = useState<{
+    name: string;
+    symbol: string;
+    image?: string;
+    pct7d: number;
+  } | null>(null);
+
+  /* ===== BASE DATA ===== */
+  useEffect(() => {
+    async function load() {
+      if (!isMarketsFresh()) {
+        const [markets, global, fear] = await Promise.all([
+          fetchMarkets(),
+          fetchGlobal(),
+          fetchFearGreed(),
+        ]);
+
+        saveMarkets(markets);
+        saveGlobal(global);
+        if (fear !== null) saveFearGreed(fear);
+      }
+
+      const markets = readMarkets() ?? [];
+      const global = readGlobal();
+      const fear = readFearGreed();
+
+      setAssets(buildAssetsTable(markets));
+      setFearGreed(fear);
+
+      if (global) {
+        const snap = getGlobalMarketCapSnapshot(global);
+        setMarketCap({
+          capUsd: snap.capUsd,
+          changePct24h: snap.changePct24h,
+          sparkline: markets[0]?.sparkline_in_7d?.price ?? [],
+        });
+
+        setDominance(getDominance(global));
+      }
+
+      setTopGainer(getTopGainer7d(markets));
+    }
+
+    load().catch(console.error);
+  }, []);
+
+  /* ===== PAGINATION ===== */
+  const totalPages = Math.max(1, Math.ceil(assets.length / PAGE_SIZE));
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const pagedAssets = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return assets.slice(start, start + PAGE_SIZE);
+  }, [assets, page]);
+
+  /* ===== LIVE PRICES ===== */
+  const visibleSymbols = useMemo(
+    () => pagedAssets.map((a) => a.symbol),
+    [pagedAssets]
+  );
+
+  useEffect(() => {
+    if (!visibleSymbols.length) return;
+
+    let active = true;
+
+    async function tick() {
+      try {
+        const prices = await fetchBinancePrices();
+        if (active) setLivePrices(prices);
+      } catch {}
+    }
+
+    tick();
+    const id = setInterval(tick, 4_000);
+
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, [visibleSymbols]);
+
+  return (
+    <div>
+      <div className="row row-cards mb-2">
+        <div className="col-12 col-md-6 col-lg-3 d-flex">
+          {marketCap && (
+            <MarketCapCard
+              capUsd={marketCap.capUsd}
+              changePct={marketCap.changePct24h}
+              spark={marketCap.sparkline}
+            />
+          )}
+        </div>
+
+        <div className="col-12 col-md-6 col-lg-3 d-flex">
+          {fearGreed !== null && <FearGreedCard value={fearGreed} />}
+        </div>
+
+        <div className="col-12 col-md-6 col-lg-3 d-flex">
+          {dominance && (
+            <BtcEthAltCard
+              btc={dominance.btc}
+              eth={dominance.eth}
+              alt={dominance.alt}
+            />
+          )}
+        </div>
+
+        <div className="col-12 col-md-6 col-lg-3 d-flex">
+          {topGainer && (
+            <TopGainer7dCard
+              name={topGainer.name}
+              symbol={topGainer.symbol}
+              image={topGainer.image}
+              pct7d={topGainer.pct7d}
+            />
+          )}
+        </div>
+      </div>
+
+      <div style={{ marginTop: 15 }}>
+        <AssetsTable assets={pagedAssets} livePrices={livePrices} />
+      </div>
+
+      {/* Pagination */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          marginTop: 16,
+          gap: 8,
+        }}
+      >
+        <button
+          className="btn btn-sm"
+          disabled={page === 1}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+        >
+          Prev
+        </button>
+
+        {Array.from({ length: totalPages }).map((_, i) => {
+          const p = i + 1;
+          const active = p === page;
+
+          return (
+            <button
+              key={p}
+              className={`btn btn-sm ${active ? "btn-primary" : ""}`}
+              onClick={() => setPage(p)}
+            >
+              {p}
+            </button>
+          );
+        })}
+
+        <button
+          className="btn btn-sm"
+          disabled={page === totalPages}
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}\nfrontend/src/pages/PortfolioPage.tsx\nimport { useMemo, useState } from "react";
+import historyJson from "../data/mock-history.json";
+
+import {
+  buildTopMetrics,
+  filterHistoryByPeriod,
+} from "../services/portfolioService";
+
+import type { HistoryPoint, Period } from "../services/portfolioService";
+
+// portfolio components
+import { PortfolioMetricsRow } from "../components/portfolio/PortfolioMetricsRow";
+import { PortfolioChartCard } from "../components/portfolio/PortfolioChartCard";
+import { AssetSparklinesSection } from "../components/portfolio/AssetSparklinesSection";
+import { PortfolioAllocationSection } from "../components/portfolio/PortfolioAllocationSection";
+
+export function PortfolioPage() {
+  const history = historyJson as unknown as HistoryPoint[];
+
+  const [period, setPeriod] = useState<Period>("year");
+
+  // фильтрация под период
+  const filteredHistory = useMemo(
+    () => filterHistoryByPeriod(history, period),
+    [history, period]
+  );
+
+  // метрики сверху
+  const metrics = useMemo(
+    () => buildTopMetrics(filteredHistory),
+    [filteredHistory]
+  );
+
+  return (
+    <div>
+      {/* ============================== */}
+      {/* МЕТРИКИ НАД ГРАФИКОМ */}
+      {/* ============================== */}
+      <PortfolioMetricsRow
+        tvl={metrics.tvl}
+        lastTsMs={metrics.lastTsMs}
+        changeUsd={metrics.changeUsd}
+        changePct={metrics.changePct}
+        vsBtcPp={metrics.vsBtcPp}
+        btcPct={metrics.btcPct}
+        period={period}
+      />
+
+      {/* ============================== */}
+      {/* ОСНОВНОЙ ГРАФИК ПОРТФЕЛЯ */}
+      {/* ============================== */}
+      <PortfolioChartCard
+        period={period}
+        onPeriodChange={setPeriod}
+        history={filteredHistory}
+      />
+
+      {/* ============================== */}
+      {/* PORTFOLIO ALLOCATION + MARKET MOOD */}
+      {/* ============================== */}
+      <PortfolioAllocationSection history={filteredHistory} />
+
+      {/* ============================== */}
+      {/* МИНИ-ГРАФИКИ ТОП АКТИВОВ (24H) */}
+      {/* ============================== */}
+      <AssetSparklinesSection history={filteredHistory} />
+    </div>
+  );
+}\nfrontend/src/pages/PricesPage.tsx\nexport function PricesPage() {
+  return <div>Prices Page</div>;
+}\nfrontend/src/pages/SettingsPage.tsx\nexport function SettingsPage() {
+  return <div>Settings</div>;
+}\nfrontend/src/pages/SimulationPage.tsx\n// SimulationPage.tsx
+import { useMemo, useState } from "react";
+import historyJson from "../data/mock-history.json";
+
+import type { HistoryPoint } from "../services/portfolioService";
+import { filterHistoryByPeriod } from "../services/portfolioService";
+
+import { estimatePortfolioParams } from "../services/portfolioStatsService";
+import { runMonteCarloAdvanced } from "../services/monteCarloService";
+
+import { SimulationChartCard } from "../components/simulation/SimulationChartCard";
+import {
+  SimulationControls,
+  type SimulationParams,
+} from "../components/simulation/SimulationControls";
+
+import { FinalOutcomeCard } from "../components/simulation/FinalOutcomeCard";
+import { OutcomeDistributionCard } from "../components/simulation/OutcomeDistributionCard";
+
+function periodFromHorizon(h: 30 | 90 | 180 | 365) {
+  if (h === 30) return "month";
+  if (h === 90) return "month";
+  if (h === 180) return "year";
+  return "year";
+}
+
+export function SimulationPage() {
+  const history = historyJson as unknown as HistoryPoint[];
+
+  const [params, setParams] = useState<SimulationParams>({
+    horizonDays: 90,
+    scenario: "baseline",
+    simulations: 50,
+    showCloud: false,
+    showMedian: false,
+    showRepresentative: true,
+
+    // Range: last + OFF by default
+    showRange: false,
+
+    // Fan: second + ON by default
+    showFan: true,
+  });
+
+  const filteredHistory = useMemo(() => {
+    const period = periodFromHorizon(params.horizonDays);
+    return filterHistoryByPeriod(history, period);
+  }, [history, params.horizonDays]);
+
+  const { drift, volatility } = useMemo(() => {
+    return estimatePortfolioParams(filteredHistory);
+  }, [filteredHistory]);
+
+  const startValue = 100;
+
+  const sim = useMemo(() => {
+    return runMonteCarloAdvanced({
+      startValue,
+      drift,
+      volatility,
+      horizonDays: params.horizonDays,
+      simulations: params.simulations,
+      scenario: params.scenario,
+    });
+  }, [
+    drift,
+    volatility,
+    params.horizonDays,
+    params.simulations,
+    params.scenario,
+    startValue,
+  ]);
+
+  const finalMedian = sim.median.at(-1) ?? startValue;
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) 320px",
+          gap: 14,
+        }}
+      >
+        {/* LEFT COLUMN */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 14,
+            minWidth: 0,
+          }}
+        >
+          {/* chart */}
+          <div
+            style={{
+              background: "#0f172a",
+              border: "1px solid rgba(255,255,255,0.06)",
+              borderRadius: 12,
+              padding: 8,
+            }}
+          >
+            <SimulationChartCard
+              timestamps={sim.timestamps}
+              median={sim.median}
+              representative={sim.representative}
+              upper={sim.upper}
+              lower={sim.lower}
+              cloud={sim.paths}
+              showCloud={params.showCloud}
+              showMedian={params.showMedian}
+              showRepresentative={params.showRepresentative}
+              showRange={params.showRange}
+              showFan={params.showFan}
+              onToggleCloud={() =>
+                setParams((p) => ({ ...p, showCloud: !p.showCloud }))
+              }
+              onToggleMedian={() =>
+                setParams((p) => ({ ...p, showMedian: !p.showMedian }))
+              }
+              onToggleRepresentative={() =>
+                setParams((p) => ({
+                  ...p,
+                  showRepresentative: !p.showRepresentative,
+                }))
+              }
+              onToggleFan={() =>
+                setParams((p) => ({ ...p, showFan: !p.showFan }))
+              }
+              onToggleRange={() =>
+                setParams((p) => ({ ...p, showRange: !p.showRange }))
+              }
+            />
+          </div>
+
+          {/* cards under chart */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+              gap: 14,
+            }}
+          >
+            <FinalOutcomeCard startValue={startValue} median={finalMedian} />
+            <OutcomeDistributionCard paths={sim.paths} />
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN */}
+        <div>
+          <SimulationControls value={params} onChange={setParams} />
+        </div>
+      </div>
+    </div>
+  );
+}\nfrontend/src/router.tsx\n// src/router.tsx
+
+import { createBrowserRouter } from "react-router-dom";
+import { AppLayout } from "./layout/AppLayout";
+
+import { PortfolioPage } from "./pages/PortfolioPage";
+import { PricesPage } from "./pages/PricesPage";
+import { AssetsPage } from "./pages/AssetsPage";
+import { SettingsPage } from "./pages/SettingsPage";
+import { SimulationPage } from "./pages/SimulationPage";
+
+export const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <AppLayout />,
+    children: [
+      { index: true, element: <PortfolioPage /> },
+      { path: "prices", element: <PricesPage /> },
+      { path: "assets", element: <AssetsPage /> },
+      { path: "settings", element: <SettingsPage /> },
+      { path: "simulation", element: <SimulationPage /> },
+    ],
+  },
+]);\nfrontend/src/services/assetsApi.ts\n/* =========================
+   CoinGecko API
+========================= */
+
+const COINGECKO_BASE = "https://api.coingecko.com/api/v3";
+
+export type CoinGeckoMarket = {
+  id: string;
+  symbol: string;
+  name: string;
+  image?: string;
+  current_price: number;
+  market_cap: number;
+  total_volume: number;
+  price_change_percentage_1h_in_currency?: number;
+  price_change_percentage_24h_in_currency?: number;
+  price_change_percentage_7d_in_currency?: number;
+  sparkline_in_7d?: { price: number[] };
+};
+
+export type CoinGeckoGlobal = {
+  data: {
+    total_market_cap: { usd: number };
+    market_cap_change_percentage_24h_usd: number;
+    market_cap_percentage: {
+      btc: number;
+      eth: number;
+    };
+  };
+};
+
+export async function fetchMarkets(): Promise<CoinGeckoMarket[]> {
+  const url =
+    `${COINGECKO_BASE}/coins/markets` +
+    `?vs_currency=usd` +
+    `&order=market_cap_desc` +
+    `&per_page=100` +
+    `&page=1` +
+    `&sparkline=true` +
+    `&price_change_percentage=1h,24h,7d`;
+
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("CoinGecko markets failed");
+
+  return res.json();
+}
+
+export async function fetchGlobal(): Promise<CoinGeckoGlobal> {
+  const res = await fetch(`${COINGECKO_BASE}/global`);
+  if (!res.ok) throw new Error("CoinGecko global failed");
+
+  return res.json();
+}
+
+/* =========================
+   Fear & Greed
+========================= */
+
+type FearGreedApiResponse = {
+  data: Array<{
+    value: string;
+    value_classification: string;
+    timestamp: string;
+  }>;
+};
+
+export async function fetchFearGreed(): Promise<number | null> {
+  const res = await fetch("https://api.alternative.me/fng/");
+  if (!res.ok) return null;
+
+  const json = (await res.json()) as FearGreedApiResponse;
+  const value = Number(json.data[0]?.value);
+
+  return Number.isNaN(value) ? null : value;
+}\nfrontend/src/services/assetsCache.ts\n
