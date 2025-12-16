@@ -1,0 +1,59 @@
+{
+  "profiles": [
+    {
+      "id": "conservative",
+      "name": "Conservative Portfolio",
+      "owner": {
+        "name": "Alice",
+        "address": "0x7cA9eB3f2dA84C1F0B6E9F5dA2C8E4B91a3F6D2E"
+      },
+      "description": "Low risk portfolio with dominance of large-cap assets and stablecoins.",
+      "assets": {
+        "BTC": 0.08,
+        "ETH": 2.5,
+        "USDT": 1200,
+        "USDC": 800,
+        "BNB": 1.2
+      }
+    },
+
+    {
+      "id": "balanced",
+      "name": "Balanced Portfolio",
+      "owner": {
+        "name": "Bob",
+        "address": "0xA4F8c9E2b6D3E5C1A0f7B9D84E6C2A5B3F1D9E0"
+      },
+      "description": "Medium risk portfolio with mix of blue-chip and growth assets.",
+      "assets": {
+        "BTC": 0.05,
+        "ETH": 3.0,
+        "BNB": 2.0,
+        "SOL": 40,
+        "XRP": 900,
+        "ADA": 1200,
+        "USDC": 500
+      }
+    },
+
+    {
+      "id": "aggressive",
+      "name": "Aggressive Altcoin Portfolio",
+      "owner": {
+        "name": "Charlie",
+        "address": "0x3E9bD1C7A6F0B5E2d4A8c9F1E7D2B6C5A0F4E9"
+      },
+      "description": "High risk portfolio focused on altcoins and growth potential.",
+      "assets": {
+        "ETH": 1.8,
+        "SOL": 85,
+        "AVAX": 60,
+        "DOGE": 18000,
+        "LINK": 420,
+        "ADA": 2500,
+        "XRP": 1600
+      }
+    }
+  ]
+}
+
