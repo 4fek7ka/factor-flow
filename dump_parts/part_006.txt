@@ -1,0 +1,217 @@
+#!/bin/bash
+
+echo "⏳ Генерация годовой часовой истории цен (портфель + рынок)..."
+
+OUTPUT="mock-history-hourly.json"
+
+node << 'EOF'
+const fs = require("fs");
+
+// =======================================
+// 🔹 КОНФИГ: ВСЕ АКТИВЫ (портфель + рынок)
+// =======================================
+
+const assets = [
+  // портфельные
+  "ETH",
+  "WBTC",
+  "USDC",
+  "DAI",
+  "UNI",
+
+  // рыночные дополнительные
+  "BTC",
+  "SOL",
+  "BNB",
+  "TON",
+  "XRP",
+  "ADA",
+  "DOGE",
+  "AVAX",
+  "LINK",
+  "ATOM",
+];
+
+// Реалистичные базовые цены + волатильности
+const cfg = {
+  // ==== портфельные ====
+  WBTC: { base: 30000, noise: 0.002,  shockP: 1 / (24 * 3.5), shockMin: -0.04, shockMax: 0.04 },
+  ETH:  { base: 1800,  noise: 0.004,  shockP: 1 / (24 * 3),   shockMin: -0.06, shockMax: 0.06 },
+  UNI:  { base: 6.5,   noise: 0.012,  shockP: 1 / (24 * 2),   shockMin: -0.12, shockMax: 0.14 },
+  USDC: { base: 1.0,   noise: 0.0003, shockP: 1 / (24 * 20),  shockMin: -0.003,shockMax: 0.003 },
+  DAI:  { base: 1.0,   noise: 0.00035,shockP: 1 / (24 * 18),  shockMin: -0.004,shockMax: 0.004 },
+
+  // ==== рыночные (новые) ====
+  // BTC — низкая волатильность
+  BTC: {
+    base: 68000,
+    noise: 0.0018,
+    shockP: 1 / (24 * 4.5),  // примерно раз в 4–5 дней
+    shockMin: -0.03,
+    shockMax: 0.03,
+  },
+
+  // SOL — высокая волатильность
+  SOL: {
+    base: 120,
+    noise: 0.009,
+    shockP: 1 / (24 * 2.5),
+    shockMin: -0.10,
+    shockMax: 0.12,
+  },
+
+  // BNB — умеренная волатильность
+  BNB: {
+    base: 300,
+    noise: 0.004,
+    shockP: 1 / (24 * 3.5),
+    shockMin: -0.06,
+    shockMax: 0.07,
+  },
+
+  // TON — высокая волатильность
+  TON: {
+    base: 2.8,
+    noise: 0.012,
+    shockP: 1 / (24 * 2),
+    shockMin: -0.14,
+    shockMax: 0.16,
+  },
+
+  // XRP — резкие скачки, средняя волатильность
+  XRP: {
+    base: 0.52,
+    noise: 0.007,
+    shockP: 1 / (24 * 3),
+    shockMin: -0.12,
+    shockMax: 0.12,
+  },
+
+  // ADA — умеренная волатильность
+  ADA: {
+    base: 0.42,
+    noise: 0.006,
+    shockP: 1 / (24 * 3.5),
+    shockMin: -0.08,
+    shockMax: 0.09,
+  },
+
+  // DOGE — очень высокая волатильность
+  DOGE: {
+    base: 0.09,
+    noise: 0.015,
+    shockP: 1 / (24 * 2),
+    shockMin: -0.18,
+    shockMax: 0.20,
+  },
+
+  // AVAX — высокая волатильность
+  AVAX: {
+    base: 28,
+    noise: 0.010,
+    shockP: 1 / (24 * 2.5),
+    shockMin: -0.12,
+    shockMax: 0.14,
+  },
+
+  // LINK — умеренно высокая
+  LINK: {
+    base: 15,
+    noise: 0.008,
+    shockP: 1 / (24 * 2.7),
+    shockMin: -0.09,
+    shockMax: 0.11,
+  },
+
+  // ATOM — умеренная волатильность
+  ATOM: {
+    base: 10,
+    noise: 0.007,
+    shockP: 1 / (24 * 3),
+    shockMin: -0.08,
+    shockMax: 0.10,
+  },
+};
+
+// ===============================
+// ⚙️ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ===============================
+const HOURS = 24 * 365;
+const now = Math.floor(Date.now() / 1000);
+const startTs = now - HOURS * 3600;
+
+// нормальное распределение (Box–Muller)
+function normal(std) {
+  return (
+    std *
+    Math.sqrt(-2 * Math.log(Math.random())) *
+    Math.cos(2 * Math.PI * Math.random())
+  );
+}
+function rand(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+// ===============================
+// 🧮 ИНИЦИАЛИЗАЦИЯ
+// ===============================
+const prices = Object.fromEntries(
+  assets.map((a) => [a, cfg[a].base])
+);
+
+const history = [];
+
+// ===============================
+// 🔄 ГЕНЕРАЦИЯ ИСТОРИИ
+// ===============================
+for (let i = 0; i < HOURS; i++) {
+  const ts = startTs + i * 3600;
+  const row = { timestamp: ts, prices: {} };
+
+  for (const a of assets) {
+    const c = cfg[a];
+
+    // базовый шум
+    const noise = normal(c.noise);
+
+    // редкие рыночные "шоки"
+    const shock =
+      Math.random() < c.shockP ? rand(c.shockMin, c.shockMax) : 0;
+
+    // результирующая доходность
+    let ret = noise + shock;
+
+    // новый расчёт цены
+    let newPrice = prices[a] * (1 + ret);
+
+    // защита от NaN / Infinity / отрицательных значений
+    if (!Number.isFinite(newPrice) || newPrice <= 0) {
+      // fallback: откат к базовой цене ± случайный диапазон
+      newPrice = c.base * (0.5 + Math.random() * 0.5);
+    }
+
+    prices[a] = newPrice;
+
+    // округление
+    const rounded = Number(newPrice.toFixed(4));
+
+    // дополнительная защита JSON
+    row.prices[a] = Number.isFinite(rounded) ? rounded : c.base;
+  }
+
+  history.push(row);
+}
+
+// ===============================
+// 💾 СОХРАНЕНИЕ В ФАЙЛ
+// ===============================
+fs.writeFileSync(
+  "mock-history-hourly.json",
+  JSON.stringify(history, null, 2)
+);
+
+console.log("✅ Сгенерировано точек:", history.length);
+console.log("✅ Активов:", assets.length);
+EOF
+
+echo "✅ Файл mock-history-hourly.json успешно создан!"\n

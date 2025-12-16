@@ -1,0 +1,686 @@
+[
+  {
+    "timestamp": 1756166400,
+    "prices": {
+      "FIGR_HELOC": 0.9963328
+    }
+  },
+  {
+    "timestamp": 1756252800,
+    "prices": {
+      "FIGR_HELOC": 0.9963328
+    }
+  },
+  {
+    "timestamp": 1756339200,
+    "prices": {
+      "FIGR_HELOC": 1.027829
+    }
+  },
+  {
+    "timestamp": 1756425600,
+    "prices": {
+      "FIGR_HELOC": 1.0002922
+    }
+  },
+  {
+    "timestamp": 1756512000,
+    "prices": {
+      "FIGR_HELOC": 1.0561336
+    }
+  },
+  {
+    "timestamp": 1756598400,
+    "prices": {
+      "FIGR_HELOC": 1
+    }
+  },
+  {
+    "timestamp": 1756684800,
+    "prices": {
+      "FIGR_HELOC": 1
+    }
+  },
+  {
+    "timestamp": 1756771200,
+    "prices": {
+      "FIGR_HELOC": 1.0067018
+    }
+  },
+  {
+    "timestamp": 1756857600,
+    "prices": {
+      "FIGR_HELOC": 1.0067018
+    }
+  },
+  {
+    "timestamp": 1756944000,
+    "prices": {
+      "FIGR_HELOC": 0.9969653
+    }
+  },
+  {
+    "timestamp": 1757030400,
+    "prices": {
+      "FIGR_HELOC": 1.0337352
+    }
+  },
+  {
+    "timestamp": 1757116800,
+    "prices": {
+      "FIGR_HELOC": 1.0042326
+    }
+  },
+  {
+    "timestamp": 1757203200,
+    "prices": {
+      "FIGR_HELOC": 1
+    }
+  },
+  {
+    "timestamp": 1757289600,
+    "prices": {
+      "FIGR_HELOC": 1
+    }
+  },
+  {
+    "timestamp": 1757376000,
+    "prices": {
+      "FIGR_HELOC": 0.9957785
+    }
+  },
+  {
+    "timestamp": 1757462400,
+    "prices": {
+      "FIGR_HELOC": 0.9974067
+    }
+  },
+  {
+    "timestamp": 1757548800,
+    "prices": {
+      "FIGR_HELOC": 0.9925529
+    }
+  },
+  {
+    "timestamp": 1757635200,
+    "prices": {
+      "FIGR_HELOC": 1.0361964
+    }
+  },
+  {
+    "timestamp": 1757721600,
+    "prices": {
+      "FIGR_HELOC": 1.0109149
+    }
+  },
+  {
+    "timestamp": 1757808000,
+    "prices": {
+      "FIGR_HELOC": 1
+    }
+  },
+  {
+    "timestamp": 1757894400,
+    "prices": {
+      "FIGR_HELOC": 1
+    }
+  },
+  {
+    "timestamp": 1757980800,
+    "prices": {
+      "FIGR_HELOC": 0.9956035
+    }
+  },
+  {
+    "timestamp": 1758067200,
+    "prices": {
+      "FIGR_HELOC": 0.9972857
+    }
+  },
+  {
+    "timestamp": 1758153600,
+    "prices": {
+      "FIGR_HELOC": 1.0247849
+    }
+  },
+  {
+    "timestamp": 1758240000,
+    "prices": {
+      "FIGR_HELOC": 1.0359037
+    }
+  },
+  {
+    "timestamp": 1758326400,
+    "prices": {
+      "FIGR_HELOC": 0.9974495
+    }
+  },
+  {
+    "timestamp": 1758412800,
+    "prices": {
+      "FIGR_HELOC": 1
+    }
+  },
+  {
+    "timestamp": 1758499200,
+    "prices": {
+      "FIGR_HELOC": 1
+    }
+  },
+  {
+    "timestamp": 1758585600,
+    "prices": {
+      "FIGR_HELOC": 0.9970039
+    }
+  },
+  {
+    "timestamp": 1758672000,
+    "prices": {
+      "FIGR_HELOC": 0.99701
+    }
+  },
+  {
+    "timestamp": 1758758400,
+    "prices": {
+      "FIGR_HELOC": 0.9998565
+    }
+  },
+  {
+    "timestamp": 1758844800,
+    "prices": {
+      "FIGR_HELOC": 1.0066126
+    }
+  },
+  {
+    "timestamp": 1758931200,
+    "prices": {
+      "FIGR_HELOC": 1.0251967
+    }
+  },
+  {
+    "timestamp": 1759017600,
+    "prices": {
+      "FIGR_HELOC": 1
+    }
+  },
+  {
+    "timestamp": 1759104000,
+    "prices": {
+      "FIGR_HELOC": 1
+    }
+  },
+  {
+    "timestamp": 1759190400,
+    "prices": {
+      "FIGR_HELOC": 1.0461777
+    }
+  },
+  {
+    "timestamp": 1759276800,
+    "prices": {
+      "FIGR_HELOC": 0.9980346
+    }
+  },
+  {
+    "timestamp": 1759363200,
+    "prices": {
+      "FIGR_HELOC": 1.0265476
+    }
+  },
+  {
+    "timestamp": 1759449600,
+    "prices": {
+      "FIGR_HELOC": 1.0078931
+    }
+  },
+  {
+    "timestamp": 1759536000,
+    "prices": {
+      "FIGR_HELOC": 1.0085216
+    }
+  },
+  {
+    "timestamp": 1759622400,
+    "prices": {
+      "FIGR_HELOC": 1
+    }
+  },
+  {
+    "timestamp": 1759708800,
+    "prices": {
+      "FIGR_HELOC": 1
+    }
+  },
+  {
+    "timestamp": 1759795200,
+    "prices": {
+      "FIGR_HELOC": 0.9975792
+    }
+  },
+  {
+    "timestamp": 1759881600,
+    "prices": {
+      "FIGR_HELOC": 0.9966629
+    }
+  },
+  {
+    "timestamp": 1759968000,
+    "prices": {
+      "FIGR_HELOC": 1.0170958
+    }
+  },
+  {
+    "timestamp": 1760054400,
+    "prices": {
+      "FIGR_HELOC": 1.0300279
+    }
+  },
+  {
+    "timestamp": 1760140800,
+    "prices": {
+      "FIGR_HELOC": 1.035177
+    }
+  },
+  {
+    "timestamp": 1760227200,
+    "prices": {
+      "FIGR_HELOC": 1
+    }
+  },
+  {
+    "timestamp": 1760313600,
+    "prices": {
+      "FIGR_HELOC": 1
+    }
+  },
+  {
+    "timestamp": 1760400000,
+    "prices": {
+      "FIGR_HELOC": 0.9984536
+    }
+  },
+  {
+    "timestamp": 1760486400,
+    "prices": {
+      "FIGR_HELOC": 0.9911608
+    }
+  },
+  {
+    "timestamp": 1760572800,
+    "prices": {
+      "FIGR_HELOC": 1.023089
+    }
+  },
+  {
+    "timestamp": 1760659200,
+    "prices": {
+      "FIGR_HELOC": 1.0429057
+    }
+  },
+  {
+    "timestamp": 1760745600,
+    "prices": {
+      "FIGR_HELOC": 0.9996274
+    }
+  },
+  {
+    "timestamp": 1760832000,
+    "prices": {
+      "FIGR_HELOC": 1
+    }
+  },
+  {
+    "timestamp": 1760918400,
+    "prices": {
+      "FIGR_HELOC": 1
+    }
+  },
+  {
+    "timestamp": 1761004800,
+    "prices": {
+      "FIGR_HELOC": 0.9967829
+    }
+  },
+  {
+    "timestamp": 1761091200,
+    "prices": {
+      "FIGR_HELOC": 1.020207
+    }
+  },
+  {
+    "timestamp": 1761177600,
+    "prices": {
+      "FIGR_HELOC": 1.0004296
+    }
+  },
+  {
+    "timestamp": 1761264000,
+    "prices": {
+      "FIGR_HELOC": 1.0092475
+    }
+  },
+  {
+    "timestamp": 1761350400,
+    "prices": {
+      "FIGR_HELOC": 0.498796
+    }
+  },
+  {
+    "timestamp": 1761436800,
+    "prices": {
+      "FIGR_HELOC": 0.9992996
+    }
+  },
+  {
+    "timestamp": 1761523200,
+    "prices": {
+      "FIGR_HELOC": 1
+    }
+  },
+  {
+    "timestamp": 1761609600,
+    "prices": {
+      "FIGR_HELOC": 0.9972013
+    }
+  },
+  {
+    "timestamp": 1761696000,
+    "prices": {
+      "FIGR_HELOC": 1.0298624
+    }
+  },
+  {
+    "timestamp": 1761782400,
+    "prices": {
+      "FIGR_HELOC": 0.9991034
+    }
+  },
+  {
+    "timestamp": 1761868800,
+    "prices": {
+      "FIGR_HELOC": 0.2340344
+    }
+  },
+  {
+    "timestamp": 1761955200,
+    "prices": {
+      "FIGR_HELOC": 1.044208
+    }
+  },
+  {
+    "timestamp": 1762041600,
+    "prices": {
+      "FIGR_HELOC": 1.0169749
+    }
+  },
+  {
+    "timestamp": 1762128000,
+    "prices": {
+      "FIGR_HELOC": 1.0169749
+    }
+  },
+  {
+    "timestamp": 1762214400,
+    "prices": {
+      "FIGR_HELOC": 1.00542
+    }
+  },
+  {
+    "timestamp": 1762300800,
+    "prices": {
+      "FIGR_HELOC": 1.0333763
+    }
+  },
+  {
+    "timestamp": 1762387200,
+    "prices": {
+      "FIGR_HELOC": 1.0312779
+    }
+  },
+  {
+    "timestamp": 1762473600,
+    "prices": {
+      "FIGR_HELOC": 1.0304729
+    }
+  },
+  {
+    "timestamp": 1762560000,
+    "prices": {
+      "FIGR_HELOC": 1.0287934
+    }
+  },
+  {
+    "timestamp": 1762646400,
+    "prices": {
+      "FIGR_HELOC": 1.046765
+    }
+  },
+  {
+    "timestamp": 1762732800,
+    "prices": {
+      "FIGR_HELOC": 1.046765
+    }
+  },
+  {
+    "timestamp": 1762819200,
+    "prices": {
+      "FIGR_HELOC": 1.0310212
+    }
+  },
+  {
+    "timestamp": 1762905600,
+    "prices": {
+      "FIGR_HELOC": 1.0373879
+    }
+  },
+  {
+    "timestamp": 1762992000,
+    "prices": {
+      "FIGR_HELOC": 1.0169999
+    }
+  },
+  {
+    "timestamp": 1763078400,
+    "prices": {
+      "FIGR_HELOC": 1.0378869
+    }
+  },
+  {
+    "timestamp": 1763164800,
+    "prices": {
+      "FIGR_HELOC": 1.0376511
+    }
+  },
+  {
+    "timestamp": 1763251200,
+    "prices": {
+      "FIGR_HELOC": 1.02654
+    }
+  },
+  {
+    "timestamp": 1763337600,
+    "prices": {
+      "FIGR_HELOC": 1.02654
+    }
+  },
+  {
+    "timestamp": 1763424000,
+    "prices": {
+      "FIGR_HELOC": 1.0287422
+    }
+  },
+  {
+    "timestamp": 1763510400,
+    "prices": {
+      "FIGR_HELOC": 1.0314033
+    }
+  },
+  {
+    "timestamp": 1763596800,
+    "prices": {
+      "FIGR_HELOC": 1.0347975
+    }
+  },
+  {
+    "timestamp": 1763683200,
+    "prices": {
+      "FIGR_HELOC": 1.0172543
+    }
+  },
+  {
+    "timestamp": 1763769600,
+    "prices": {
+      "FIGR_HELOC": 1.0298158
+    }
+  },
+  {
+    "timestamp": 1763856000,
+    "prices": {
+      "FIGR_HELOC": 1.02621
+    }
+  },
+  {
+    "timestamp": 1763942400,
+    "prices": {
+      "FIGR_HELOC": 1.02621
+    }
+  },
+  {
+    "timestamp": 1764028800,
+    "prices": {
+      "FIGR_HELOC": 1.0310968
+    }
+  },
+  {
+    "timestamp": 1764115200,
+    "prices": {
+      "FIGR_HELOC": 1.0059241
+    }
+  },
+  {
+    "timestamp": 1764201600,
+    "prices": {
+      "FIGR_HELOC": 1.0360244
+    }
+  },
+  {
+    "timestamp": 1764288000,
+    "prices": {
+      "FIGR_HELOC": 1.0462745
+    }
+  },
+  {
+    "timestamp": 1764374400,
+    "prices": {
+      "FIGR_HELOC": 1.0397093
+    }
+  },
+  {
+    "timestamp": 1764460800,
+    "prices": {
+      "FIGR_HELOC": 1.0249049
+    }
+  },
+  {
+    "timestamp": 1764547200,
+    "prices": {
+      "FIGR_HELOC": 1.0249049
+    }
+  },
+  {
+    "timestamp": 1764633600,
+    "prices": {
+      "FIGR_HELOC": 1.0311473
+    }
+  },
+  {
+    "timestamp": 1764720000,
+    "prices": {
+      "FIGR_HELOC": 1.034684
+    }
+  },
+  {
+    "timestamp": 1764806400,
+    "prices": {
+      "FIGR_HELOC": 1.0017172
+    }
+  },
+  {
+    "timestamp": 1764892800,
+    "prices": {
+      "FIGR_HELOC": 1.001318
+    }
+  },
+  {
+    "timestamp": 1764979200,
+    "prices": {
+      "FIGR_HELOC": 1.0391568
+    }
+  },
+  {
+    "timestamp": 1765065600,
+    "prices": {
+      "FIGR_HELOC": 1.0285794
+    }
+  },
+  {
+    "timestamp": 1765152000,
+    "prices": {
+      "FIGR_HELOC": 1.0285794
+    }
+  },
+  {
+    "timestamp": 1765238400,
+    "prices": {
+      "FIGR_HELOC": 1.0302163
+    }
+  },
+  {
+    "timestamp": 1765324800,
+    "prices": {
+      "FIGR_HELOC": 1.0332595
+    }
+  },
+  {
+    "timestamp": 1765411200,
+    "prices": {
+      "FIGR_HELOC": 1.0205235
+    }
+  },
+  {
+    "timestamp": 1765497600,
+    "prices": {
+      "FIGR_HELOC": 1.0309078
+    }
+  },
+  {
+    "timestamp": 1765584000,
+    "prices": {
+      "FIGR_HELOC": 1.0314235
+    }
+  },
+  {
+    "timestamp": 1765670400,
+    "prices": {
+      "FIGR_HELOC": 1
+    }
+  },
+  {
+    "timestamp": 1765756800,
+    "prices": {
+      "FIGR_HELOC": 1
+    }
+  },
+  {
+    "timestamp": 1765843200,
+    "prices": {
+      "FIGR_HELOC": 1.0314763
+    }
+  },
+  {
+    "timestamp": 1765862032,
+    "prices": {
+      "FIGR_HELOC": 1.0314763
+    }
+  }
+]

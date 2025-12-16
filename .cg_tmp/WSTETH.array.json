@@ -1,0 +1,2198 @@
+[
+  {
+    "timestamp": 1734393600,
+    "prices": {
+      "WSTETH": 4750.6368878228395
+    }
+  },
+  {
+    "timestamp": 1734480000,
+    "prices": {
+      "WSTETH": 4596.391466824173
+    }
+  },
+  {
+    "timestamp": 1734566400,
+    "prices": {
+      "WSTETH": 4321.353302409122
+    }
+  },
+  {
+    "timestamp": 1734652800,
+    "prices": {
+      "WSTETH": 4079.020037455617
+    }
+  },
+  {
+    "timestamp": 1734739200,
+    "prices": {
+      "WSTETH": 4117.739957142381
+    }
+  },
+  {
+    "timestamp": 1734825600,
+    "prices": {
+      "WSTETH": 3950.435428187143
+    }
+  },
+  {
+    "timestamp": 1734912000,
+    "prices": {
+      "WSTETH": 3887.8226944985854
+    }
+  },
+  {
+    "timestamp": 1734998400,
+    "prices": {
+      "WSTETH": 4054.3388520381327
+    }
+  },
+  {
+    "timestamp": 1735084800,
+    "prices": {
+      "WSTETH": 4145.201942373256
+    }
+  },
+  {
+    "timestamp": 1735171200,
+    "prices": {
+      "WSTETH": 4149.522328037285
+    }
+  },
+  {
+    "timestamp": 1735257600,
+    "prices": {
+      "WSTETH": 4003.785122331457
+    }
+  },
+  {
+    "timestamp": 1735344000,
+    "prices": {
+      "WSTETH": 3947.3412993485767
+    }
+  },
+  {
+    "timestamp": 1735430400,
+    "prices": {
+      "WSTETH": 4034.2330903962547
+    }
+  },
+  {
+    "timestamp": 1735516800,
+    "prices": {
+      "WSTETH": 3968.456709386835
+    }
+  },
+  {
+    "timestamp": 1735603200,
+    "prices": {
+      "WSTETH": 3982.789012577715
+    }
+  },
+  {
+    "timestamp": 1735689600,
+    "prices": {
+      "WSTETH": 3971.5212212582483
+    }
+  },
+  {
+    "timestamp": 1735776000,
+    "prices": {
+      "WSTETH": 3984.555750942727
+    }
+  },
+  {
+    "timestamp": 1735862400,
+    "prices": {
+      "WSTETH": 4092.2534676495325
+    }
+  },
+  {
+    "timestamp": 1735948800,
+    "prices": {
+      "WSTETH": 4289.2643740660205
+    }
+  },
+  {
+    "timestamp": 1736035200,
+    "prices": {
+      "WSTETH": 4341.599278613364
+    }
+  },
+  {
+    "timestamp": 1736121600,
+    "prices": {
+      "WSTETH": 4325.768938923004
+    }
+  },
+  {
+    "timestamp": 1736208000,
+    "prices": {
+      "WSTETH": 4379.988070195336
+    }
+  },
+  {
+    "timestamp": 1736294400,
+    "prices": {
+      "WSTETH": 4025.4941453400147
+    }
+  },
+  {
+    "timestamp": 1736380800,
+    "prices": {
+      "WSTETH": 3938.0799804961207
+    }
+  },
+  {
+    "timestamp": 1736467200,
+    "prices": {
+      "WSTETH": 3827.071960938149
+    }
+  },
+  {
+    "timestamp": 1736553600,
+    "prices": {
+      "WSTETH": 3887.5559416871915
+    }
+  },
+  {
+    "timestamp": 1736640000,
+    "prices": {
+      "WSTETH": 3912.7533434606075
+    }
+  },
+  {
+    "timestamp": 1736726400,
+    "prices": {
+      "WSTETH": 3862.3970787743638
+    }
+  },
+  {
+    "timestamp": 1736812800,
+    "prices": {
+      "WSTETH": 3722.598921088814
+    }
+  },
+  {
+    "timestamp": 1736899200,
+    "prices": {
+      "WSTETH": 3840.965199446314
+    }
+  },
+  {
+    "timestamp": 1736985600,
+    "prices": {
+      "WSTETH": 4095.8885477364684
+    }
+  },
+  {
+    "timestamp": 1737072000,
+    "prices": {
+      "WSTETH": 3919.8036543358353
+    }
+  },
+  {
+    "timestamp": 1737158400,
+    "prices": {
+      "WSTETH": 4154.497007805485
+    }
+  },
+  {
+    "timestamp": 1737244800,
+    "prices": {
+      "WSTETH": 3903.1784460899826
+    }
+  },
+  {
+    "timestamp": 1737331200,
+    "prices": {
+      "WSTETH": 3859.2727882321865
+    }
+  },
+  {
+    "timestamp": 1737417600,
+    "prices": {
+      "WSTETH": 3885.55837010428
+    }
+  },
+  {
+    "timestamp": 1737504000,
+    "prices": {
+      "WSTETH": 3953.810929776951
+    }
+  },
+  {
+    "timestamp": 1737590400,
+    "prices": {
+      "WSTETH": 3849.907385175321
+    }
+  },
+  {
+    "timestamp": 1737676800,
+    "prices": {
+      "WSTETH": 3951.9244406796493
+    }
+  },
+  {
+    "timestamp": 1737763200,
+    "prices": {
+      "WSTETH": 3946.716633759216
+    }
+  },
+  {
+    "timestamp": 1737849600,
+    "prices": {
+      "WSTETH": 3959.966297927836
+    }
+  },
+  {
+    "timestamp": 1737936000,
+    "prices": {
+      "WSTETH": 3866.040153255085
+    }
+  },
+  {
+    "timestamp": 1738022400,
+    "prices": {
+      "WSTETH": 3772.908250154839
+    }
+  },
+  {
+    "timestamp": 1738108800,
+    "prices": {
+      "WSTETH": 3650.3118028630533
+    }
+  },
+  {
+    "timestamp": 1738195200,
+    "prices": {
+      "WSTETH": 3730.4702560589953
+    }
+  },
+  {
+    "timestamp": 1738281600,
+    "prices": {
+      "WSTETH": 3875.966117814277
+    }
+  },
+  {
+    "timestamp": 1738368000,
+    "prices": {
+      "WSTETH": 3917.985458943456
+    }
+  },
+  {
+    "timestamp": 1738454400,
+    "prices": {
+      "WSTETH": 3706.2476121496875
+    }
+  },
+  {
+    "timestamp": 1738540800,
+    "prices": {
+      "WSTETH": 3373.7391073044855
+    }
+  },
+  {
+    "timestamp": 1738627200,
+    "prices": {
+      "WSTETH": 3437.989988974932
+    }
+  },
+  {
+    "timestamp": 1738713600,
+    "prices": {
+      "WSTETH": 3232.849782691721
+    }
+  },
+  {
+    "timestamp": 1738800000,
+    "prices": {
+      "WSTETH": 3310.386970152348
+    }
+  },
+  {
+    "timestamp": 1738886400,
+    "prices": {
+      "WSTETH": 3205.3205834587575
+    }
+  },
+  {
+    "timestamp": 1738972800,
+    "prices": {
+      "WSTETH": 3115.255137240742
+    }
+  },
+  {
+    "timestamp": 1739059200,
+    "prices": {
+      "WSTETH": 3144.4228391927973
+    }
+  },
+  {
+    "timestamp": 1739145600,
+    "prices": {
+      "WSTETH": 3129.404178981988
+    }
+  },
+  {
+    "timestamp": 1739232000,
+    "prices": {
+      "WSTETH": 3170.56484481236
+    }
+  },
+  {
+    "timestamp": 1739318400,
+    "prices": {
+      "WSTETH": 3104.447012671554
+    }
+  },
+  {
+    "timestamp": 1739404800,
+    "prices": {
+      "WSTETH": 3268.5747424714855
+    }
+  },
+  {
+    "timestamp": 1739491200,
+    "prices": {
+      "WSTETH": 3188.5064585256337
+    }
+  },
+  {
+    "timestamp": 1739577600,
+    "prices": {
+      "WSTETH": 3248.2389650508862
+    }
+  },
+  {
+    "timestamp": 1739664000,
+    "prices": {
+      "WSTETH": 3214.8566658646923
+    }
+  },
+  {
+    "timestamp": 1739750400,
+    "prices": {
+      "WSTETH": 3178.6326461864383
+    }
+  },
+  {
+    "timestamp": 1739836800,
+    "prices": {
+      "WSTETH": 3274.253914996992
+    }
+  },
+  {
+    "timestamp": 1739923200,
+    "prices": {
+      "WSTETH": 3181.1494266582554
+    }
+  },
+  {
+    "timestamp": 1740009600,
+    "prices": {
+      "WSTETH": 3244.4009129187866
+    }
+  },
+  {
+    "timestamp": 1740096000,
+    "prices": {
+      "WSTETH": 3275.1903054907093
+    }
+  },
+  {
+    "timestamp": 1740182400,
+    "prices": {
+      "WSTETH": 3166.067745039581
+    }
+  },
+  {
+    "timestamp": 1740268800,
+    "prices": {
+      "WSTETH": 3302.1974182847816
+    }
+  },
+  {
+    "timestamp": 1740355200,
+    "prices": {
+      "WSTETH": 3375.356652406372
+    }
+  },
+  {
+    "timestamp": 1740441600,
+    "prices": {
+      "WSTETH": 2988.2321756290185
+    }
+  },
+  {
+    "timestamp": 1740528000,
+    "prices": {
+      "WSTETH": 2981.820571920003
+    }
+  },
+  {
+    "timestamp": 1740614400,
+    "prices": {
+      "WSTETH": 2779.134640146023
+    }
+  },
+  {
+    "timestamp": 1740700800,
+    "prices": {
+      "WSTETH": 2747.921720082454
+    }
+  },
+  {
+    "timestamp": 1740787200,
+    "prices": {
+      "WSTETH": 2663.5068807987923
+    }
+  },
+  {
+    "timestamp": 1740873600,
+    "prices": {
+      "WSTETH": 2637.7433063775784
+    }
+  },
+  {
+    "timestamp": 1740960000,
+    "prices": {
+      "WSTETH": 3005.0521615237317
+    }
+  },
+  {
+    "timestamp": 1741046400,
+    "prices": {
+      "WSTETH": 2579.1616777511995
+    }
+  },
+  {
+    "timestamp": 1741132800,
+    "prices": {
+      "WSTETH": 2586.6059827270296
+    }
+  },
+  {
+    "timestamp": 1741219200,
+    "prices": {
+      "WSTETH": 2677.5097101187266
+    }
+  },
+  {
+    "timestamp": 1741305600,
+    "prices": {
+      "WSTETH": 2640.1333252634754
+    }
+  },
+  {
+    "timestamp": 1741392000,
+    "prices": {
+      "WSTETH": 2549.871598202244
+    }
+  },
+  {
+    "timestamp": 1741478400,
+    "prices": {
+      "WSTETH": 2639.4261576994595
+    }
+  },
+  {
+    "timestamp": 1741564800,
+    "prices": {
+      "WSTETH": 2434.2794748067986
+    }
+  },
+  {
+    "timestamp": 1741651200,
+    "prices": {
+      "WSTETH": 2239.8227646842643
+    }
+  },
+  {
+    "timestamp": 1741737600,
+    "prices": {
+      "WSTETH": 2302.962679732841
+    }
+  },
+  {
+    "timestamp": 1741824000,
+    "prices": {
+      "WSTETH": 2281.824066013165
+    }
+  },
+  {
+    "timestamp": 1741910400,
+    "prices": {
+      "WSTETH": 2229.0867867258708
+    }
+  },
+  {
+    "timestamp": 1741996800,
+    "prices": {
+      "WSTETH": 2290.9110467482737
+    }
+  },
+  {
+    "timestamp": 1742083200,
+    "prices": {
+      "WSTETH": 2327.264948121296
+    }
+  },
+  {
+    "timestamp": 1742169600,
+    "prices": {
+      "WSTETH": 2248.0419548361915
+    }
+  },
+  {
+    "timestamp": 1742256000,
+    "prices": {
+      "WSTETH": 2309.6081182806556
+    }
+  },
+  {
+    "timestamp": 1742342400,
+    "prices": {
+      "WSTETH": 2311.9980762243777
+    }
+  },
+  {
+    "timestamp": 1742428800,
+    "prices": {
+      "WSTETH": 2467.2036115367373
+    }
+  },
+  {
+    "timestamp": 1742515200,
+    "prices": {
+      "WSTETH": 2366.8076918830884
+    }
+  },
+  {
+    "timestamp": 1742601600,
+    "prices": {
+      "WSTETH": 2354.3066172779713
+    }
+  },
+  {
+    "timestamp": 1742688000,
+    "prices": {
+      "WSTETH": 2368.055800065639
+    }
+  },
+  {
+    "timestamp": 1742774400,
+    "prices": {
+      "WSTETH": 2394.0551635835363
+    }
+  },
+  {
+    "timestamp": 1742860800,
+    "prices": {
+      "WSTETH": 2485.1085405927506
+    }
+  },
+  {
+    "timestamp": 1742947200,
+    "prices": {
+      "WSTETH": 2476.013027508171
+    }
+  },
+  {
+    "timestamp": 1743033600,
+    "prices": {
+      "WSTETH": 2412.9123281049037
+    }
+  },
+  {
+    "timestamp": 1743120000,
+    "prices": {
+      "WSTETH": 2401.111272259618
+    }
+  },
+  {
+    "timestamp": 1743206400,
+    "prices": {
+      "WSTETH": 2255.626432232026
+    }
+  },
+  {
+    "timestamp": 1743292800,
+    "prices": {
+      "WSTETH": 2183.7980043252296
+    }
+  },
+  {
+    "timestamp": 1743379200,
+    "prices": {
+      "WSTETH": 2159.68301437388
+    }
+  },
+  {
+    "timestamp": 1743465600,
+    "prices": {
+      "WSTETH": 2185.2598010137754
+    }
+  },
+  {
+    "timestamp": 1743552000,
+    "prices": {
+      "WSTETH": 2285.434269922084
+    }
+  },
+  {
+    "timestamp": 1743638400,
+    "prices": {
+      "WSTETH": 2146.7655414764554
+    }
+  },
+  {
+    "timestamp": 1743724800,
+    "prices": {
+      "WSTETH": 2177.286609161134
+    }
+  },
+  {
+    "timestamp": 1743811200,
+    "prices": {
+      "WSTETH": 2170.7171751573183
+    }
+  },
+  {
+    "timestamp": 1743897600,
+    "prices": {
+      "WSTETH": 2157.4429985488155
+    }
+  },
+  {
+    "timestamp": 1743984000,
+    "prices": {
+      "WSTETH": 1887.2303074405174
+    }
+  },
+  {
+    "timestamp": 1744070400,
+    "prices": {
+      "WSTETH": 1865.3601605121496
+    }
+  },
+  {
+    "timestamp": 1744156800,
+    "prices": {
+      "WSTETH": 1761.0421303697822
+    }
+  },
+  {
+    "timestamp": 1744243200,
+    "prices": {
+      "WSTETH": 1987.5746452259948
+    }
+  },
+  {
+    "timestamp": 1744329600,
+    "prices": {
+      "WSTETH": 1818.408593466584
+    }
+  },
+  {
+    "timestamp": 1744416000,
+    "prices": {
+      "WSTETH": 1877.074161408181
+    }
+  },
+  {
+    "timestamp": 1744502400,
+    "prices": {
+      "WSTETH": 1973.7205434173427
+    }
+  },
+  {
+    "timestamp": 1744588800,
+    "prices": {
+      "WSTETH": 1905.1576979097676
+    }
+  },
+  {
+    "timestamp": 1744675200,
+    "prices": {
+      "WSTETH": 1941.9283010790118
+    }
+  },
+  {
+    "timestamp": 1744761600,
+    "prices": {
+      "WSTETH": 1910.6630397862505
+    }
+  },
+  {
+    "timestamp": 1744848000,
+    "prices": {
+      "WSTETH": 1894.0998965756633
+    }
+  },
+  {
+    "timestamp": 1744934400,
+    "prices": {
+      "WSTETH": 1899.409226227268
+    }
+  },
+  {
+    "timestamp": 1745020800,
+    "prices": {
+      "WSTETH": 1906.56546436272
+    }
+  },
+  {
+    "timestamp": 1745107200,
+    "prices": {
+      "WSTETH": 1939.8183208435269
+    }
+  },
+  {
+    "timestamp": 1745193600,
+    "prices": {
+      "WSTETH": 1899.786553500901
+    }
+  },
+  {
+    "timestamp": 1745280000,
+    "prices": {
+      "WSTETH": 1892.919674726961
+    }
+  },
+  {
+    "timestamp": 1745366400,
+    "prices": {
+      "WSTETH": 2110.158331174251
+    }
+  },
+  {
+    "timestamp": 1745452800,
+    "prices": {
+      "WSTETH": 2159.211701362817
+    }
+  },
+  {
+    "timestamp": 1745539200,
+    "prices": {
+      "WSTETH": 2122.6175880516967
+    }
+  },
+  {
+    "timestamp": 1745625600,
+    "prices": {
+      "WSTETH": 2149.368662033195
+    }
+  },
+  {
+    "timestamp": 1745712000,
+    "prices": {
+      "WSTETH": 2182.484989782466
+    }
+  },
+  {
+    "timestamp": 1745798400,
+    "prices": {
+      "WSTETH": 2152.715847896308
+    }
+  },
+  {
+    "timestamp": 1745884800,
+    "prices": {
+      "WSTETH": 2159.418353795011
+    }
+  },
+  {
+    "timestamp": 1745971200,
+    "prices": {
+      "WSTETH": 2154.1193442531794
+    }
+  },
+  {
+    "timestamp": 1746057600,
+    "prices": {
+      "WSTETH": 2153.41802049333
+    }
+  },
+  {
+    "timestamp": 1746144000,
+    "prices": {
+      "WSTETH": 2205.624669275751
+    }
+  },
+  {
+    "timestamp": 1746230400,
+    "prices": {
+      "WSTETH": 2206.5130180606357
+    }
+  },
+  {
+    "timestamp": 1746316800,
+    "prices": {
+      "WSTETH": 2202.6161136932305
+    }
+  },
+  {
+    "timestamp": 1746403200,
+    "prices": {
+      "WSTETH": 2170.7985195424894
+    }
+  },
+  {
+    "timestamp": 1746489600,
+    "prices": {
+      "WSTETH": 2193.7279163815438
+    }
+  },
+  {
+    "timestamp": 1746576000,
+    "prices": {
+      "WSTETH": 2177.0465170823722
+    }
+  },
+  {
+    "timestamp": 1746662400,
+    "prices": {
+      "WSTETH": 2175.2485098640836
+    }
+  },
+  {
+    "timestamp": 1746748800,
+    "prices": {
+      "WSTETH": 2626.5325768675034
+    }
+  },
+  {
+    "timestamp": 1746835200,
+    "prices": {
+      "WSTETH": 2812.414686396233
+    }
+  },
+  {
+    "timestamp": 1746921600,
+    "prices": {
+      "WSTETH": 3097.0876540826694
+    }
+  },
+  {
+    "timestamp": 1747008000,
+    "prices": {
+      "WSTETH": 3016.1324479969
+    }
+  },
+  {
+    "timestamp": 1747094400,
+    "prices": {
+      "WSTETH": 2996.619939838925
+    }
+  },
+  {
+    "timestamp": 1747180800,
+    "prices": {
+      "WSTETH": 3222.3122563462834
+    }
+  },
+  {
+    "timestamp": 1747267200,
+    "prices": {
+      "WSTETH": 3123.0529733086637
+    }
+  },
+  {
+    "timestamp": 1747353600,
+    "prices": {
+      "WSTETH": 3048.999697968171
+    }
+  },
+  {
+    "timestamp": 1747440000,
+    "prices": {
+      "WSTETH": 3058.40026014248
+    }
+  },
+  {
+    "timestamp": 1747526400,
+    "prices": {
+      "WSTETH": 2972.366243432641
+    }
+  },
+  {
+    "timestamp": 1747612800,
+    "prices": {
+      "WSTETH": 2950.584757855359
+    }
+  },
+  {
+    "timestamp": 1747699200,
+    "prices": {
+      "WSTETH": 3036.9770333864035
+    }
+  },
+  {
+    "timestamp": 1747785600,
+    "prices": {
+      "WSTETH": 3035.694233403156
+    }
+  },
+  {
+    "timestamp": 1747872000,
+    "prices": {
+      "WSTETH": 3077.7767596489093
+    }
+  },
+  {
+    "timestamp": 1747958400,
+    "prices": {
+      "WSTETH": 3182.105627976306
+    }
+  },
+  {
+    "timestamp": 1748044800,
+    "prices": {
+      "WSTETH": 3038.7893247445913
+    }
+  },
+  {
+    "timestamp": 1748131200,
+    "prices": {
+      "WSTETH": 3043.529024385439
+    }
+  },
+  {
+    "timestamp": 1748217600,
+    "prices": {
+      "WSTETH": 3058.640734742087
+    }
+  },
+  {
+    "timestamp": 1748304000,
+    "prices": {
+      "WSTETH": 3083.8543575168023
+    }
+  },
+  {
+    "timestamp": 1748390400,
+    "prices": {
+      "WSTETH": 3198.9988961753565
+    }
+  },
+  {
+    "timestamp": 1748476800,
+    "prices": {
+      "WSTETH": 3219.2434601125456
+    }
+  },
+  {
+    "timestamp": 1748563200,
+    "prices": {
+      "WSTETH": 3168.018406081407
+    }
+  },
+  {
+    "timestamp": 1748649600,
+    "prices": {
+      "WSTETH": 3031.6142339036287
+    }
+  },
+  {
+    "timestamp": 1748736000,
+    "prices": {
+      "WSTETH": 3050.479463465255
+    }
+  },
+  {
+    "timestamp": 1748822400,
+    "prices": {
+      "WSTETH": 3059.282696587323
+    }
+  },
+  {
+    "timestamp": 1748908800,
+    "prices": {
+      "WSTETH": 3140.113598219517
+    }
+  },
+  {
+    "timestamp": 1748995200,
+    "prices": {
+      "WSTETH": 3126.0520722936553
+    }
+  },
+  {
+    "timestamp": 1749081600,
+    "prices": {
+      "WSTETH": 3137.4890309846346
+    }
+  },
+  {
+    "timestamp": 1749168000,
+    "prices": {
+      "WSTETH": 2922.4653317923635
+    }
+  },
+  {
+    "timestamp": 1749254400,
+    "prices": {
+      "WSTETH": 2986.7885610488306
+    }
+  },
+  {
+    "timestamp": 1749340800,
+    "prices": {
+      "WSTETH": 3043.227984883623
+    }
+  },
+  {
+    "timestamp": 1749427200,
+    "prices": {
+      "WSTETH": 3020.9197859471597
+    }
+  },
+  {
+    "timestamp": 1749513600,
+    "prices": {
+      "WSTETH": 3235.6230401051334
+    }
+  },
+  {
+    "timestamp": 1749600000,
+    "prices": {
+      "WSTETH": 3388.1090887577234
+    }
+  },
+  {
+    "timestamp": 1749686400,
+    "prices": {
+      "WSTETH": 3344.0058436335376
+    }
+  },
+  {
+    "timestamp": 1749772800,
+    "prices": {
+      "WSTETH": 3198.0852064241562
+    }
+  },
+  {
+    "timestamp": 1749859200,
+    "prices": {
+      "WSTETH": 3108.9659367491627
+    }
+  },
+  {
+    "timestamp": 1749945600,
+    "prices": {
+      "WSTETH": 3056.062504165805
+    }
+  },
+  {
+    "timestamp": 1750032000,
+    "prices": {
+      "WSTETH": 3072.2014861145117
+    }
+  },
+  {
+    "timestamp": 1750118400,
+    "prices": {
+      "WSTETH": 3091.535262734795
+    }
+  },
+  {
+    "timestamp": 1750204800,
+    "prices": {
+      "WSTETH": 3025.1645505510605
+    }
+  },
+  {
+    "timestamp": 1750291200,
+    "prices": {
+      "WSTETH": 3036.8258333588205
+    }
+  },
+  {
+    "timestamp": 1750377600,
+    "prices": {
+      "WSTETH": 3044.1064663782226
+    }
+  },
+  {
+    "timestamp": 1750464000,
+    "prices": {
+      "WSTETH": 2904.512202796983
+    }
+  },
+  {
+    "timestamp": 1750550400,
+    "prices": {
+      "WSTETH": 2738.0817687304307
+    }
+  },
+  {
+    "timestamp": 1750636800,
+    "prices": {
+      "WSTETH": 2686.870846253242
+    }
+  },
+  {
+    "timestamp": 1750723200,
+    "prices": {
+      "WSTETH": 2922.163491498444
+    }
+  },
+  {
+    "timestamp": 1750809600,
+    "prices": {
+      "WSTETH": 2955.854377067005
+    }
+  },
+  {
+    "timestamp": 1750896000,
+    "prices": {
+      "WSTETH": 2913.3364803099234
+    }
+  },
+  {
+    "timestamp": 1750982400,
+    "prices": {
+      "WSTETH": 2905.1297646660596
+    }
+  },
+  {
+    "timestamp": 1751068800,
+    "prices": {
+      "WSTETH": 2923.1964342142123
+    }
+  },
+  {
+    "timestamp": 1751155200,
+    "prices": {
+      "WSTETH": 2941.0663126639115
+    }
+  },
+  {
+    "timestamp": 1751241600,
+    "prices": {
+      "WSTETH": 3020.8006321600074
+    }
+  },
+  {
+    "timestamp": 1751328000,
+    "prices": {
+      "WSTETH": 3003.7519999517813
+    }
+  },
+  {
+    "timestamp": 1751414400,
+    "prices": {
+      "WSTETH": 2897.7567639918266
+    }
+  },
+  {
+    "timestamp": 1751500800,
+    "prices": {
+      "WSTETH": 3113.6734484401004
+    }
+  },
+  {
+    "timestamp": 1751587200,
+    "prices": {
+      "WSTETH": 3125.886254200322
+    }
+  },
+  {
+    "timestamp": 1751673600,
+    "prices": {
+      "WSTETH": 3026.662510117289
+    }
+  },
+  {
+    "timestamp": 1751760000,
+    "prices": {
+      "WSTETH": 3040.31769214307
+    }
+  },
+  {
+    "timestamp": 1751846400,
+    "prices": {
+      "WSTETH": 3098.46664753892
+    }
+  },
+  {
+    "timestamp": 1751932800,
+    "prices": {
+      "WSTETH": 3068.5565843008767
+    }
+  },
+  {
+    "timestamp": 1752019200,
+    "prices": {
+      "WSTETH": 3160.0598754048597
+    }
+  },
+  {
+    "timestamp": 1752105600,
+    "prices": {
+      "WSTETH": 3345.6078610153486
+    }
+  },
+  {
+    "timestamp": 1752192000,
+    "prices": {
+      "WSTETH": 3564.4651850585205
+    }
+  },
+  {
+    "timestamp": 1752278400,
+    "prices": {
+      "WSTETH": 3569.3237485046634
+    }
+  },
+  {
+    "timestamp": 1752364800,
+    "prices": {
+      "WSTETH": 3554.2767713517574
+    }
+  },
+  {
+    "timestamp": 1752451200,
+    "prices": {
+      "WSTETH": 3596.3723536313514
+    }
+  },
+  {
+    "timestamp": 1752537600,
+    "prices": {
+      "WSTETH": 3637.787952406264
+    }
+  },
+  {
+    "timestamp": 1752624000,
+    "prices": {
+      "WSTETH": 3784.3769756541788
+    }
+  },
+  {
+    "timestamp": 1752710400,
+    "prices": {
+      "WSTETH": 4068.1770771354627
+    }
+  },
+  {
+    "timestamp": 1752796800,
+    "prices": {
+      "WSTETH": 4197.441962598577
+    }
+  },
+  {
+    "timestamp": 1752883200,
+    "prices": {
+      "WSTETH": 4269.978422313293
+    }
+  },
+  {
+    "timestamp": 1752969600,
+    "prices": {
+      "WSTETH": 4339.030413400529
+    }
+  },
+  {
+    "timestamp": 1753056000,
+    "prices": {
+      "WSTETH": 4531.3743693703545
+    }
+  },
+  {
+    "timestamp": 1753142400,
+    "prices": {
+      "WSTETH": 4533.039154087991
+    }
+  },
+  {
+    "timestamp": 1753228800,
+    "prices": {
+      "WSTETH": 4511.380075943379
+    }
+  },
+  {
+    "timestamp": 1753315200,
+    "prices": {
+      "WSTETH": 4374.761100502972
+    }
+  },
+  {
+    "timestamp": 1753401600,
+    "prices": {
+      "WSTETH": 4474.188558075162
+    }
+  },
+  {
+    "timestamp": 1753488000,
+    "prices": {
+      "WSTETH": 4486.424026013802
+    }
+  },
+  {
+    "timestamp": 1753574400,
+    "prices": {
+      "WSTETH": 4521.0833853365875
+    }
+  },
+  {
+    "timestamp": 1753660800,
+    "prices": {
+      "WSTETH": 4678.27134213095
+    }
+  },
+  {
+    "timestamp": 1753747200,
+    "prices": {
+      "WSTETH": 4571.230477105861
+    }
+  },
+  {
+    "timestamp": 1753833600,
+    "prices": {
+      "WSTETH": 4577.491841564121
+    }
+  },
+  {
+    "timestamp": 1753920000,
+    "prices": {
+      "WSTETH": 4594.098270156513
+    }
+  },
+  {
+    "timestamp": 1754006400,
+    "prices": {
+      "WSTETH": 4467.4839821626965
+    }
+  },
+  {
+    "timestamp": 1754092800,
+    "prices": {
+      "WSTETH": 4200.096809525507
+    }
+  },
+  {
+    "timestamp": 1754179200,
+    "prices": {
+      "WSTETH": 4105.257478129803
+    }
+  },
+  {
+    "timestamp": 1754265600,
+    "prices": {
+      "WSTETH": 4226.9021936896415
+    }
+  },
+  {
+    "timestamp": 1754352000,
+    "prices": {
+      "WSTETH": 4473.886549960914
+    }
+  },
+  {
+    "timestamp": 1754438400,
+    "prices": {
+      "WSTETH": 4372.760176704056
+    }
+  },
+  {
+    "timestamp": 1754524800,
+    "prices": {
+      "WSTETH": 4453.301710991577
+    }
+  },
+  {
+    "timestamp": 1754611200,
+    "prices": {
+      "WSTETH": 4723.787351676895
+    }
+  },
+  {
+    "timestamp": 1754697600,
+    "prices": {
+      "WSTETH": 4756.676131522273
+    }
+  },
+  {
+    "timestamp": 1754784000,
+    "prices": {
+      "WSTETH": 5157.753943440071
+    }
+  },
+  {
+    "timestamp": 1754870400,
+    "prices": {
+      "WSTETH": 5136.111169555594
+    }
+  },
+  {
+    "timestamp": 1754956800,
+    "prices": {
+      "WSTETH": 5108.487539427828
+    }
+  },
+  {
+    "timestamp": 1755043200,
+    "prices": {
+      "WSTETH": 5564.71340439955
+    }
+  },
+  {
+    "timestamp": 1755129600,
+    "prices": {
+      "WSTETH": 5754.96574674415
+    }
+  },
+  {
+    "timestamp": 1755216000,
+    "prices": {
+      "WSTETH": 5507.566114500556
+    }
+  },
+  {
+    "timestamp": 1755302400,
+    "prices": {
+      "WSTETH": 5346.175766983327
+    }
+  },
+  {
+    "timestamp": 1755388800,
+    "prices": {
+      "WSTETH": 5346.35210593413
+    }
+  },
+  {
+    "timestamp": 1755475200,
+    "prices": {
+      "WSTETH": 5427.00935962283
+    }
+  },
+  {
+    "timestamp": 1755561600,
+    "prices": {
+      "WSTETH": 5211.568821347842
+    }
+  },
+  {
+    "timestamp": 1755648000,
+    "prices": {
+      "WSTETH": 4928.584103823084
+    }
+  },
+  {
+    "timestamp": 1755734400,
+    "prices": {
+      "WSTETH": 5243.458928045679
+    }
+  },
+  {
+    "timestamp": 1755820800,
+    "prices": {
+      "WSTETH": 5106.670586944838
+    }
+  },
+  {
+    "timestamp": 1755907200,
+    "prices": {
+      "WSTETH": 5834.522961420096
+    }
+  },
+  {
+    "timestamp": 1755993600,
+    "prices": {
+      "WSTETH": 5766.10666851807
+    }
+  },
+  {
+    "timestamp": 1756080000,
+    "prices": {
+      "WSTETH": 5784.678549967733
+    }
+  },
+  {
+    "timestamp": 1756166400,
+    "prices": {
+      "WSTETH": 5293.39625534235
+    }
+  },
+  {
+    "timestamp": 1756252800,
+    "prices": {
+      "WSTETH": 5563.278127956617
+    }
+  },
+  {
+    "timestamp": 1756339200,
+    "prices": {
+      "WSTETH": 5446.965394285616
+    }
+  },
+  {
+    "timestamp": 1756425600,
+    "prices": {
+      "WSTETH": 5455.6987321454335
+    }
+  },
+  {
+    "timestamp": 1756512000,
+    "prices": {
+      "WSTETH": 5269.433515962061
+    }
+  },
+  {
+    "timestamp": 1756598400,
+    "prices": {
+      "WSTETH": 5288.236685719832
+    }
+  },
+  {
+    "timestamp": 1756684800,
+    "prices": {
+      "WSTETH": 5310.287915833882
+    }
+  },
+  {
+    "timestamp": 1756771200,
+    "prices": {
+      "WSTETH": 5215.8274797115955
+    }
+  },
+  {
+    "timestamp": 1756857600,
+    "prices": {
+      "WSTETH": 5229.744249616184
+    }
+  },
+  {
+    "timestamp": 1756944000,
+    "prices": {
+      "WSTETH": 5386.799395403887
+    }
+  },
+  {
+    "timestamp": 1757030400,
+    "prices": {
+      "WSTETH": 5212.851204978726
+    }
+  },
+  {
+    "timestamp": 1757116800,
+    "prices": {
+      "WSTETH": 5212.3222459033
+    }
+  },
+  {
+    "timestamp": 1757203200,
+    "prices": {
+      "WSTETH": 5176.42410224721
+    }
+  },
+  {
+    "timestamp": 1757289600,
+    "prices": {
+      "WSTETH": 5216.514119083473
+    }
+  },
+  {
+    "timestamp": 1757376000,
+    "prices": {
+      "WSTETH": 5213.885007312313
+    }
+  },
+  {
+    "timestamp": 1757462400,
+    "prices": {
+      "WSTETH": 5225.0255940646575
+    }
+  },
+  {
+    "timestamp": 1757548800,
+    "prices": {
+      "WSTETH": 5265.758982215357
+    }
+  },
+  {
+    "timestamp": 1757635200,
+    "prices": {
+      "WSTETH": 5405.037147351297
+    }
+  },
+  {
+    "timestamp": 1757721600,
+    "prices": {
+      "WSTETH": 5704.806429537464
+    }
+  },
+  {
+    "timestamp": 1757808000,
+    "prices": {
+      "WSTETH": 5653.7686447946635
+    }
+  },
+  {
+    "timestamp": 1757894400,
+    "prices": {
+      "WSTETH": 5586.638645747149
+    }
+  },
+  {
+    "timestamp": 1757980800,
+    "prices": {
+      "WSTETH": 5485.068949627279
+    }
+  },
+  {
+    "timestamp": 1758067200,
+    "prices": {
+      "WSTETH": 5459.8660212962695
+    }
+  },
+  {
+    "timestamp": 1758153600,
+    "prices": {
+      "WSTETH": 5564.964194531706
+    }
+  },
+  {
+    "timestamp": 1758240000,
+    "prices": {
+      "WSTETH": 5567.640605719825
+    }
+  },
+  {
+    "timestamp": 1758326400,
+    "prices": {
+      "WSTETH": 5417.907895930054
+    }
+  },
+  {
+    "timestamp": 1758412800,
+    "prices": {
+      "WSTETH": 5437.177831397097
+    }
+  },
+  {
+    "timestamp": 1758499200,
+    "prices": {
+      "WSTETH": 5403.030633198024
+    }
+  },
+  {
+    "timestamp": 1758585600,
+    "prices": {
+      "WSTETH": 5096.423260427014
+    }
+  },
+  {
+    "timestamp": 1758672000,
+    "prices": {
+      "WSTETH": 5056.353714034271
+    }
+  },
+  {
+    "timestamp": 1758758400,
+    "prices": {
+      "WSTETH": 5039.614884255275
+    }
+  },
+  {
+    "timestamp": 1758844800,
+    "prices": {
+      "WSTETH": 4694.038446282639
+    }
+  },
+  {
+    "timestamp": 1758931200,
+    "prices": {
+      "WSTETH": 4898.28146408569
+    }
+  },
+  {
+    "timestamp": 1759017600,
+    "prices": {
+      "WSTETH": 4880.632472985171
+    }
+  },
+  {
+    "timestamp": 1759104000,
+    "prices": {
+      "WSTETH": 5029.480925694771
+    }
+  },
+  {
+    "timestamp": 1759190400,
+    "prices": {
+      "WSTETH": 5121.146454473813
+    }
+  },
+  {
+    "timestamp": 1759276800,
+    "prices": {
+      "WSTETH": 5035.806870910791
+    }
+  },
+  {
+    "timestamp": 1759363200,
+    "prices": {
+      "WSTETH": 5276.447934303726
+    }
+  },
+  {
+    "timestamp": 1759449600,
+    "prices": {
+      "WSTETH": 5447.964842407337
+    }
+  },
+  {
+    "timestamp": 1759536000,
+    "prices": {
+      "WSTETH": 5486.979748251251
+    }
+  },
+  {
+    "timestamp": 1759622400,
+    "prices": {
+      "WSTETH": 5453.699309620581
+    }
+  },
+  {
+    "timestamp": 1759708800,
+    "prices": {
+      "WSTETH": 5487.368097226548
+    }
+  },
+  {
+    "timestamp": 1759795200,
+    "prices": {
+      "WSTETH": 5698.92618945285
+    }
+  },
+  {
+    "timestamp": 1759881600,
+    "prices": {
+      "WSTETH": 5411.729404379856
+    }
+  },
+  {
+    "timestamp": 1759968000,
+    "prices": {
+      "WSTETH": 5504.048503099659
+    }
+  },
+  {
+    "timestamp": 1760054400,
+    "prices": {
+      "WSTETH": 5310.669657278234
+    }
+  },
+  {
+    "timestamp": 1760140800,
+    "prices": {
+      "WSTETH": 4666.20104660117
+    }
+  },
+  {
+    "timestamp": 1760227200,
+    "prices": {
+      "WSTETH": 4557.951779842414
+    }
+  },
+  {
+    "timestamp": 1760313600,
+    "prices": {
+      "WSTETH": 5057.916977109383
+    }
+  },
+  {
+    "timestamp": 1760400000,
+    "prices": {
+      "WSTETH": 5161.5605093294325
+    }
+  },
+  {
+    "timestamp": 1760486400,
+    "prices": {
+      "WSTETH": 5020.221415964941
+    }
+  },
+  {
+    "timestamp": 1760572800,
+    "prices": {
+      "WSTETH": 4844.560748608436
+    }
+  },
+  {
+    "timestamp": 1760659200,
+    "prices": {
+      "WSTETH": 4730.781819881023
+    }
+  },
+  {
+    "timestamp": 1760745600,
+    "prices": {
+      "WSTETH": 4659.131111804945
+    }
+  },
+  {
+    "timestamp": 1760832000,
+    "prices": {
+      "WSTETH": 4728.434991289324
+    }
+  },
+  {
+    "timestamp": 1760918400,
+    "prices": {
+      "WSTETH": 4844.660171897575
+    }
+  },
+  {
+    "timestamp": 1761004800,
+    "prices": {
+      "WSTETH": 4841.484101474372
+    }
+  },
+  {
+    "timestamp": 1761091200,
+    "prices": {
+      "WSTETH": 4715.322697879851
+    }
+  },
+  {
+    "timestamp": 1761177600,
+    "prices": {
+      "WSTETH": 4625.044754309935
+    }
+  },
+  {
+    "timestamp": 1761264000,
+    "prices": {
+      "WSTETH": 4692.6556509500115
+    }
+  },
+  {
+    "timestamp": 1761350400,
+    "prices": {
+      "WSTETH": 4788.184118594768
+    }
+  },
+  {
+    "timestamp": 1761436800,
+    "prices": {
+      "WSTETH": 4810.8392670425665
+    }
+  },
+  {
+    "timestamp": 1761523200,
+    "prices": {
+      "WSTETH": 5069.3636899278035
+    }
+  },
+  {
+    "timestamp": 1761609600,
+    "prices": {
+      "WSTETH": 5019.640531621207
+    }
+  },
+  {
+    "timestamp": 1761696000,
+    "prices": {
+      "WSTETH": 4851.755677622111
+    }
+  },
+  {
+    "timestamp": 1761782400,
+    "prices": {
+      "WSTETH": 4744.855251041565
+    }
+  },
+  {
+    "timestamp": 1761868800,
+    "prices": {
+      "WSTETH": 4626.526185457043
+    }
+  },
+  {
+    "timestamp": 1761955200,
+    "prices": {
+      "WSTETH": 4686.459682713451
+    }
+  },
+  {
+    "timestamp": 1762041600,
+    "prices": {
+      "WSTETH": 4714.6595550532975
+    }
+  },
+  {
+    "timestamp": 1762128000,
+    "prices": {
+      "WSTETH": 4746.211505413647
+    }
+  },
+  {
+    "timestamp": 1762214400,
+    "prices": {
+      "WSTETH": 4379.894694600043
+    }
+  },
+  {
+    "timestamp": 1762300800,
+    "prices": {
+      "WSTETH": 4001.3807556147817
+    }
+  },
+  {
+    "timestamp": 1762387200,
+    "prices": {
+      "WSTETH": 4166.869267818543
+    }
+  },
+  {
+    "timestamp": 1762473600,
+    "prices": {
+      "WSTETH": 4025.7423009084323
+    }
+  },
+  {
+    "timestamp": 1762560000,
+    "prices": {
+      "WSTETH": 4185.843751934812
+    }
+  },
+  {
+    "timestamp": 1762646400,
+    "prices": {
+      "WSTETH": 4145.234477265979
+    }
+  },
+  {
+    "timestamp": 1762732800,
+    "prices": {
+      "WSTETH": 4356.772810104901
+    }
+  },
+  {
+    "timestamp": 1762819200,
+    "prices": {
+      "WSTETH": 4343.126942684243
+    }
+  },
+  {
+    "timestamp": 1762905600,
+    "prices": {
+      "WSTETH": 4160.297313176223
+    }
+  },
+  {
+    "timestamp": 1762992000,
+    "prices": {
+      "WSTETH": 4155.977342633669
+    }
+  },
+  {
+    "timestamp": 1763078400,
+    "prices": {
+      "WSTETH": 3946.1191551777533
+    }
+  },
+  {
+    "timestamp": 1763164800,
+    "prices": {
+      "WSTETH": 3797.6347037067208
+    }
+  },
+  {
+    "timestamp": 1763251200,
+    "prices": {
+      "WSTETH": 3862.794539545613
+    }
+  },
+  {
+    "timestamp": 1763337600,
+    "prices": {
+      "WSTETH": 3770.929486753798
+    }
+  },
+  {
+    "timestamp": 1763424000,
+    "prices": {
+      "WSTETH": 3675.8434021447256
+    }
+  },
+  {
+    "timestamp": 1763510400,
+    "prices": {
+      "WSTETH": 3797.5663637785187
+    }
+  },
+  {
+    "timestamp": 1763596800,
+    "prices": {
+      "WSTETH": 3673.1896339974955
+    }
+  },
+  {
+    "timestamp": 1763683200,
+    "prices": {
+      "WSTETH": 3458.288931065661
+    }
+  },
+  {
+    "timestamp": 1763769600,
+    "prices": {
+      "WSTETH": 3371.9386815316734
+    }
+  },
+  {
+    "timestamp": 1763856000,
+    "prices": {
+      "WSTETH": 3375.5063122780375
+    }
+  },
+  {
+    "timestamp": 1763942400,
+    "prices": {
+      "WSTETH": 3416.9310619946204
+    }
+  },
+  {
+    "timestamp": 1764028800,
+    "prices": {
+      "WSTETH": 3606.5229886497473
+    }
+  },
+  {
+    "timestamp": 1764115200,
+    "prices": {
+      "WSTETH": 3602.742667895408
+    }
+  },
+  {
+    "timestamp": 1764201600,
+    "prices": {
+      "WSTETH": 3693.1680718009243
+    }
+  },
+  {
+    "timestamp": 1764288000,
+    "prices": {
+      "WSTETH": 3676.1167723682547
+    }
+  },
+  {
+    "timestamp": 1764374400,
+    "prices": {
+      "WSTETH": 3698.969263015842
+    }
+  },
+  {
+    "timestamp": 1764460800,
+    "prices": {
+      "WSTETH": 3651.279641667538
+    }
+  },
+  {
+    "timestamp": 1764547200,
+    "prices": {
+      "WSTETH": 3652.2303979641674
+    }
+  },
+  {
+    "timestamp": 1764633600,
+    "prices": {
+      "WSTETH": 3418.196919758065
+    }
+  },
+  {
+    "timestamp": 1764720000,
+    "prices": {
+      "WSTETH": 3662.467004303191
+    }
+  },
+  {
+    "timestamp": 1764806400,
+    "prices": {
+      "WSTETH": 3902.0622762487105
+    }
+  },
+  {
+    "timestamp": 1764892800,
+    "prices": {
+      "WSTETH": 3827.2658779124577
+    }
+  },
+  {
+    "timestamp": 1764979200,
+    "prices": {
+      "WSTETH": 3689.637434816723
+    }
+  },
+  {
+    "timestamp": 1765065600,
+    "prices": {
+      "WSTETH": 3710.5797225822444
+    }
+  },
+  {
+    "timestamp": 1765152000,
+    "prices": {
+      "WSTETH": 3726.1649600739065
+    }
+  },
+  {
+    "timestamp": 1765238400,
+    "prices": {
+      "WSTETH": 3816.224474265888
+    }
+  },
+  {
+    "timestamp": 1765324800,
+    "prices": {
+      "WSTETH": 4056.2982409282226
+    }
+  },
+  {
+    "timestamp": 1765411200,
+    "prices": {
+      "WSTETH": 4062.296266917264
+    }
+  },
+  {
+    "timestamp": 1765497600,
+    "prices": {
+      "WSTETH": 3955.61653329344
+    }
+  },
+  {
+    "timestamp": 1765584000,
+    "prices": {
+      "WSTETH": 3770.5624513375765
+    }
+  },
+  {
+    "timestamp": 1765670400,
+    "prices": {
+      "WSTETH": 3805.8608123087392
+    }
+  },
+  {
+    "timestamp": 1765756800,
+    "prices": {
+      "WSTETH": 3744.40256257202
+    }
+  },
+  {
+    "timestamp": 1765843200,
+    "prices": {
+      "WSTETH": 3620.2295085996634
+    }
+  },
+  {
+    "timestamp": 1765890698,
+    "prices": {
+      "WSTETH": 3604.9895307088723
+    }
+  }
+]

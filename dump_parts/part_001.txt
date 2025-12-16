@@ -466,7 +466,7 @@ export function AssetRowItem({ asset, index, livePrice }: Props) {
       </td>
     </tr>
   );
-}\nfrontend/src/components/assets/AssetsTable.tsx\nimport type { AssetRow } from "../../services/assetsSelectors";
+}\nfrontend/src/components/assets/AssetsTable.tsx\nimport type { AssetRow } from "../../services/assets/assetsSelectors";
 import { AssetRowItem } from "./AssetRow";
 
 type Props = {

@@ -1,6 +1,6 @@
 // SimulationControls.tsx
 import type { ReactNode } from "react";
-import type { Scenario } from "../../services/monteCarloService";
+import type { Scenario } from "../../services/simulation/monteCarloService";
 
 export type SimulationParams = {
   horizonDays: 30 | 90 | 180 | 365;
@@ -590,7 +590,7 @@ import {
   fetchMarkets,
   fetchGlobal,
   fetchFearGreed,
-} from "../services/assetsApi";
+} from "../services//assets/assetsApi";
 
 import {
   saveMarkets,
@@ -600,7 +600,7 @@ import {
   readGlobal,
   saveFearGreed,
   readFearGreed,
-} from "../services/assetsCache";
+} from "../services/assets/assetsCache";
 
 import {
   buildAssetsTable,
@@ -608,9 +608,9 @@ import {
   getGlobalMarketCapSnapshot,
   getTopGainer7d,
   type AssetRow,
-} from "../services/assetsSelectors";
+} from "../services/assets/assetsSelectors";
 
-import { fetchBinancePrices } from "../services/binanceService";
+import { fetchBinancePrices } from "../services/assets/binanceService";
 
 import { AssetsTable } from "../components/assets/AssetsTable";
 import { MarketCapCard } from "../components/assets/MarketCapCard";
@@ -814,9 +814,9 @@ import historyJson from "../data/mock-history.json";
 import {
   buildTopMetrics,
   filterHistoryByPeriod,
-} from "../services/portfolioService";
+} from "../services/portfolio/portfolioService";
 
-import type { HistoryPoint, Period } from "../services/portfolioService";
+import type { HistoryPoint, Period } from "../services/portfolio/portfolioService";
 
 // portfolio components
 import { PortfolioMetricsRow } from "../components/portfolio/PortfolioMetricsRow";
@@ -884,11 +884,11 @@ export function PortfolioPage() {
 import { useMemo, useState } from "react";
 import historyJson from "../data/mock-history.json";
 
-import type { HistoryPoint } from "../services/portfolioService";
-import { filterHistoryByPeriod } from "../services/portfolioService";
+import type { HistoryPoint } from "../services/portfolio/portfolioService";
+import { filterHistoryByPeriod } from "../services/portfolio/portfolioService";
 
-import { estimatePortfolioParams } from "../services/portfolioStatsService";
-import { runMonteCarloAdvanced } from "../services/monteCarloService";
+import { estimatePortfolioParams } from "../services/portfolio/portfolioStatsService";
+import { runMonteCarloAdvanced } from "../services/simulation/monteCarloService";
 
 import { SimulationChartCard } from "../components/simulation/SimulationChartCard";
 import {
@@ -1058,7 +1058,7 @@ export const router = createBrowserRouter([
       { path: "simulation", element: <SimulationPage /> },
     ],
   },
-]);\nfrontend/src/services/assetsApi.ts\n/* =========================
+]);\nfrontend/src/services/assets/assetsApi.ts\n/* =========================
    CoinGecko API
 ========================= */
 
@@ -1132,4 +1132,4 @@ export async function fetchFearGreed(): Promise<number | null> {
   const value = Number(json.data[0]?.value);
 
   return Number.isNaN(value) ? null : value;
-}\nfrontend/src/services/assetsCache.ts\n
+}\nfrontend/src/services/assets/assetsCache.ts\n

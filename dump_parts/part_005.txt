@@ -75,7 +75,7 @@ export function readFearGreed(): number | null {
   if (Number.isNaN(v)) return null;
 
   return fresh ? v : null;
-}\nfrontend/src/services/assetsSelectors.ts\nimport type { CoinGeckoMarket, CoinGeckoGlobal } from "./assetsApi";
+}\nfrontend/src/services/assets/assetsSelectors.ts\nimport type { CoinGeckoMarket, CoinGeckoGlobal } from "./assetsApi";
 
 /* =========================
    UI types
@@ -164,7 +164,617 @@ export function getTopGainer7d(markets: CoinGeckoMarket[]) {
     image: best.image,
     pct7d: best.price_change_percentage_7d_in_currency ?? 0,
   };
-}\nfrontend/src/services/assetsService.ts\nexport type AssetRow = {
+}\nfrontend/src/services/assets/binanceService.ts\nexport type BinancePriceMap = Record<string, number>;
+
+const BINANCE_BASE = "https://api.binance.com";
+
+// ⛔ ЭКСПЕРИМЕНТАЛЬНО: строго 10 активов
+const SYMBOLS = [
+  "BTC",
+  "ETH",
+  "BNB",
+  "SOL",
+  "XRP",
+  "DOGE",
+  "ADA",
+  "LTC",
+  "AVAX",
+  "LINK",
+];
+
+let lastFetchAt: number | null = null;
+
+export async function fetchBinancePrices(): Promise<BinancePriceMap> {
+  const pairs = SYMBOLS.map((s) => `${s}USDT`);
+
+  const now = Date.now();
+  if (lastFetchAt) {
+    const diff = ((now - lastFetchAt) / 1000).toFixed(1);
+    console.log(`[Binance] fetch after ${diff}s`);
+  } else {
+    console.log("[Binance] first fetch");
+  }
+  lastFetchAt = now;
+
+  console.log("[Binance] requesting:", pairs.join(", "));
+
+  const url =
+    `${BINANCE_BASE}/api/v3/ticker/price?symbols=` +
+    encodeURIComponent(JSON.stringify(pairs));
+
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    console.log("[Binance] HTTP error", res.status);
+    throw new Error("Binance request failed");
+  }
+
+  const data = (await res.json()) as Array<{ symbol: string; price: string }>;
+
+  const out: BinancePriceMap = {};
+
+  for (const row of data) {
+    if (row.symbol.endsWith("USDT")) {
+      const base = row.symbol.replace("USDT", "");
+      out[base] = Number(row.price);
+    }
+  }
+
+  const summary = Object.entries(out)
+    .map(([k, v]) => `${k} ${v}`)
+    .join(" | ");
+
+  console.log("[Binance] response:", summary || "EMPTY");
+
+  return out;
+}\nfrontend/src/services/assets/moodService.ts\n// src/services/moodService.ts
+import type { HistoryPoint } from "./portfolio/portfolioService";
+
+export type MarketMood = {
+  fearFactor: number; // 0–100
+  label: "Extreme Fear" | "Fear" | "Neutral" | "Greed" | "Extreme Greed";
+  volatilityScore: number; // 0–100
+  gainersScore: number; // 0–100
+  momentumScore: number; // 0–100
+};
+
+function clamp(v: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, v));
+}
+
+// последние N часов
+function sliceLastHours(history: HistoryPoint[], hours: number): HistoryPoint[] {
+  if (!history.length) return [];
+  const lastTs = history[history.length - 1].timestamp; // sec
+  const cutoff = lastTs - hours * 3600;
+  return history.filter((p) => p.timestamp >= cutoff);
+}
+
+// средняя абсолютная волатильность % за шаг (по всем активам)
+function calcVolatilityScore(history: HistoryPoint[]): number {
+  if (history.length < 2) return 0;
+
+  const assets = Object.keys(history[0].prices) as (keyof HistoryPoint["prices"])[];
+  const deltas: number[] = [];
+
+  for (let i = 1; i < history.length; i++) {
+    const prev = history[i - 1].prices;
+    const curr = history[i].prices;
+
+    for (const a of assets) {
+      const p0 = prev[a];
+      const p1 = curr[a];
+      if (!p0) continue;
+      const pct = ((p1 - p0) / p0) * 100;
+      deltas.push(Math.abs(pct));
+    }
+  }
+
+  if (!deltas.length) return 0;
+  const avgAbs = deltas.reduce((s, x) => s + x, 0) / deltas.length;
+
+  // мапим: 0–5% → 0–100
+  const score = avgAbs * 20;
+  return clamp(score, 0, 100);
+}
+
+// доля активов, которые выросли за период, в %
+function calcGainersScore(history: HistoryPoint[]): number {
+  if (history.length < 2) return 0;
+
+  const first = history[0].prices;
+  const last = history[history.length - 1].prices;
+  const assets = Object.keys(first) as (keyof HistoryPoint["prices"])[];
+
+  let gainers = 0;
+  let total = 0;
+
+  for (const a of assets) {
+    const p0 = first[a];
+    const p1 = last[a];
+    if (!p0) continue;
+    total++;
+    if (p1 > p0) gainers++;
+  }
+
+  if (!total) return 0;
+  return (gainers / total) * 100;
+}
+
+// простой расчёт портфельного PnL за период (для настроения)
+function calcMomentumScore(history: HistoryPoint[]): number {
+  if (history.length < 2) return 50;
+
+  const first = history[0];
+  const last = history[history.length - 1];
+
+  const assets = Object.keys(first.prices) as (keyof HistoryPoint["prices"])[];
+  // условно считаем равный вес по активам (только для настроения, не для отчёта)
+  let v0 = 0;
+  let v1 = 0;
+
+  for (const a of assets) {
+    const p0 = first.prices[a];
+    const p1 = last.prices[a];
+    v0 += p0;
+    v1 += p1;
+  }
+
+  if (!v0) return 50;
+  const pnlPct = ((v1 - v0) / v0) * 100;
+
+  //  -25% → 0, 0% → 50, +25% → 100
+  const score = 50 + pnlPct * 2;
+  return clamp(score, 0, 100);
+}
+
+function moodLabel(value: number): MarketMood["label"] {
+  if (value < 20) return "Extreme Fear";
+  if (value < 40) return "Fear";
+  if (value < 60) return "Neutral";
+  if (value < 80) return "Greed";
+  return "Extreme Greed";
+}
+
+// публичная функция: считаем "настроение рынка" по последним 24 часам
+export function buildMarketMood(history: HistoryPoint[]): MarketMood {
+  const last24h = sliceLastHours(history, 24);
+  if (!last24h.length) {
+    return {
+      fearFactor: 50,
+      label: "Neutral",
+      volatilityScore: 0,
+      gainersScore: 0,
+      momentumScore: 50,
+    };
+  }
+
+  const volatilityScore = calcVolatilityScore(last24h);
+  const gainersScore = calcGainersScore(last24h);
+  const momentumScore = calcMomentumScore(last24h);
+
+  // комбинируем, как договаривались
+  const fearFactorRaw =
+    0.4 * (100 - volatilityScore) +
+    0.3 * gainersScore +
+    0.3 * momentumScore;
+
+  const fearFactor = clamp(fearFactorRaw, 0, 100);
+  const label = moodLabel(fearFactor);
+
+  return {
+    fearFactor,
+    label,
+    volatilityScore,
+    gainersScore,
+    momentumScore,
+  };
+}\nfrontend/src/services/balances/balancesCache.ts\nimport type { BalanceAsset } from "./types";
+
+const KEY_DATA = "balances.eth.v1";
+const KEY_TS = "balances.eth.fetchedAt";
+
+const TTL = 10 * 60 * 1000; // 10 min
+
+type StoredBalances = {
+  chain: "eth";
+  wallet: string;
+  assets: BalanceAsset[];
+};
+
+export function saveBalancesEth(
+  wallet: string,
+  assets: BalanceAsset[]
+) {
+  const payload: StoredBalances = {
+    chain: "eth",
+    wallet,
+    assets,
+  };
+
+  localStorage.setItem(KEY_DATA, JSON.stringify(payload));
+  localStorage.setItem(KEY_TS, String(Date.now()));
+}
+
+export function readBalancesEth(): StoredBalances | null {
+  const raw = localStorage.getItem(KEY_DATA);
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw) as StoredBalances;
+  } catch {
+    return null;
+  }
+}
+
+export function isBalancesEthFresh(): boolean {
+  const ts = Number(localStorage.getItem(KEY_TS) || 0);
+  return Date.now() - ts < TTL;
+}\nfrontend/src/services/balances/balancesService.ts\nimport {
+  fetchEthNativeBalance,
+  fetchEthTokenBalances,
+} from "./moralisClient";
+import type { BalanceAsset } from "./types";
+
+function toNumber(raw: string, decimals: number): number {
+  if (!raw) return 0;
+  return Number(raw) / 10 ** decimals;
+}
+
+function isValidAsset(a: BalanceAsset): boolean {
+  if (!a.symbol) return false;
+  if (!Number.isFinite(a.balance)) return false;
+  if (a.balance <= 0) return false;
+  if (a.decimals < 0 || a.decimals > 36) return false;
+  return true;
+}
+
+export async function fetchBalancesEth(
+  wallet: string
+): Promise<BalanceAsset[]> {
+  const [native, tokens] = await Promise.all([
+    fetchEthNativeBalance(wallet),
+    fetchEthTokenBalances(wallet),
+  ]);
+
+  const out: BalanceAsset[] = [];
+
+  // ETH native
+  {
+    const decimals = 18;
+    const balance = toNumber(native.balance, decimals);
+
+    const eth: BalanceAsset = {
+      source: "moralis",
+      symbol: "ETH",
+      name: "Ethereum",
+      decimals,
+      balanceRaw: native.balance,
+      balance,
+      isNative: true,
+    };
+
+    if (isValidAsset(eth)) out.push(eth);
+  }
+
+  // ERC-20 tokens
+  for (const t of tokens) {
+    const balance = toNumber(t.balance, t.decimals);
+
+    const asset: BalanceAsset = {
+      source: "moralis",
+      symbol: t.symbol,
+      name: t.name,
+      decimals: t.decimals,
+      balanceRaw: t.balance,
+      balance,
+      tokenAddress: t.token_address,
+      isNative: false,
+    };
+
+    if (isValidAsset(asset)) out.push(asset);
+  }
+
+  return out;
+}\nfrontend/src/services/balances/index.ts\nimport { fetchBalancesEth } from "./balancesService";
+import {
+  saveBalancesEth,
+  readBalancesEth,
+  isBalancesEthFresh,
+} from "./balancesCache";
+
+export async function getBalancesEth(wallet: string) {
+  if (isBalancesEthFresh()) {
+    const cached = readBalancesEth();
+    if (cached && cached.wallet === wallet) {
+      return cached.assets;
+    }
+  }
+
+  const assets = await fetchBalancesEth(wallet);
+  saveBalancesEth(wallet, assets);
+  return assets;
+}\nfrontend/src/services/balances/moralisClient.ts\nconst MORALIS_BASE = "https://deep-index.moralis.io/api/v2";
+
+/**
+ * ⚠️ TEMP HARDCODE
+ * Только для MVP / локальной разработки
+ * Потом убрать в .env или backend
+ */
+const MORALIS_API_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjM1ZDc2OTRmLTBmOWUtNDM4Yy1iNTBmLTRmNmE4YTEyZGY0YiIsIm9yZ0lkIjoiNDg2Mjg2IiwidXNlcklkIjoiNTAwMjkxIiwidHlwZUlkIjoiYzM3MzRjOGMtMzUzNC00MDI4LTlmNzEtOGRlOGRiM2Q4MmYwIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NjU4NTM5MzMsImV4cCI6NDkyMTYxMzkzM30.wQ9VlqQKyg6v5f7wU85HEozh1el1pUwnvSXkf3FS-Gk";
+
+type FetchOptions = {
+  path: string;
+  params?: Record<string, string | number | boolean | undefined>;
+};
+
+async function moralisFetch<T>({ path, params }: FetchOptions): Promise<T> {
+  const url = new URL(`${MORALIS_BASE}${path}`);
+
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined) url.searchParams.set(k, String(v));
+    });
+  }
+
+  const res = await fetch(url.toString(), {
+    headers: {
+      "X-API-Key": MORALIS_API_KEY,
+    },
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`[Moralis] ${res.status}: ${text}`);
+  }
+
+  return res.json();
+}
+
+/* =========================
+   ETH MAINNET
+========================= */
+
+export function fetchEthNativeBalance(address: string) {
+  return moralisFetch<{
+    balance: string;
+  }>({
+    path: `/${address}/balance`,
+    params: { chain: "eth" },
+  });
+}
+
+export function fetchEthTokenBalances(address: string) {
+  return moralisFetch<
+    Array<{
+      token_address: string;
+      symbol: string;
+      name: string;
+      decimals: number;
+      balance: string;
+    }>
+  >({
+    path: `/${address}/erc20`,
+    params: { chain: "eth" },
+  });
+}\nfrontend/src/services/balances/types.ts\nexport type BalanceAsset = {
+  source: "moralis";
+
+  symbol: string;
+  name: string;
+  decimals: number;
+
+  balanceRaw: string;
+  balance: number;
+
+  tokenAddress?: string;
+  isNative: boolean;
+};\nfrontend/src/services/portfolio/portfolioService.ts\nexport type Period = "year" | "month" | "week";
+
+export type HistoryPoint = {
+  timestamp: number; // unix seconds
+  prices: {
+    ETH: number;
+    WBTC: number;
+    USDC: number;
+    DAI: number;
+    UNI: number;
+  };
+};
+
+const AMOUNTS = {
+  ETH: 2,
+  WBTC: 0.03,
+  USDC: 80,
+  DAI: 40,
+  UNI: 400,
+};
+
+function calcPortfolioValue(p: HistoryPoint): number {
+  const pr = p.prices;
+  return (
+    pr.ETH * AMOUNTS.ETH +
+    pr.WBTC * AMOUNTS.WBTC +
+    pr.USDC * AMOUNTS.USDC +
+    pr.DAI * AMOUNTS.DAI +
+    pr.UNI * AMOUNTS.UNI
+  );
+}
+
+export function filterHistoryByPeriod(history: HistoryPoint[], period: Period) {
+  if (!history.length) return [];
+
+  const last = history[history.length - 1].timestamp;
+  const seconds =
+    period === "week"
+      ? 7 * 24 * 3600
+      : period === "month"
+      ? 30 * 24 * 3600
+      : 365 * 24 * 3600;
+
+  const cutoff = last - seconds;
+  return history.filter((p) => p.timestamp >= cutoff);
+}
+
+/* ================================
+   📌 Downsampling (visual)
+   ================================ */
+
+function downsample(xs: number[], ys: number[], target: number) {
+  const n = xs.length;
+  if (n <= target) return { xs, ys };
+
+  const step = Math.ceil(n / target);
+  const outX: number[] = [];
+  const outY: number[] = [];
+
+  for (let i = 0; i < n; i += step) {
+    outX.push(xs[i]);
+    outY.push(ys[i]);
+  }
+
+  // гарантируем последнюю точку
+  if (outX[outX.length - 1] !== xs[n - 1]) {
+    outX.push(xs[n - 1]);
+    outY.push(ys[n - 1]);
+  }
+
+  return { xs: outX, ys: outY };
+}
+
+/* ================================
+   ✅ Экспорт, который у тебя импортируется
+   ================================ */
+
+export function buildPortfolioSeries(history: HistoryPoint[], period: Period) {
+  const rawTimestamps = history.map((p) => p.timestamp * 1000);
+  const values = history.map(calcPortfolioValue);
+
+  if (!values.length) {
+    return { timestamps: [], percentValues: [] };
+  }
+
+  const base = values[0];
+  const rawPercentValues = values.map((v) =>
+    base === 0 ? 0 : ((v - base) / base) * 100
+  );
+
+  const target =
+    period === "week" ? 50 : period === "month" ? 70 : 150;
+
+  const { xs, ys } = downsample(rawTimestamps, rawPercentValues, target);
+
+  return { timestamps: xs, percentValues: ys };
+}
+
+export function buildTopMetrics(history: HistoryPoint[]) {
+  if (history.length < 2) {
+    return {
+      tvl: 0,
+      lastTsMs: 0,
+      changeUsd: 0,
+      changePct: 0,
+      btcPct: 0,
+      vsBtcPp: 0,
+    };
+  }
+
+  const first = history[0];
+  const last = history[history.length - 1];
+
+  const startValue = calcPortfolioValue(first);
+  const endValue = calcPortfolioValue(last);
+
+  const changeUsd = endValue - startValue;
+  const changePct = startValue === 0 ? 0 : (changeUsd / startValue) * 100;
+
+  const btcStart = first.prices.WBTC;
+  const btcEnd = last.prices.WBTC;
+  const btcPct = btcStart === 0 ? 0 : ((btcEnd - btcStart) / btcStart) * 100;
+
+  const vsBtcPp = changePct - btcPct;
+
+  return {
+    tvl: endValue,
+    lastTsMs: last.timestamp * 1000,
+    changeUsd,
+    changePct,
+    btcPct,
+    vsBtcPp,
+  };
+}\nfrontend/src/services/portfolio/portfolioStatsService.ts\nimport type { HistoryPoint } from "./portfolio/portfolioService";
+
+// те же веса, что и в Portfolio
+const AMOUNTS = {
+  ETH: 2,
+  WBTC: 0.03,
+  USDC: 80,
+  DAI: 40,
+  UNI: 400,
+};
+
+function calcPortfolioValue(p: HistoryPoint): number {
+  const pr = p.prices;
+  return (
+    pr.ETH * AMOUNTS.ETH +
+    pr.WBTC * AMOUNTS.WBTC +
+    pr.USDC * AMOUNTS.USDC +
+    pr.DAI * AMOUNTS.DAI +
+    pr.UNI * AMOUNTS.UNI
+  );
+}
+
+export type EstimatedParams = {
+  drift: number;      // μ — mean log-return per day
+  volatility: number; // σ — std of log-returns per day
+};
+
+export function estimatePortfolioParams(
+  history: HistoryPoint[]
+): EstimatedParams {
+  if (history.length < 2) {
+    return { drift: 0, volatility: 0 };
+  }
+
+  const values: number[] = history
+    .map(calcPortfolioValue)
+    .filter((v) => Number.isFinite(v) && v > 0);
+
+  if (values.length < 2) {
+    return { drift: 0, volatility: 0 };
+  }
+
+  // log-returns
+  const returns: number[] = [];
+
+  for (let i = 1; i < values.length; i++) {
+    const r = Math.log(values[i] / values[i - 1]);
+    if (Number.isFinite(r)) {
+      returns.push(r);
+    }
+  }
+
+  if (!returns.length) {
+    return { drift: 0, volatility: 0 };
+  }
+
+  // mean (drift)
+  const mean =
+    returns.reduce((sum, r) => sum + r, 0) / returns.length;
+
+  // std (volatility)
+  const variance =
+    returns.reduce((sum, r) => sum + (r - mean) ** 2, 0) /
+    returns.length;
+
+  const std = Math.sqrt(variance);
+
+  return {
+    drift: mean,
+    volatility: std,
+  };
+}\nfrontend/src/services/simulation/assetsService.ts\nexport type AssetRow = {
   symbol: string;
   iconUrl: string | null;
 
@@ -392,70 +1002,7 @@ export async function getFearGreedIndex(): Promise<number | null> {
   } catch {
     return cached || null;
   }
-}\nfrontend/src/services/binanceService.ts\nexport type BinancePriceMap = Record<string, number>;
-
-const BINANCE_BASE = "https://api.binance.com";
-
-// ⛔ ЭКСПЕРИМЕНТАЛЬНО: строго 10 активов
-const SYMBOLS = [
-  "BTC",
-  "ETH",
-  "BNB",
-  "SOL",
-  "XRP",
-  "DOGE",
-  "ADA",
-  "LTC",
-  "AVAX",
-  "LINK",
-];
-
-let lastFetchAt: number | null = null;
-
-export async function fetchBinancePrices(): Promise<BinancePriceMap> {
-  const pairs = SYMBOLS.map((s) => `${s}USDT`);
-
-  const now = Date.now();
-  if (lastFetchAt) {
-    const diff = ((now - lastFetchAt) / 1000).toFixed(1);
-    console.log(`[Binance] fetch after ${diff}s`);
-  } else {
-    console.log("[Binance] first fetch");
-  }
-  lastFetchAt = now;
-
-  console.log("[Binance] requesting:", pairs.join(", "));
-
-  const url =
-    `${BINANCE_BASE}/api/v3/ticker/price?symbols=` +
-    encodeURIComponent(JSON.stringify(pairs));
-
-  const res = await fetch(url);
-
-  if (!res.ok) {
-    console.log("[Binance] HTTP error", res.status);
-    throw new Error("Binance request failed");
-  }
-
-  const data = (await res.json()) as Array<{ symbol: string; price: string }>;
-
-  const out: BinancePriceMap = {};
-
-  for (const row of data) {
-    if (row.symbol.endsWith("USDT")) {
-      const base = row.symbol.replace("USDT", "");
-      out[base] = Number(row.price);
-    }
-  }
-
-  const summary = Object.entries(out)
-    .map(([k, v]) => `${k} ${v}`)
-    .join(" | ");
-
-  console.log("[Binance] response:", summary || "EMPTY");
-
-  return out;
-}\nfrontend/src/services/monteCarloService.ts\nexport type Scenario = "conservative" | "baseline" | "stress";
+}\nfrontend/src/services/simulation/monteCarloService.ts\nexport type Scenario = "conservative" | "baseline" | "stress";
 
 export type MonteCarloInput = {
   startValue: number;
@@ -624,572 +1171,10 @@ export function runMonteCarloAdvanced(
     lower,
     paths,
   };
-}\nfrontend/src/services/moodService.ts\n// src/services/moodService.ts
-import type { HistoryPoint } from "./portfolioService";
-
-export type MarketMood = {
-  fearFactor: number; // 0–100
-  label: "Extreme Fear" | "Fear" | "Neutral" | "Greed" | "Extreme Greed";
-  volatilityScore: number; // 0–100
-  gainersScore: number; // 0–100
-  momentumScore: number; // 0–100
-};
-
-function clamp(v: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, v));
-}
-
-// последние N часов
-function sliceLastHours(history: HistoryPoint[], hours: number): HistoryPoint[] {
-  if (!history.length) return [];
-  const lastTs = history[history.length - 1].timestamp; // sec
-  const cutoff = lastTs - hours * 3600;
-  return history.filter((p) => p.timestamp >= cutoff);
-}
-
-// средняя абсолютная волатильность % за шаг (по всем активам)
-function calcVolatilityScore(history: HistoryPoint[]): number {
-  if (history.length < 2) return 0;
-
-  const assets = Object.keys(history[0].prices) as (keyof HistoryPoint["prices"])[];
-  const deltas: number[] = [];
-
-  for (let i = 1; i < history.length; i++) {
-    const prev = history[i - 1].prices;
-    const curr = history[i].prices;
-
-    for (const a of assets) {
-      const p0 = prev[a];
-      const p1 = curr[a];
-      if (!p0) continue;
-      const pct = ((p1 - p0) / p0) * 100;
-      deltas.push(Math.abs(pct));
-    }
-  }
-
-  if (!deltas.length) return 0;
-  const avgAbs = deltas.reduce((s, x) => s + x, 0) / deltas.length;
-
-  // мапим: 0–5% → 0–100
-  const score = avgAbs * 20;
-  return clamp(score, 0, 100);
-}
-
-// доля активов, которые выросли за период, в %
-function calcGainersScore(history: HistoryPoint[]): number {
-  if (history.length < 2) return 0;
-
-  const first = history[0].prices;
-  const last = history[history.length - 1].prices;
-  const assets = Object.keys(first) as (keyof HistoryPoint["prices"])[];
-
-  let gainers = 0;
-  let total = 0;
-
-  for (const a of assets) {
-    const p0 = first[a];
-    const p1 = last[a];
-    if (!p0) continue;
-    total++;
-    if (p1 > p0) gainers++;
-  }
-
-  if (!total) return 0;
-  return (gainers / total) * 100;
-}
-
-// простой расчёт портфельного PnL за период (для настроения)
-function calcMomentumScore(history: HistoryPoint[]): number {
-  if (history.length < 2) return 50;
-
-  const first = history[0];
-  const last = history[history.length - 1];
-
-  const assets = Object.keys(first.prices) as (keyof HistoryPoint["prices"])[];
-  // условно считаем равный вес по активам (только для настроения, не для отчёта)
-  let v0 = 0;
-  let v1 = 0;
-
-  for (const a of assets) {
-    const p0 = first.prices[a];
-    const p1 = last.prices[a];
-    v0 += p0;
-    v1 += p1;
-  }
-
-  if (!v0) return 50;
-  const pnlPct = ((v1 - v0) / v0) * 100;
-
-  //  -25% → 0, 0% → 50, +25% → 100
-  const score = 50 + pnlPct * 2;
-  return clamp(score, 0, 100);
-}
-
-function moodLabel(value: number): MarketMood["label"] {
-  if (value < 20) return "Extreme Fear";
-  if (value < 40) return "Fear";
-  if (value < 60) return "Neutral";
-  if (value < 80) return "Greed";
-  return "Extreme Greed";
-}
-
-// публичная функция: считаем "настроение рынка" по последним 24 часам
-export function buildMarketMood(history: HistoryPoint[]): MarketMood {
-  const last24h = sliceLastHours(history, 24);
-  if (!last24h.length) {
-    return {
-      fearFactor: 50,
-      label: "Neutral",
-      volatilityScore: 0,
-      gainersScore: 0,
-      momentumScore: 50,
-    };
-  }
-
-  const volatilityScore = calcVolatilityScore(last24h);
-  const gainersScore = calcGainersScore(last24h);
-  const momentumScore = calcMomentumScore(last24h);
-
-  // комбинируем, как договаривались
-  const fearFactorRaw =
-    0.4 * (100 - volatilityScore) +
-    0.3 * gainersScore +
-    0.3 * momentumScore;
-
-  const fearFactor = clamp(fearFactorRaw, 0, 100);
-  const label = moodLabel(fearFactor);
-
-  return {
-    fearFactor,
-    label,
-    volatilityScore,
-    gainersScore,
-    momentumScore,
-  };
-}\nfrontend/src/services/portfolioService.ts\nexport type Period = "year" | "month" | "week";
-
-export type HistoryPoint = {
-  timestamp: number; // unix seconds
-  prices: {
-    ETH: number;
-    WBTC: number;
-    USDC: number;
-    DAI: number;
-    UNI: number;
-  };
-};
-
-const AMOUNTS = {
-  ETH: 2,
-  WBTC: 0.03,
-  USDC: 80,
-  DAI: 40,
-  UNI: 400,
-};
-
-function calcPortfolioValue(p: HistoryPoint): number {
-  const pr = p.prices;
-  return (
-    pr.ETH * AMOUNTS.ETH +
-    pr.WBTC * AMOUNTS.WBTC +
-    pr.USDC * AMOUNTS.USDC +
-    pr.DAI * AMOUNTS.DAI +
-    pr.UNI * AMOUNTS.UNI
-  );
-}
-
-export function filterHistoryByPeriod(history: HistoryPoint[], period: Period) {
-  if (!history.length) return [];
-
-  const last = history[history.length - 1].timestamp;
-  const seconds =
-    period === "week"
-      ? 7 * 24 * 3600
-      : period === "month"
-      ? 30 * 24 * 3600
-      : 365 * 24 * 3600;
-
-  const cutoff = last - seconds;
-  return history.filter((p) => p.timestamp >= cutoff);
-}
-
-/* ================================
-   📌 Downsampling (visual)
-   ================================ */
-
-function downsample(xs: number[], ys: number[], target: number) {
-  const n = xs.length;
-  if (n <= target) return { xs, ys };
-
-  const step = Math.ceil(n / target);
-  const outX: number[] = [];
-  const outY: number[] = [];
-
-  for (let i = 0; i < n; i += step) {
-    outX.push(xs[i]);
-    outY.push(ys[i]);
-  }
-
-  // гарантируем последнюю точку
-  if (outX[outX.length - 1] !== xs[n - 1]) {
-    outX.push(xs[n - 1]);
-    outY.push(ys[n - 1]);
-  }
-
-  return { xs: outX, ys: outY };
-}
-
-/* ================================
-   ✅ Экспорт, который у тебя импортируется
-   ================================ */
-
-export function buildPortfolioSeries(history: HistoryPoint[], period: Period) {
-  const rawTimestamps = history.map((p) => p.timestamp * 1000);
-  const values = history.map(calcPortfolioValue);
-
-  if (!values.length) {
-    return { timestamps: [], percentValues: [] };
-  }
-
-  const base = values[0];
-  const rawPercentValues = values.map((v) =>
-    base === 0 ? 0 : ((v - base) / base) * 100
-  );
-
-  const target =
-    period === "week" ? 50 : period === "month" ? 70 : 150;
-
-  const { xs, ys } = downsample(rawTimestamps, rawPercentValues, target);
-
-  return { timestamps: xs, percentValues: ys };
-}
-
-export function buildTopMetrics(history: HistoryPoint[]) {
-  if (history.length < 2) {
-    return {
-      tvl: 0,
-      lastTsMs: 0,
-      changeUsd: 0,
-      changePct: 0,
-      btcPct: 0,
-      vsBtcPp: 0,
-    };
-  }
-
-  const first = history[0];
-  const last = history[history.length - 1];
-
-  const startValue = calcPortfolioValue(first);
-  const endValue = calcPortfolioValue(last);
-
-  const changeUsd = endValue - startValue;
-  const changePct = startValue === 0 ? 0 : (changeUsd / startValue) * 100;
-
-  const btcStart = first.prices.WBTC;
-  const btcEnd = last.prices.WBTC;
-  const btcPct = btcStart === 0 ? 0 : ((btcEnd - btcStart) / btcStart) * 100;
-
-  const vsBtcPp = changePct - btcPct;
-
-  return {
-    tvl: endValue,
-    lastTsMs: last.timestamp * 1000,
-    changeUsd,
-    changePct,
-    btcPct,
-    vsBtcPp,
-  };
-}\nfrontend/src/services/portfolioStatsService.ts\nimport type { HistoryPoint } from "./portfolioService";
-
-// те же веса, что и в Portfolio
-const AMOUNTS = {
-  ETH: 2,
-  WBTC: 0.03,
-  USDC: 80,
-  DAI: 40,
-  UNI: 400,
-};
-
-function calcPortfolioValue(p: HistoryPoint): number {
-  const pr = p.prices;
-  return (
-    pr.ETH * AMOUNTS.ETH +
-    pr.WBTC * AMOUNTS.WBTC +
-    pr.USDC * AMOUNTS.USDC +
-    pr.DAI * AMOUNTS.DAI +
-    pr.UNI * AMOUNTS.UNI
-  );
-}
-
-export type EstimatedParams = {
-  drift: number;      // μ — mean log-return per day
-  volatility: number; // σ — std of log-returns per day
-};
-
-export function estimatePortfolioParams(
-  history: HistoryPoint[]
-): EstimatedParams {
-  if (history.length < 2) {
-    return { drift: 0, volatility: 0 };
-  }
-
-  const values: number[] = history
-    .map(calcPortfolioValue)
-    .filter((v) => Number.isFinite(v) && v > 0);
-
-  if (values.length < 2) {
-    return { drift: 0, volatility: 0 };
-  }
-
-  // log-returns
-  const returns: number[] = [];
-
-  for (let i = 1; i < values.length; i++) {
-    const r = Math.log(values[i] / values[i - 1]);
-    if (Number.isFinite(r)) {
-      returns.push(r);
-    }
-  }
-
-  if (!returns.length) {
-    return { drift: 0, volatility: 0 };
-  }
-
-  // mean (drift)
-  const mean =
-    returns.reduce((sum, r) => sum + r, 0) / returns.length;
-
-  // std (volatility)
-  const variance =
-    returns.reduce((sum, r) => sum + (r - mean) ** 2, 0) /
-    returns.length;
-
-  const std = Math.sqrt(variance);
-
-  return {
-    drift: mean,
-    volatility: std,
-  };
 }\nfrontend/vite.config.ts\nimport { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-})\ngenerate_prices\n#!/bin/bash
-
-echo "⏳ Генерация годовой часовой истории цен (портфель + рынок)..."
-
-OUTPUT="mock-history-hourly.json"
-
-node << 'EOF'
-const fs = require("fs");
-
-// =======================================
-// 🔹 КОНФИГ: ВСЕ АКТИВЫ (портфель + рынок)
-// =======================================
-
-const assets = [
-  // портфельные
-  "ETH",
-  "WBTC",
-  "USDC",
-  "DAI",
-  "UNI",
-
-  // рыночные дополнительные
-  "BTC",
-  "SOL",
-  "BNB",
-  "TON",
-  "XRP",
-  "ADA",
-  "DOGE",
-  "AVAX",
-  "LINK",
-  "ATOM",
-];
-
-// Реалистичные базовые цены + волатильности
-const cfg = {
-  // ==== портфельные ====
-  WBTC: { base: 30000, noise: 0.002,  shockP: 1 / (24 * 3.5), shockMin: -0.04, shockMax: 0.04 },
-  ETH:  { base: 1800,  noise: 0.004,  shockP: 1 / (24 * 3),   shockMin: -0.06, shockMax: 0.06 },
-  UNI:  { base: 6.5,   noise: 0.012,  shockP: 1 / (24 * 2),   shockMin: -0.12, shockMax: 0.14 },
-  USDC: { base: 1.0,   noise: 0.0003, shockP: 1 / (24 * 20),  shockMin: -0.003,shockMax: 0.003 },
-  DAI:  { base: 1.0,   noise: 0.00035,shockP: 1 / (24 * 18),  shockMin: -0.004,shockMax: 0.004 },
-
-  // ==== рыночные (новые) ====
-  // BTC — низкая волатильность
-  BTC: {
-    base: 68000,
-    noise: 0.0018,
-    shockP: 1 / (24 * 4.5),  // примерно раз в 4–5 дней
-    shockMin: -0.03,
-    shockMax: 0.03,
-  },
-
-  // SOL — высокая волатильность
-  SOL: {
-    base: 120,
-    noise: 0.009,
-    shockP: 1 / (24 * 2.5),
-    shockMin: -0.10,
-    shockMax: 0.12,
-  },
-
-  // BNB — умеренная волатильность
-  BNB: {
-    base: 300,
-    noise: 0.004,
-    shockP: 1 / (24 * 3.5),
-    shockMin: -0.06,
-    shockMax: 0.07,
-  },
-
-  // TON — высокая волатильность
-  TON: {
-    base: 2.8,
-    noise: 0.012,
-    shockP: 1 / (24 * 2),
-    shockMin: -0.14,
-    shockMax: 0.16,
-  },
-
-  // XRP — резкие скачки, средняя волатильность
-  XRP: {
-    base: 0.52,
-    noise: 0.007,
-    shockP: 1 / (24 * 3),
-    shockMin: -0.12,
-    shockMax: 0.12,
-  },
-
-  // ADA — умеренная волатильность
-  ADA: {
-    base: 0.42,
-    noise: 0.006,
-    shockP: 1 / (24 * 3.5),
-    shockMin: -0.08,
-    shockMax: 0.09,
-  },
-
-  // DOGE — очень высокая волатильность
-  DOGE: {
-    base: 0.09,
-    noise: 0.015,
-    shockP: 1 / (24 * 2),
-    shockMin: -0.18,
-    shockMax: 0.20,
-  },
-
-  // AVAX — высокая волатильность
-  AVAX: {
-    base: 28,
-    noise: 0.010,
-    shockP: 1 / (24 * 2.5),
-    shockMin: -0.12,
-    shockMax: 0.14,
-  },
-
-  // LINK — умеренно высокая
-  LINK: {
-    base: 15,
-    noise: 0.008,
-    shockP: 1 / (24 * 2.7),
-    shockMin: -0.09,
-    shockMax: 0.11,
-  },
-
-  // ATOM — умеренная волатильность
-  ATOM: {
-    base: 10,
-    noise: 0.007,
-    shockP: 1 / (24 * 3),
-    shockMin: -0.08,
-    shockMax: 0.10,
-  },
-};
-
-// ===============================
-// ⚙️ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-// ===============================
-const HOURS = 24 * 365;
-const now = Math.floor(Date.now() / 1000);
-const startTs = now - HOURS * 3600;
-
-// нормальное распределение (Box–Muller)
-function normal(std) {
-  return (
-    std *
-    Math.sqrt(-2 * Math.log(Math.random())) *
-    Math.cos(2 * Math.PI * Math.random())
-  );
-}
-function rand(min, max) {
-  return min + Math.random() * (max - min);
-}
-
-// ===============================
-// 🧮 ИНИЦИАЛИЗАЦИЯ
-// ===============================
-const prices = Object.fromEntries(
-  assets.map((a) => [a, cfg[a].base])
-);
-
-const history = [];
-
-// ===============================
-// 🔄 ГЕНЕРАЦИЯ ИСТОРИИ
-// ===============================
-for (let i = 0; i < HOURS; i++) {
-  const ts = startTs + i * 3600;
-  const row = { timestamp: ts, prices: {} };
-
-  for (const a of assets) {
-    const c = cfg[a];
-
-    // базовый шум
-    const noise = normal(c.noise);
-
-    // редкие рыночные "шоки"
-    const shock =
-      Math.random() < c.shockP ? rand(c.shockMin, c.shockMax) : 0;
-
-    // результирующая доходность
-    let ret = noise + shock;
-
-    // новый расчёт цены
-    let newPrice = prices[a] * (1 + ret);
-
-    // защита от NaN / Infinity / отрицательных значений
-    if (!Number.isFinite(newPrice) || newPrice <= 0) {
-      // fallback: откат к базовой цене ± случайный диапазон
-      newPrice = c.base * (0.5 + Math.random() * 0.5);
-    }
-
-    prices[a] = newPrice;
-
-    // округление
-    const rounded = Number(newPrice.toFixed(4));
-
-    // дополнительная защита JSON
-    row.prices[a] = Number.isFinite(rounded) ? rounded : c.base;
-  }
-
-  history.push(row);
-}
-
-// ===============================
-// 💾 СОХРАНЕНИЕ В ФАЙЛ
-// ===============================
-fs.writeFileSync(
-  "mock-history-hourly.json",
-  JSON.stringify(history, null, 2)
-);
-
-console.log("✅ Сгенерировано точек:", history.length);
-console.log("✅ Активов:", assets.length);
-EOF
-
-echo "✅ Файл mock-history-hourly.json успешно создан!"\n
+})\ngenerate_prices\n

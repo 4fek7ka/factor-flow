@@ -1,5 +1,5 @@
 import  { useMemo } from "react";
-import type { HistoryPoint } from "../../services/portfolioService";
+import type { HistoryPoint } from "../../services/portfolio/portfolioService";
 import { AssetSparklineCard } from "./AssetSparklineCard";
 
 type Props = {
@@ -87,7 +87,7 @@ export function AssetSparklinesSection({ history }: Props) {
     </div>
   );
 }\nfrontend/src/components/portfolio/PortfolioAllocationSection.tsx\n
-import type { HistoryPoint } from "../../services/portfolioService";
+import type { HistoryPoint } from "../../services/portfolio/portfolioService";
 
 import { PortfolioAllocation } from "./PortfolioAllocation";
 import { VolatilityArcCard } from "./VolatilityArcCard";
@@ -131,7 +131,7 @@ export function PortfolioAllocationSection({ history }: Props) {
   );
 }\nfrontend/src/components/portfolio/PortfolioAllocation.tsx\nimport { useEffect, useRef, useMemo } from "react";
 import * as echarts from "echarts";
-import type { HistoryPoint } from "../../services/portfolioService";
+import type { HistoryPoint } from "../../services/portfolio/portfolioService";
 
 const ASSET_COLORS: Record<string, string> = {
   ETH: "#8A7FFF",
@@ -381,9 +381,9 @@ import * as echarts from "echarts";
 import {
   buildPortfolioSeries,
   filterHistoryByPeriod,
-} from "../../services/portfolioService";
+} from "../../services/portfolio/portfolioService";
 
-import type { HistoryPoint, Period } from "../../services/portfolioService";
+import type { HistoryPoint, Period } from "../../services/portfolio/portfolioService";
 
 import { buildPortfolioChartOption } from "../../charts/portfolioChartOptions";
 
@@ -544,8 +544,8 @@ export function PortfolioChartCard({
 }\nfrontend/src/components/portfolio/PortfolioChart.tsx\nimport { useEffect, useRef } from "react";
 import * as echarts from "echarts";
 
-import { buildPortfolioSeries } from "../../services/portfolioService";
-import type { HistoryPoint, Period } from "../../services/portfolioService";
+import { buildPortfolioSeries } from "../../services/portfolio/portfolioService";
+import type { HistoryPoint, Period } from "../../services/portfolio/portfolioService";
 
 import { buildPortfolioChartOption } from "../../charts/portfolioChartOptions";
 
@@ -591,7 +591,7 @@ export function PortfolioChart({ history, period }: Props) {
   }, [history, period]);
 
   return <div ref={chartRef} style={{ width: "100%", height: "350px" }} />;
-}\nfrontend/src/components/portfolio/PortfolioMetricsRow.tsx\nimport type { Period } from "../../services/portfolioService";
+}\nfrontend/src/components/portfolio/PortfolioMetricsRow.tsx\nimport type { Period } from "../../services/portfolio/portfolioService";
 
 type Props = {
   tvl: number;
@@ -715,7 +715,7 @@ export function PortfolioMetricsRow({
     </div>
   );
 }\nfrontend/src/components/portfolio/VolatilityArcCard.tsx\nimport { useMemo } from "react";
-import type { HistoryPoint } from "../../services/portfolioService";
+import type { HistoryPoint } from "../../services/portfolio/portfolioService";
 
 function calcPortfolioValue(p: HistoryPoint) {
   const AMOUNTS = { ETH: 2, WBTC: 0.03, USDC: 80, DAI: 40, UNI: 400 };
