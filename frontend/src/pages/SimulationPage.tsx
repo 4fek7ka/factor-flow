@@ -1,8 +1,8 @@
-// SimulationPage.tsx
 import { useMemo, useState } from "react";
 import historyJson from "../data/mock-history.json";
+import portfoliosJson from "../data/mock-portfolios.json";
 
-import type { HistoryPoint } from "../services/portfolio/portfolioService";
+import type { AssetAmounts, HistoryPoint } from "../services/portfolio/portfolioService";
 import { filterHistoryByPeriod } from "../services/portfolio/portfolioService";
 
 import { estimatePortfolioParams } from "../services/portfolio/portfolioStatsService";
@@ -17,6 +17,16 @@ import {
 import { FinalOutcomeCard } from "../components/simulation/FinalOutcomeCard";
 import { OutcomeDistributionCard } from "../components/simulation/OutcomeDistributionCard";
 
+type MockProfile = {
+  id: string;
+  name: string;
+  assets: AssetAmounts;
+};
+
+type MockPortfoliosFile = {
+  profiles: MockProfile[];
+};
+
 function periodFromHorizon(h: 30 | 90 | 180 | 365) {
   if (h === 30) return "month";
   if (h === 90) return "month";
@@ -27,6 +37,9 @@ function periodFromHorizon(h: 30 | 90 | 180 | 365) {
 export function SimulationPage() {
   const history = historyJson as unknown as HistoryPoint[];
 
+  const portfolios = (portfoliosJson as unknown as MockPortfoliosFile).profiles;
+  const amounts = portfolios[0]?.assets ?? {};
+
   const [params, setParams] = useState<SimulationParams>({
     horizonDays: 90,
     scenario: "baseline",
@@ -34,11 +47,7 @@ export function SimulationPage() {
     showCloud: false,
     showMedian: false,
     showRepresentative: true,
-
-    // Range: last + OFF by default
     showRange: false,
-
-    // Fan: second + ON by default
     showFan: true,
   });
 
@@ -48,8 +57,8 @@ export function SimulationPage() {
   }, [history, params.horizonDays]);
 
   const { drift, volatility } = useMemo(() => {
-    return estimatePortfolioParams(filteredHistory);
-  }, [filteredHistory]);
+    return estimatePortfolioParams(filteredHistory, amounts);
+  }, [filteredHistory, amounts]);
 
   const startValue = 100;
 
@@ -82,7 +91,6 @@ export function SimulationPage() {
           gap: 14,
         }}
       >
-        {/* LEFT COLUMN */}
         <div
           style={{
             display: "flex",
@@ -91,7 +99,6 @@ export function SimulationPage() {
             minWidth: 0,
           }}
         >
-          {/* chart */}
           <div
             style={{
               background: "#0f172a",
@@ -133,7 +140,6 @@ export function SimulationPage() {
             />
           </div>
 
-          {/* cards under chart */}
           <div
             style={{
               display: "grid",
@@ -146,7 +152,6 @@ export function SimulationPage() {
           </div>
         </div>
 
-        {/* RIGHT COLUMN */}
         <div>
           <SimulationControls value={params} onChange={setParams} />
         </div>

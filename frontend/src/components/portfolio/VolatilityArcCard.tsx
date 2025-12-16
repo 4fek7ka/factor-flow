@@ -1,22 +1,38 @@
 import { useMemo } from "react";
-import type { HistoryPoint } from "../../services/portfolio/portfolioService";
+import type {
+  HistoryPoint,
+  AssetAmounts,
+} from "../../services/portfolio/portfolioService";
 
-function calcPortfolioValue(p: HistoryPoint) {
-  const AMOUNTS = { ETH: 2, WBTC: 0.03, USDC: 80, DAI: 40, UNI: 400 };
-  return (
-    p.prices.ETH * AMOUNTS.ETH +
-    p.prices.WBTC * AMOUNTS.WBTC +
-    p.prices.USDC * AMOUNTS.USDC +
-    p.prices.DAI * AMOUNTS.DAI +
-    p.prices.UNI * AMOUNTS.UNI
-  );
+/* =========================
+   Helpers
+========================= */
+
+function calcPortfolioValue(p: HistoryPoint, amounts: AssetAmounts) {
+  let total = 0;
+
+  for (const [symbol, amount] of Object.entries(amounts)) {
+    const price = p.prices[symbol] ?? 0;
+    total += price * amount;
+  }
+
+  return total;
 }
+
+/* =========================
+   Types
+========================= */
 
 type Props = {
   history: HistoryPoint[];
+  amounts: AssetAmounts; // ⬅️ ВАЖНО: реальные количества из профиля
 };
 
-export function VolatilityArcCard({ history }: Props) {
+/* =========================
+   Component
+========================= */
+
+export function VolatilityArcCard({ history, amounts }: Props) {
   const {
     volatility,
     minVol,
@@ -37,7 +53,20 @@ export function VolatilityArcCard({ history }: Props) {
     const points = 24 * 7;
     const lastWeek = history.slice(-points);
 
-    const vals = lastWeek.map(calcPortfolioValue);
+    const vals = lastWeek
+      .map((p) => calcPortfolioValue(p, amounts))
+      .filter((v) => Number.isFinite(v) && v > 0);
+
+    if (vals.length < 2) {
+      return {
+        volatility: 0,
+        minVol: 0,
+        maxVol: 0,
+        avgMove: 0,
+        stdDev: 0,
+      };
+    }
+
     const minVal = Math.min(...vals);
     const maxVal = Math.max(...vals);
     const avg = vals.reduce((s, x) => s + x, 0) / vals.length || 1;
@@ -48,23 +77,16 @@ export function VolatilityArcCard({ history }: Props) {
     const maxPct = ((maxVal - avg) / avg) * 100;
 
     const avgMoveCalc =
-      vals.length > 1
-        ? vals
-            .slice(1)
-            .reduce((s, v, i) => s + Math.abs(v - vals[i]), 0) /
-          (vals.length - 1)
-        : 0;
+      vals
+        .slice(1)
+        .reduce((s, v, i) => s + Math.abs(v - vals[i]), 0) /
+      (vals.length - 1);
 
     const avgMovePct = (avgMoveCalc / avg) * 100;
 
-    const std =
-      vals.length > 1
-        ? Math.sqrt(
-            vals.map((v) => Math.pow(v - avg, 2)).reduce((a, b) => a + b, 0) /
-              vals.length
-          )
-        : 0;
-
+    const variance =
+      vals.reduce((s, v) => s + (v - avg) ** 2, 0) / vals.length;
+    const std = Math.sqrt(variance);
     const stdDevPct = (std / avg) * 100;
 
     return {
@@ -74,9 +96,12 @@ export function VolatilityArcCard({ history }: Props) {
       avgMove: avgMovePct,
       stdDev: stdDevPct,
     };
-  }, [history]);
+  }, [history, amounts]);
 
-  // ---- arc math ----
+  /* =========================
+     Arc math
+  ========================= */
+
   const pct = Math.min(Math.max(volatility / 40, 0), 1); // 0..1
 
   const radius = 100;
@@ -110,13 +135,18 @@ export function VolatilityArcCard({ history }: Props) {
         <div style={{ flex: "0 0 260px" }}>
           <div style={{ display: "flex", justifyContent: "center" }}>
             <svg width="260" height="170" viewBox="0 0 260 170">
-
               {/* ---- DEFINING GRADIENT ---- */}
               <defs>
-                <linearGradient id="volaGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%"   stopColor="#22c55e" />  {/* green */}
-                  <stop offset="50%"  stopColor="#eab308" />  {/* yellow */}
-                  <stop offset="100%" stopColor="#ef4444" />  {/* red */}
+                <linearGradient
+                  id="volaGradient"
+                  x1="0%"
+                  y1="0%"
+                  x2="100%"
+                  y2="0%"
+                >
+                  <stop offset="0%" stopColor="#22c55e" />
+                  <stop offset="50%" stopColor="#eab308" />
+                  <stop offset="100%" stopColor="#ef4444" />
                 </linearGradient>
               </defs>
 
@@ -128,7 +158,7 @@ export function VolatilityArcCard({ history }: Props) {
                 fill="none"
               />
 
-              {/* Foreground arc — GRADIENT */}
+              {/* Foreground arc */}
               <path
                 d="M30 120 A100 100 0 0 1 230 120"
                 stroke="url(#volaGradient)"
@@ -151,7 +181,7 @@ export function VolatilityArcCard({ history }: Props) {
                 {volatility.toFixed(2)}%
               </text>
 
-              {/* Low */}
+              {/* Low / High */}
               <text
                 x="12"
                 y="155"
@@ -163,7 +193,6 @@ export function VolatilityArcCard({ history }: Props) {
                 Low
               </text>
 
-              {/* High */}
               <text
                 x="248"
                 y="155"

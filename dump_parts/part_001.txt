@@ -1,4 +1,110 @@
-frontend/eslint.config.js\nimport js from '@eslint/js'
+.cg_state_loaded.tsv\n\n.cg_tmp/coins.tsv\nbitcoin	BTC
+ethereum	ETH
+tether	USDT
+binancecoin	BNB
+ripple	XRP
+usd-coin	USDC
+solana	SOL
+tron	TRX
+staked-ether	STETH
+dogecoin	DOGE
+figure-heloc	FIGR_HELOC
+cardano	ADA
+whitebit	WBT
+wrapped-steth	WSTETH
+bitcoin-cash	BCH
+wrapped-bitcoin	WBTC
+wrapped-beacon-eth	WBETH
+usds	USDS
+chainlink	LINK
+binance-bridged-usdt-bnb-smart-chain	BSC-USD\nfetch-coingecko-top50-1y.sh\n#!/usr/bin/env bash
+set -euo pipefail
+
+CG="https://api.coingecko.com/api/v3"
+UA="factor-flow-mvp/1.0"
+
+TOP=20
+DAYS=365
+SLEEP=20
+
+TMP=".cg_tmp"
+OUT="mock-history-coingecko-top20-1y.json"
+
+mkdir -p "$TMP"
+rm -f "$TMP"/*.array.json
+
+echo "⏳ Fetching TOP-${TOP} markets snapshot..."
+
+curl -sS -H "User-Agent: ${UA}" \
+  "${CG}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${TOP}&page=1&sparkline=false" \
+  > "$TMP/markets.json"
+
+jq 'length' "$TMP/markets.json" >/dev/null
+
+jq -r '.[] | "\(.id)\t\(.symbol|ascii_upcase)"' \
+  "$TMP/markets.json" > "$TMP/coins.tsv"
+
+echo "✅ Coins: $(wc -l < "$TMP/coins.tsv")"
+
+while IFS=$'\t' read -r id sym; do
+  echo "→ $sym"
+
+  raw="$TMP/${sym}.raw.json"
+  arr="$TMP/${sym}.array.json"
+
+  code="$(curl -sS -H "User-Agent: ${UA}" \
+    -w "%{http_code}" \
+    -o "$raw" \
+    "${CG}/coins/${id}/market_chart?vs_currency=usd&days=${DAYS}&interval=daily" \
+    || echo 000)"
+
+  if [[ "$code" != "200" ]]; then
+    echo "   ⚠️ HTTP $code — skipped"
+    rm -f "$raw"
+    continue
+  fi
+
+  pts="$(jq '(.prices // []) | length' "$raw")"
+  if [[ "$pts" -eq 0 ]]; then
+    echo "   ⚠️ NO DATA — skipped"
+    rm -f "$raw"
+    continue
+  fi
+
+  echo "   ✔ $pts points"
+
+  jq --arg sym "$sym" '
+    [.prices[]
+      | {
+          timestamp: (.[0] / 1000 | floor),
+          prices: { ($sym): .[1] }
+        }
+    ]
+  ' "$raw" > "$arr"
+
+  rm -f "$raw"
+
+  echo "   ⏸ sleep ${SLEEP}s"
+  sleep "$SLEEP"
+
+done < "$TMP/coins.tsv"
+
+echo "⏳ Building final JSON..."
+
+jq -s '
+  add
+  | group_by(.timestamp)
+  | map({
+      timestamp: .[0].timestamp,
+      prices: (reduce .[] as $x ({}; . + $x.prices))
+    })
+  | sort_by(.timestamp)
+' "$TMP"/*.array.json > "$OUT"
+
+echo "✅ DONE"
+echo "→ File: $OUT"
+echo "→ Assets: $(jq '.[0].prices | keys | length' "$OUT")"
+echo "→ Points: $(jq 'length' "$OUT")"\nfrontend/eslint.config.js\nimport js from '@eslint/js'
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
@@ -914,173 +1020,4 @@ export function MarketCapCard({ capUsd, changePct, spark }: Props) {
       </div>
     </div>
   );
-}\nfrontend/src/components/assets/TopGainer7dCard.tsx\ntype Props = {
-  name: string;
-  symbol: string;
-  image?: string | null;
-  pct7d: number;
-};
-
-export function TopGainer7dCard({ name, symbol, image, pct7d }: Props) {
-  const isUp = pct7d >= 0;
-  const color = isUp ? "#4ADE80" : "#F87171";
-
-  return (
-    <div
-      className="card card-sm mb-3 h-100"
-      style={{
-        flex: 1,
-        display: "flex",
-        flexDirection: "column",
-        padding: "16px 20px",
-      }}
-    >
-      {/* Заголовок */}
-      <div
-        className="text-muted"
-        style={{
-          fontSize: "0.9rem",
-          marginBottom: 4,
-        }}
-      >
-        Top Gainer (7d)
-      </div>
-
-      {/* Центрированный контент */}
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 16,
-          }}
-        >
-          {/* Иконка (ТОЛЬКО если есть image) */}
-          {image ? (
-            <div
-              style={{
-                width: 66,
-                height: 66,
-                borderRadius: "999px",
-                border: "1px solid rgba(148, 163, 184, 0.7)",
-                background: "transparent",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <img
-                src={image}
-                alt={name}
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: "50%",
-                  objectFit: "cover",
-                }}
-              />
-            </div>
-          ) : null}
-
-          {/* Название + процент */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-            }}
-          >
-            <span
-              style={{
-                color: "#e5e7eb",
-                fontWeight: 600,
-                fontSize: "1.1rem",
-                letterSpacing: "0.04em",
-              }}
-            >
-              {symbol.toUpperCase()}
-            </span>
-
-            <span
-              style={{
-                color,
-                fontWeight: 700,
-                fontSize: "1.5rem",
-              }}
-            >
-              {isUp ? "+" : ""}
-              {pct7d.toFixed(2)}%
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}\nfrontend/src/components/portfolio/AssetSparklineCard.tsx\nimport { SparklineBase } from "../../charts/SparklineBase";
-
-type Props = {
-  name: string;
-  values: number[];
-  pct: number;
-  label?: string;
-};
-
-export function AssetSparklineCard({ name, values, pct, label }: Props) {
-  if (!values.length) return null;
-
-  const isUp = pct >= 0;
-  const color = isUp ? "#22c55e" : "#ef4444";
-  const pctStr = `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
-
-  return (
-    <div className="card card-sm" style={{ flex: 1, minWidth: 150 }}>
-      <div className="card-body">
-        {/* header */}
-        <div className="d-flex justify-content-between mb-1">
-          <div className="text-muted">{name}</div>
-          <div style={{ color }}>{pctStr}</div>
-        </div>
-
-        {/* период */}
-        {label && (
-          <div
-            style={{
-              fontSize: 12,
-              color: "#888",
-              marginTop: -2,
-              marginBottom: 6,
-            }}
-          >
-            {label}
-          </div>
-        )}
-
-        {/* centered sparkline */}
-        <div
-          style={{
-            width: "100%",
-            display: "flex",
-            justifyContent: "center",
-          }}
-        >
-          <div style={{ width: 140 }}> 
-            <SparklineBase
-              values={values}
-              color={color}
-              width={140}
-              height={40}
-              fullWidth={true}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}\nfrontend/src/components/portfolio/AssetSparklinesSection.tsx\n
+}\nfrontend/src/components/assets/TopGainer7dCard.tsx\n

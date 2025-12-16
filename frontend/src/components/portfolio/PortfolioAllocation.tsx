@@ -1,78 +1,73 @@
 import { useEffect, useRef, useMemo } from "react";
 import * as echarts from "echarts";
-import type { HistoryPoint } from "../../services/portfolio/portfolioService";
+
+import type {
+  AssetAmounts,
+  HistoryPoint,
+} from "../../services/portfolio/portfolioService";
 
 const ASSET_COLORS: Record<string, string> = {
   ETH: "#8A7FFF",
+  BTC: "#FFB45A",
   WBTC: "#FFB45A",
   USDC: "#5DA7FF",
+  USDT: "#2BB673",
   DAI: "#FFD86B",
   UNI: "#FF6F9E",
-  Others: "#6B7280", // серый для суммарной группы
-};
-
-const AMOUNTS = {
-  ETH: 2,
-  WBTC: 0.03,
-  USDC: 80,
-  DAI: 40,
-  UNI: 400,
+  SOL: "#66E0FF",
+  BNB: "#F3BA2F",
+  ADA: "#3CC8C8",
+  XRP: "#7C89FF",
+  DOGE: "#C2A633",
+  AVAX: "#E84142",
+  LINK: "#2A5ADA",
+  TON: "#4AA8FF",
+  Others: "#6B7280",
 };
 
 type Props = {
   history: HistoryPoint[];
+  amounts: AssetAmounts;
 };
 
-export function PortfolioAllocation({ history }: Props) {
+export function PortfolioAllocation({ history, amounts }: Props) {
   const chartRef = useRef<HTMLDivElement>(null);
   const chart = useRef<echarts.ECharts | null>(null);
 
-  // ============================
-  // 📌 Расчёт TOP-3 + Others
-  // ============================
   const allocation = useMemo(() => {
     if (!history.length) return [];
 
     const last = history[history.length - 1];
 
-    // 1) считаем стоимость всех активов
-    const values = Object.entries(AMOUNTS).map(([symbol, amount]) => {
-      const price = last.prices[symbol as keyof typeof last.prices];
-      const valueUsd = price * amount;
-      return { symbol, valueUsd };
-    });
+    const values = Object.entries(amounts || {})
+      .map(([symbol, amount]) => {
+        const price = last.prices[symbol] ?? 0;
+        const valueUsd = price * amount;
+        return { symbol, valueUsd };
+      })
+      .filter((x) => Number.isFinite(x.valueUsd) && x.valueUsd > 0);
 
-    // 2) сортировка по убыванию стоимости
+    if (!values.length) return [];
+
     const sorted = values.sort((a, b) => b.valueUsd - a.valueUsd);
-
-    // 3) топ 3
     const top3 = sorted.slice(0, 3);
 
-    // 4) остальные → Others
     const others = sorted.slice(3);
     const othersTotal = others.reduce((s, v) => s + v.valueUsd, 0);
 
     const finalList = [...top3];
-
     if (othersTotal > 0) {
-      finalList.push({
-        symbol: "Others",
-        valueUsd: othersTotal,
-      });
+      finalList.push({ symbol: "Others", valueUsd: othersTotal });
     }
 
-    // 5) проценты только внутри finalList
     const total = finalList.reduce((s, v) => s + v.valueUsd, 0);
 
     return finalList.map((v) => ({
       ...v,
       pct: total ? (v.valueUsd / total) * 100 : 0,
     }));
-  }, [history]);
+  }, [history, amounts]);
 
-  // ============================
-  // 📌 Инициализация donut один раз
-  // ============================
   useEffect(() => {
     if (!chartRef.current) return;
 
@@ -89,9 +84,6 @@ export function PortfolioAllocation({ history }: Props) {
     };
   }, []);
 
-  // ============================
-  // 📌 Обновление данных без пересоздания
-  // ============================
   useEffect(() => {
     if (!chart.current) return;
     if (!allocation.length) return;
@@ -107,135 +99,80 @@ export function PortfolioAllocation({ history }: Props) {
           center: ["50%", "50%"],
           label: { show: false },
           labelLine: { show: false },
-          minAngle: 2, // гарантирует видимость сегментов
+          minAngle: 2,
           data: allocation.map((a) => ({
             value: a.valueUsd,
             name: a.symbol,
-            itemStyle: { color: ASSET_COLORS[a.symbol] },
+            itemStyle: { color: ASSET_COLORS[a.symbol] ?? "#6B7280" },
           })),
         },
       ],
     };
 
     inst.setOption(option, {
-      notMerge: false,
-      lazyUpdate: false,
+      notMerge: true,
+      lazyUpdate: true,
       silent: true,
     });
   }, [allocation]);
 
-  if (!allocation.length) return null;
-
   return (
-    <div
-      className="card"
-      style={{
-        borderRadius: "10px",
-        height: "100%",
-        width: "100%",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <div
-        className="card-body"
-        style={{
-          display: "flex",
-          gap: "24px",
-          alignItems: "center",
-        }}
-      >
-        {/* ----------------------------------------------------
-           Donut
-        ---------------------------------------------------- */}
-        <div
-          ref={chartRef}
-          style={{
-            width: "190px",
-            height: "190px",
-            flexShrink: 0,
-          }}
-        />
+    <div className="card p-3" style={{ width: "100%" }}>
+      <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+        Portfolio Allocation
+      </div>
 
-        {/* ----------------------------------------------------
-            Легенда TOP-3 + Others
-        ---------------------------------------------------- */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "14px",
-            width: "100%",
-          }}
-        >
-          {/* Заголовок */}
-          <h4
-            style={{
-              margin: 0,
-              fontSize: "20px",
-              color: "#FAFAFA",
-              fontWeight: 600,
-              letterSpacing: "0.2px",
-            }}
-          >
-            Portfolio Allocation
-          </h4>
+      <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 14 }}>
+        <div style={{ height: 220 }}>
+          <div ref={chartRef} style={{ width: "100%", height: "100%" }} />
+        </div>
 
-          {/* Header */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "18px 110px 110px 70px",
-              fontSize: "14px",
-              color: "#E8E8E8",
-              paddingBottom: "6px",
-              borderBottom: "1px solid rgba(255,255,255,0.08)",
-              fontWeight: 500,
+              gridTemplateColumns: "14px 1fr 1fr 60px",
+              gap: 10,
+              alignItems: "center",
+              fontSize: 13,
+              color: "rgba(255,255,255,0.6)",
+              marginBottom: 4,
             }}
           >
-            <div></div>
+            <div />
             <div>Asset</div>
             <div>Value</div>
-            <div style={{ textAlign: "right" }}>Share</div>
+            <div style={{ textAlign: "right" }}>%</div>
           </div>
 
-          {/* Rows */}
           {allocation.map((a) => (
             <div
               key={a.symbol}
               style={{
                 display: "grid",
-                gridTemplateColumns: "18px 110px 110px 70px",
+                gridTemplateColumns: "14px 1fr 1fr 60px",
+                gap: 10,
                 alignItems: "center",
-                fontSize: "15px",
-                color: "#EFEFEF",
+                padding: "8px 10px",
+                borderRadius: 10,
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.06)",
               }}
             >
-              {/* Colored dot */}
               <div
                 style={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: "50%",
-                  background: ASSET_COLORS[a.symbol],
+                  width: 10,
+                  height: 10,
+                  borderRadius: 999,
+                  background: ASSET_COLORS[a.symbol] ?? "#6B7280",
                   justifySelf: "center",
                 }}
               />
 
-              {/* Asset name */}
               <div style={{ fontWeight: 500 }}>{a.symbol}</div>
-
-              {/* USD value */}
               <div>${a.valueUsd.toFixed(0)}</div>
 
-              {/* percentage */}
-              <div
-                style={{
-                  textAlign: "right",
-                  fontWeight: 500,
-                  color: "#EFEFEF",
-                }}
-              >
+              <div style={{ textAlign: "right", fontWeight: 500, color: "#EFEFEF" }}>
                 {a.pct.toFixed(1)}%
               </div>
             </div>

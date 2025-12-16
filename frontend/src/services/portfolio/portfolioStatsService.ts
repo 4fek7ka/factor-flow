@@ -1,39 +1,24 @@
-import type { HistoryPoint } from "./portfolio/portfolioService";
-
-// те же веса, что и в Portfolio
-const AMOUNTS = {
-  ETH: 2,
-  WBTC: 0.03,
-  USDC: 80,
-  DAI: 40,
-  UNI: 400,
-};
-
-function calcPortfolioValue(p: HistoryPoint): number {
-  const pr = p.prices;
-  return (
-    pr.ETH * AMOUNTS.ETH +
-    pr.WBTC * AMOUNTS.WBTC +
-    pr.USDC * AMOUNTS.USDC +
-    pr.DAI * AMOUNTS.DAI +
-    pr.UNI * AMOUNTS.UNI
-  );
-}
+import type {
+  AssetAmounts,
+  HistoryPoint,
+} from "./portfolioService";
+import { calcPortfolioValue, DEFAULT_AMOUNTS } from "./portfolioService";
 
 export type EstimatedParams = {
-  drift: number;      // μ — mean log-return per day
+  drift: number; // μ — mean log-return per day
   volatility: number; // σ — std of log-returns per day
 };
 
 export function estimatePortfolioParams(
-  history: HistoryPoint[]
+  history: HistoryPoint[],
+  amounts: AssetAmounts = DEFAULT_AMOUNTS
 ): EstimatedParams {
   if (history.length < 2) {
     return { drift: 0, volatility: 0 };
   }
 
   const values: number[] = history
-    .map(calcPortfolioValue)
+    .map((p) => calcPortfolioValue(p, amounts))
     .filter((v) => Number.isFinite(v) && v > 0);
 
   if (values.length < 2) {
@@ -45,9 +30,7 @@ export function estimatePortfolioParams(
 
   for (let i = 1; i < values.length; i++) {
     const r = Math.log(values[i] / values[i - 1]);
-    if (Number.isFinite(r)) {
-      returns.push(r);
-    }
+    if (Number.isFinite(r)) returns.push(r);
   }
 
   if (!returns.length) {
@@ -55,13 +38,11 @@ export function estimatePortfolioParams(
   }
 
   // mean (drift)
-  const mean =
-    returns.reduce((sum, r) => sum + r, 0) / returns.length;
+  const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
 
   // std (volatility)
   const variance =
-    returns.reduce((sum, r) => sum + (r - mean) ** 2, 0) /
-    returns.length;
+    returns.reduce((sum, r) => sum + (r - mean) ** 2, 0) / returns.length;
 
   const std = Math.sqrt(variance);
 

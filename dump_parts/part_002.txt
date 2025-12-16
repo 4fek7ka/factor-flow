@@ -1,4 +1,173 @@
-import  { useMemo } from "react";
+type Props = {
+  name: string;
+  symbol: string;
+  image?: string | null;
+  pct7d: number;
+};
+
+export function TopGainer7dCard({ name, symbol, image, pct7d }: Props) {
+  const isUp = pct7d >= 0;
+  const color = isUp ? "#4ADE80" : "#F87171";
+
+  return (
+    <div
+      className="card card-sm mb-3 h-100"
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        padding: "16px 20px",
+      }}
+    >
+      {/* Заголовок */}
+      <div
+        className="text-muted"
+        style={{
+          fontSize: "0.9rem",
+          marginBottom: 4,
+        }}
+      >
+        Top Gainer (7d)
+      </div>
+
+      {/* Центрированный контент */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+          }}
+        >
+          {/* Иконка (ТОЛЬКО если есть image) */}
+          {image ? (
+            <div
+              style={{
+                width: 66,
+                height: 66,
+                borderRadius: "999px",
+                border: "1px solid rgba(148, 163, 184, 0.7)",
+                background: "transparent",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <img
+                src={image}
+                alt={name}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                }}
+              />
+            </div>
+          ) : null}
+
+          {/* Название + процент */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            <span
+              style={{
+                color: "#e5e7eb",
+                fontWeight: 600,
+                fontSize: "1.1rem",
+                letterSpacing: "0.04em",
+              }}
+            >
+              {symbol.toUpperCase()}
+            </span>
+
+            <span
+              style={{
+                color,
+                fontWeight: 700,
+                fontSize: "1.5rem",
+              }}
+            >
+              {isUp ? "+" : ""}
+              {pct7d.toFixed(2)}%
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}\nfrontend/src/components/portfolio/AssetSparklineCard.tsx\nimport { SparklineBase } from "../../charts/SparklineBase";
+
+type Props = {
+  name: string;
+  values: number[];
+  pct: number;
+  label?: string;
+};
+
+export function AssetSparklineCard({ name, values, pct, label }: Props) {
+  if (!values.length) return null;
+
+  const isUp = pct >= 0;
+  const color = isUp ? "#22c55e" : "#ef4444";
+  const pctStr = `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
+
+  return (
+    <div className="card card-sm" style={{ flex: 1, minWidth: 150 }}>
+      <div className="card-body">
+        {/* header */}
+        <div className="d-flex justify-content-between mb-1">
+          <div className="text-muted">{name}</div>
+          <div style={{ color }}>{pctStr}</div>
+        </div>
+
+        {/* период */}
+        {label && (
+          <div
+            style={{
+              fontSize: 12,
+              color: "#888",
+              marginTop: -2,
+              marginBottom: 6,
+            }}
+          >
+            {label}
+          </div>
+        )}
+
+        {/* centered sparkline */}
+        <div
+          style={{
+            width: "100%",
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          <div style={{ width: 140 }}> 
+            <SparklineBase
+              values={values}
+              color={color}
+              width={140}
+              height={40}
+              fullWidth={true}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}\nfrontend/src/components/portfolio/AssetSparklinesSection.tsx\nimport  { useMemo } from "react";
 import type { HistoryPoint } from "../../services/portfolio/portfolioService";
 import { AssetSparklineCard } from "./AssetSparklineCard";
 

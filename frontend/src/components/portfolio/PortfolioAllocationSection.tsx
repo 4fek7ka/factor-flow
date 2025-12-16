@@ -1,14 +1,17 @@
-
-import type { HistoryPoint } from "../../services/portfolio/portfolioService";
+import type {
+  AssetAmounts,
+  HistoryPoint,
+} from "../../services/portfolio/portfolioService";
 
 import { PortfolioAllocation } from "./PortfolioAllocation";
 import { VolatilityArcCard } from "./VolatilityArcCard";
 
 type Props = {
   history: HistoryPoint[];
+  amounts: AssetAmounts;
 };
 
-export function PortfolioAllocationSection({ history }: Props) {
+export function PortfolioAllocationSection({ history, amounts }: Props) {
   return (
     <div
       style={{
@@ -19,7 +22,6 @@ export function PortfolioAllocationSection({ history }: Props) {
         width: "100%",
       }}
     >
-      {/* LEFT – fixed 620px */}
       <div
         style={{
           width: "620px",
@@ -27,17 +29,16 @@ export function PortfolioAllocationSection({ history }: Props) {
           display: "flex",
         }}
       >
-        <PortfolioAllocation history={history} />
+        <PortfolioAllocation history={history} amounts={amounts} />
       </div>
 
-      {/* RIGHT – expands to fill all remaining space */}
       <div
         style={{
           flex: 1,
           display: "flex",
         }}
       >
-        <VolatilityArcCard history={history} />
+        <VolatilityArcCard history={history} amounts={amounts} />
       </div>
     </div>
   );

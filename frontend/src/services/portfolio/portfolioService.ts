@@ -1,17 +1,14 @@
 export type Period = "year" | "month" | "week";
 
+export type AssetAmounts = Record<string, number>;
+
 export type HistoryPoint = {
   timestamp: number; // unix seconds
-  prices: {
-    ETH: number;
-    WBTC: number;
-    USDC: number;
-    DAI: number;
-    UNI: number;
-  };
+  prices: Record<string, number>;
 };
 
-const AMOUNTS = {
+// fallback (если где-то не передали amounts)
+export const DEFAULT_AMOUNTS: AssetAmounts = {
   ETH: 2,
   WBTC: 0.03,
   USDC: 80,
@@ -19,15 +16,19 @@ const AMOUNTS = {
   UNI: 400,
 };
 
-function calcPortfolioValue(p: HistoryPoint): number {
+export function calcPortfolioValue(
+  p: HistoryPoint,
+  amounts: AssetAmounts = DEFAULT_AMOUNTS
+): number {
   const pr = p.prices;
-  return (
-    pr.ETH * AMOUNTS.ETH +
-    pr.WBTC * AMOUNTS.WBTC +
-    pr.USDC * AMOUNTS.USDC +
-    pr.DAI * AMOUNTS.DAI +
-    pr.UNI * AMOUNTS.UNI
-  );
+  let total = 0;
+
+  for (const [sym, amount] of Object.entries(amounts)) {
+    const price = pr[sym] ?? 0;
+    total += price * amount;
+  }
+
+  return total;
 }
 
 export function filterHistoryByPeriod(history: HistoryPoint[], period: Period) {
@@ -47,7 +48,7 @@ export function filterHistoryByPeriod(history: HistoryPoint[], period: Period) {
 
 /* ================================
    📌 Downsampling (visual)
-   ================================ */
+================================ */
 
 function downsample(xs: number[], ys: number[], target: number) {
   const n = xs.length;
@@ -72,12 +73,16 @@ function downsample(xs: number[], ys: number[], target: number) {
 }
 
 /* ================================
-   ✅ Экспорт, который у тебя импортируется
-   ================================ */
+   ✅ Series
+================================ */
 
-export function buildPortfolioSeries(history: HistoryPoint[], period: Period) {
+export function buildPortfolioSeries(
+  history: HistoryPoint[],
+  period: Period,
+  amounts: AssetAmounts = DEFAULT_AMOUNTS
+) {
   const rawTimestamps = history.map((p) => p.timestamp * 1000);
-  const values = history.map(calcPortfolioValue);
+  const values = history.map((p) => calcPortfolioValue(p, amounts));
 
   if (!values.length) {
     return { timestamps: [], percentValues: [] };
@@ -88,15 +93,17 @@ export function buildPortfolioSeries(history: HistoryPoint[], period: Period) {
     base === 0 ? 0 : ((v - base) / base) * 100
   );
 
-  const target =
-    period === "week" ? 50 : period === "month" ? 70 : 150;
-
+  const target = period === "week" ? 50 : period === "month" ? 70 : 150;
   const { xs, ys } = downsample(rawTimestamps, rawPercentValues, target);
 
   return { timestamps: xs, percentValues: ys };
 }
 
-export function buildTopMetrics(history: HistoryPoint[]) {
+export function buildTopMetrics(
+  history: HistoryPoint[],
+  amounts: AssetAmounts = DEFAULT_AMOUNTS,
+  btcSymbol: string = "BTC"
+) {
   if (history.length < 2) {
     return {
       tvl: 0,
@@ -111,14 +118,18 @@ export function buildTopMetrics(history: HistoryPoint[]) {
   const first = history[0];
   const last = history[history.length - 1];
 
-  const startValue = calcPortfolioValue(first);
-  const endValue = calcPortfolioValue(last);
+  const startValue = calcPortfolioValue(first, amounts);
+  const endValue = calcPortfolioValue(last, amounts);
 
   const changeUsd = endValue - startValue;
   const changePct = startValue === 0 ? 0 : (changeUsd / startValue) * 100;
 
-  const btcStart = first.prices.WBTC;
-  const btcEnd = last.prices.WBTC;
+  // BTC benchmark (если BTC нет — fallback на WBTC)
+  const btcStart =
+    first.prices[btcSymbol] ?? first.prices["WBTC"] ?? first.prices["BTC"] ?? 0;
+  const btcEnd =
+    last.prices[btcSymbol] ?? last.prices["WBTC"] ?? last.prices["BTC"] ?? 0;
+
   const btcPct = btcStart === 0 ? 0 : ((btcEnd - btcStart) / btcStart) * 100;
 
   const vsBtcPp = changePct - btcPct;

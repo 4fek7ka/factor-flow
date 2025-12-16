@@ -4,6 +4,7 @@ import * as echarts from "echarts";
 import {
   buildPortfolioSeries,
   filterHistoryByPeriod,
+  type AssetAmounts,
 } from "../../services/portfolio/portfolioService";
 
 import type { HistoryPoint, Period } from "../../services/portfolio/portfolioService";
@@ -14,12 +15,14 @@ type Props = {
   history: HistoryPoint[];
   period: Period;
   onPeriodChange: (p: Period) => void;
+  amounts: AssetAmounts;
 };
 
 export function PortfolioChartCard({
   history,
   period,
   onPeriodChange,
+  amounts,
 }: Props) {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
@@ -44,31 +47,33 @@ export function PortfolioChartCard({
     };
   }, []);
 
-  // Update chart (анимация как раньше)
+  // Update chart
   useEffect(() => {
     const chart = chartInstance.current;
     if (!chart) return;
 
     const filteredHistory = filterHistoryByPeriod(history, period);
-    const { timestamps, percentValues } =
-      buildPortfolioSeries(filteredHistory, period);
+    const { timestamps, percentValues } = buildPortfolioSeries(
+      filteredHistory,
+      period,
+      amounts
+    );
 
     if (!percentValues.length) return;
 
     const option = buildPortfolioChartOption(timestamps, percentValues, {
       seriesId: seriesIdRef.current,
-      initial: true, // всегда проигрываем "первичную" анимацию линии
+      initial: true,
       opacity: 1,
     });
 
     chart.setOption(option, {
-      notMerge: true,   // создаём новую серию
+      notMerge: true,
       lazyUpdate: true,
       silent: true,
     });
-  }, [history, period]);
+  }, [history, period, amounts]);
 
-  // Переключение табов — только смена id серии + периода
   const switchPeriod = (next: Period) => {
     if (next === period) return;
 
@@ -128,7 +133,6 @@ export function PortfolioChartCard({
         }
       `}</style>
 
-      {/* Tabs */}
       <div className="period-tabs-wrap">
         <div className="period-tabs">
           <div
@@ -158,7 +162,6 @@ export function PortfolioChartCard({
         </div>
       </div>
 
-      {/* Chart без внешнего fade/blur */}
       <div style={{ width: "100%", height: "350px" }}>
         <div ref={chartRef} style={{ width: "100%", height: "100%" }} />
       </div>
