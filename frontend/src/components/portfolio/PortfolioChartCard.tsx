@@ -4,9 +4,9 @@ import * as echarts from "echarts";
 import {
   buildPortfolioSeries,
   filterHistoryByPeriod,
-} from "../../services/portfolioService";
+} from "../../services/portfolio/portfolioService";
 
-import type { HistoryPoint, Period } from "../../services/portfolioService";
+import type { HistoryPoint, Period } from "../../services/portfolio/portfolioService";
 
 import { buildPortfolioChartOption } from "../../charts/portfolioChartOptions";
 

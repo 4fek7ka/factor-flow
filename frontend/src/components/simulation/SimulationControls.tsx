@@ -1,6 +1,6 @@
 // SimulationControls.tsx
 import type { ReactNode } from "react";
-import type { Scenario } from "../../services/monteCarloService";
+import type { Scenario } from "../../services/simulation/monteCarloService";
 
 export type SimulationParams = {
   horizonDays: 30 | 90 | 180 | 365;

@@ -1,5 +1,5 @@
 import  { useMemo } from "react";
-import type { HistoryPoint } from "../../services/portfolioService";
+import type { HistoryPoint } from "../../services/portfolio/portfolioService";
 import { AssetSparklineCard } from "./AssetSparklineCard";
 
 type Props = {

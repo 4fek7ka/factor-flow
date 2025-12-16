@@ -1,4 +1,4 @@
-import type { HistoryPoint } from "./portfolioService";
+import type { HistoryPoint } from "./portfolio/portfolioService";
 
 // те же веса, что и в Portfolio
 const AMOUNTS = {

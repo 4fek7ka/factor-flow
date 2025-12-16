@@ -4,9 +4,9 @@ import historyJson from "../data/mock-history.json";
 import {
   buildTopMetrics,
   filterHistoryByPeriod,
-} from "../services/portfolioService";
+} from "../services/portfolio/portfolioService";
 
-import type { HistoryPoint, Period } from "../services/portfolioService";
+import type { HistoryPoint, Period } from "../services/portfolio/portfolioService";
 
 // portfolio components
 import { PortfolioMetricsRow } from "../components/portfolio/PortfolioMetricsRow";

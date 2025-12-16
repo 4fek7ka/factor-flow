@@ -1,5 +1,5 @@
 // src/services/moodService.ts
-import type { HistoryPoint } from "./portfolioService";
+import type { HistoryPoint } from "./portfolio/portfolioService";
 
 export type MarketMood = {
   fearFactor: number; // 0–100

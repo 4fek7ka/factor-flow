@@ -2,11 +2,11 @@
 import { useMemo, useState } from "react";
 import historyJson from "../data/mock-history.json";
 
-import type { HistoryPoint } from "../services/portfolioService";
-import { filterHistoryByPeriod } from "../services/portfolioService";
+import type { HistoryPoint } from "../services/portfolio/portfolioService";
+import { filterHistoryByPeriod } from "../services/portfolio/portfolioService";
 
-import { estimatePortfolioParams } from "../services/portfolioStatsService";
-import { runMonteCarloAdvanced } from "../services/monteCarloService";
+import { estimatePortfolioParams } from "../services/portfolio/portfolioStatsService";
+import { runMonteCarloAdvanced } from "../services/simulation/monteCarloService";
 
 import { SimulationChartCard } from "../components/simulation/SimulationChartCard";
 import {

@@ -4,7 +4,7 @@ import {
   fetchMarkets,
   fetchGlobal,
   fetchFearGreed,
-} from "../services/assetsApi";
+} from "../services//assets/assetsApi";
 
 import {
   saveMarkets,
@@ -14,7 +14,7 @@ import {
   readGlobal,
   saveFearGreed,
   readFearGreed,
-} from "../services/assetsCache";
+} from "../services/assets/assetsCache";
 
 import {
   buildAssetsTable,
@@ -22,9 +22,9 @@ import {
   getGlobalMarketCapSnapshot,
   getTopGainer7d,
   type AssetRow,
-} from "../services/assetsSelectors";
+} from "../services/assets/assetsSelectors";
 
-import { fetchBinancePrices } from "../services/binanceService";
+import { fetchBinancePrices } from "../services/assets/binanceService";
 
 import { AssetsTable } from "../components/assets/AssetsTable";
 import { MarketCapCard } from "../components/assets/MarketCapCard";

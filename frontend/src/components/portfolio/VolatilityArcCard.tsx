@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { HistoryPoint } from "../../services/portfolioService";
+import type { HistoryPoint } from "../../services/portfolio/portfolioService";
 
 function calcPortfolioValue(p: HistoryPoint) {
   const AMOUNTS = { ETH: 2, WBTC: 0.03, USDC: 80, DAI: 40, UNI: 400 };

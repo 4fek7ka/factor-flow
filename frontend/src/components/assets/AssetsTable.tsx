@@ -1,4 +1,4 @@
-import type { AssetRow } from "../../services/assetsSelectors";
+import type { AssetRow } from "../../services/assets/assetsSelectors";
 import { AssetRowItem } from "./AssetRow";
 
 type Props = {
