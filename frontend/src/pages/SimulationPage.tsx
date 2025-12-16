@@ -1,44 +1,59 @@
 import { useMemo, useState } from "react";
+import { useOutletContext } from "react-router-dom";
+
 import historyJson from "../data/mock-history.json";
 import portfoliosJson from "../data/mock-portfolios.json";
 
-import type { AssetAmounts, HistoryPoint } from "../services/portfolio/portfolioService";
-import { filterHistoryByPeriod } from "../services/portfolio/portfolioService";
+import type {
+  AssetAmounts,
+  HistoryPoint,
+} from "../services/portfolio/portfolioService";
 
-import { estimatePortfolioParams } from "../services/portfolio/portfolioStatsService";
-import { runMonteCarloAdvanced } from "../services/simulation/monteCarloService";
+import {
+  filterHistoryByPeriod,
+} from "../services/portfolio/portfolioService";
+
+import {
+  estimatePortfolioParams,
+} from "../services/portfolio/portfolioStatsService";
+
+import {
+  runMonteCarloAdvanced,
+} from "../services/simulation/monteCarloService";
 
 import { SimulationChartCard } from "../components/simulation/SimulationChartCard";
 import {
   SimulationControls,
   type SimulationParams,
 } from "../components/simulation/SimulationControls";
-
 import { FinalOutcomeCard } from "../components/simulation/FinalOutcomeCard";
 import { OutcomeDistributionCard } from "../components/simulation/OutcomeDistributionCard";
 
-type MockProfile = {
+type OutletCtx = {
+  profileId: string;
+};
+
+type Profile = {
   id: string;
-  name: string;
   assets: AssetAmounts;
 };
 
-type MockPortfoliosFile = {
-  profiles: MockProfile[];
-};
-
-function periodFromHorizon(h: 30 | 90 | 180 | 365) {
-  if (h === 30) return "month";
-  if (h === 90) return "month";
-  if (h === 180) return "year";
+function periodFromHorizon(h: number) {
+  if (h <= 30) return "month";
+  if (h <= 90) return "month";
   return "year";
 }
 
 export function SimulationPage() {
-  const history = historyJson as unknown as HistoryPoint[];
+  const { profileId } = useOutletContext<OutletCtx>();
 
-  const portfolios = (portfoliosJson as unknown as MockPortfoliosFile).profiles;
-  const amounts = portfolios[0]?.assets ?? {};
+  const history = historyJson as unknown as HistoryPoint[];
+  const profiles = (portfoliosJson as any).profiles as Profile[];
+
+  const profile =
+    profiles.find((p) => p.id === profileId) ?? profiles[0];
+
+  const amounts = profile.assets;
 
   const [params, setParams] = useState<SimulationParams>({
     horizonDays: 90,
@@ -52,7 +67,7 @@ export function SimulationPage() {
   });
 
   const filteredHistory = useMemo(() => {
-    const period = periodFromHorizon(params.horizonDays);
+    const period = periodFromHorizon(params.horizonDays) as any;
     return filterHistoryByPeriod(history, period);
   }, [history, params.horizonDays]);
 
@@ -60,7 +75,15 @@ export function SimulationPage() {
     return estimatePortfolioParams(filteredHistory, amounts);
   }, [filteredHistory, amounts]);
 
-  const startValue = 100;
+  const startValue = useMemo(() => {
+    if (!filteredHistory.length) return 100;
+    const last = filteredHistory[filteredHistory.length - 1];
+    let v = 0;
+    for (const [sym, amt] of Object.entries(amounts)) {
+      v += (last.prices[sym] ?? 0) * amt;
+    }
+    return v || 100;
+  }, [filteredHistory, amounts]);
 
   const sim = useMemo(() => {
     return runMonteCarloAdvanced({
@@ -72,12 +95,12 @@ export function SimulationPage() {
       scenario: params.scenario,
     });
   }, [
+    startValue,
     drift,
     volatility,
     params.horizonDays,
     params.simulations,
     params.scenario,
-    startValue,
   ]);
 
   const finalMedian = sim.median.at(-1) ?? startValue;
@@ -99,46 +122,37 @@ export function SimulationPage() {
             minWidth: 0,
           }}
         >
-          <div
-            style={{
-              background: "#0f172a",
-              border: "1px solid rgba(255,255,255,0.06)",
-              borderRadius: 12,
-              padding: 8,
-            }}
-          >
-            <SimulationChartCard
-              timestamps={sim.timestamps}
-              median={sim.median}
-              representative={sim.representative}
-              upper={sim.upper}
-              lower={sim.lower}
-              cloud={sim.paths}
-              showCloud={params.showCloud}
-              showMedian={params.showMedian}
-              showRepresentative={params.showRepresentative}
-              showRange={params.showRange}
-              showFan={params.showFan}
-              onToggleCloud={() =>
-                setParams((p) => ({ ...p, showCloud: !p.showCloud }))
-              }
-              onToggleMedian={() =>
-                setParams((p) => ({ ...p, showMedian: !p.showMedian }))
-              }
-              onToggleRepresentative={() =>
-                setParams((p) => ({
-                  ...p,
-                  showRepresentative: !p.showRepresentative,
-                }))
-              }
-              onToggleFan={() =>
-                setParams((p) => ({ ...p, showFan: !p.showFan }))
-              }
-              onToggleRange={() =>
-                setParams((p) => ({ ...p, showRange: !p.showRange }))
-              }
-            />
-          </div>
+          <SimulationChartCard
+            timestamps={sim.timestamps}
+            median={sim.median}
+            representative={sim.representative}
+            upper={sim.upper}
+            lower={sim.lower}
+            cloud={sim.paths}
+            showCloud={params.showCloud}
+            showMedian={params.showMedian}
+            showRepresentative={params.showRepresentative}
+            showRange={params.showRange}
+            showFan={params.showFan}
+            onToggleCloud={() =>
+              setParams((p) => ({ ...p, showCloud: !p.showCloud }))
+            }
+            onToggleMedian={() =>
+              setParams((p) => ({ ...p, showMedian: !p.showMedian }))
+            }
+            onToggleRepresentative={() =>
+              setParams((p) => ({
+                ...p,
+                showRepresentative: !p.showRepresentative,
+              }))
+            }
+            onToggleFan={() =>
+              setParams((p) => ({ ...p, showFan: !p.showFan }))
+            }
+            onToggleRange={() =>
+              setParams((p) => ({ ...p, showRange: !p.showRange }))
+            }
+          />
 
           <div
             style={{
@@ -147,14 +161,15 @@ export function SimulationPage() {
               gap: 14,
             }}
           >
-            <FinalOutcomeCard startValue={startValue} median={finalMedian} />
+            <FinalOutcomeCard
+              startValue={startValue}
+              median={finalMedian}
+            />
             <OutcomeDistributionCard paths={sim.paths} />
           </div>
         </div>
 
-        <div>
-          <SimulationControls value={params} onChange={setParams} />
-        </div>
+        <SimulationControls value={params} onChange={setParams} />
       </div>
     </div>
   );

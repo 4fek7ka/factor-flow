@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useOutletContext } from "react-router-dom";
 
 import historyJson from "../data/mock-history.json";
 import portfoliosJson from "../data/mock-portfolios.json";
@@ -14,118 +15,53 @@ import type {
   Period,
 } from "../services/portfolio/portfolioService";
 
-// portfolio components
+// components
 import { PortfolioMetricsRow } from "../components/portfolio/PortfolioMetricsRow";
 import { PortfolioChartCard } from "../components/portfolio/PortfolioChartCard";
 import { AssetSparklinesSection } from "../components/portfolio/AssetSparklinesSection";
 import { PortfolioAllocationSection } from "../components/portfolio/PortfolioAllocationSection";
 
-type MockProfile = {
-  id: string;
-  name: string;
-  owner?: { name?: string; address?: string };
-  description?: string;
-  assets: AssetAmounts; // количества монет
+type OutletCtx = {
+  profileId: string;
 };
 
-type MockPortfoliosFile = {
-  profiles: MockProfile[];
+type Profile = {
+  id: string;
+  name: string;
+  assets: AssetAmounts;
 };
 
 export function PortfolioPage() {
+  const { profileId } = useOutletContext<OutletCtx>();
+
   const history = historyJson as unknown as HistoryPoint[];
+  const profiles = (portfoliosJson as any).profiles as Profile[];
 
-  const portfolios = (portfoliosJson as unknown as MockPortfoliosFile).profiles;
-  const defaultProfileId = portfolios[0]?.id ?? "conservative";
+  const profile =
+    profiles.find((p) => p.id === profileId) ?? profiles[0];
 
-  const [profileId, setProfileId] = useState<string>(defaultProfileId);
+  const amounts = profile.assets;
+
   const [period, setPeriod] = useState<Period>("year");
 
-  const profile = useMemo(() => {
-    return portfolios.find((p) => p.id === profileId) ?? portfolios[0];
-  }, [portfolios, profileId]);
-
-  const amounts = profile?.assets ?? {};
-
-  // фильтрация под период
   const filteredHistory = useMemo(
     () => filterHistoryByPeriod(history, period),
     [history, period]
   );
 
-  // метрики сверху (ВАЖНО: считаются от amounts профиля)
   const metrics = useMemo(
     () => buildTopMetrics(filteredHistory, amounts, "BTC"),
     [filteredHistory, amounts]
   );
 
   const profileSymbols = useMemo(() => {
-    const syms = Object.keys(amounts || {});
-    // чтобы не раздувать UI — первые 5 по убыванию количества
-    return syms
+    return Object.keys(amounts)
       .sort((a, b) => (amounts[b] ?? 0) - (amounts[a] ?? 0))
       .slice(0, 5);
   }, [amounts]);
 
   return (
     <div>
-      {/* ============================== */}
-      {/* PROFILE SELECT */}
-      {/* ============================== */}
-      <div className="row row-cards mb-3">
-        <div className="col-12">
-          <div className="card card-sm">
-            <div className="card-body">
-              <div
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  flexWrap: "wrap",
-                }}
-              >
-                <div style={{ minWidth: 240 }}>
-                  <div className="text-muted">Profile</div>
-                  <div style={{ fontSize: 18, fontWeight: 600 }}>
-                    {profile?.name ?? "—"}
-                  </div>
-                  {profile?.owner?.address && (
-                    <div className="text-muted" style={{ marginTop: 4 }}>
-                      {profile.owner.address}
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <select
-                    className="form-select"
-                    value={profileId}
-                    onChange={(e) => setProfileId(e.target.value)}
-                    style={{ width: 260 }}
-                  >
-                    {portfolios.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {profile?.description && (
-                <div className="text-muted" style={{ marginTop: 10 }}>
-                  {profile.description}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ============================== */}
-      {/* МЕТРИКИ НАВЕРХУ */}
-      {/* ============================== */}
       <PortfolioMetricsRow
         tvl={metrics.tvl}
         lastTsMs={metrics.lastTsMs}
@@ -136,25 +72,22 @@ export function PortfolioPage() {
         period={period}
       />
 
-      {/* ============================== */}
-      {/* ОСНОВНОЙ ГРАФИК ПОРТФЕЛЯ */}
-      {/* ============================== */}
       <PortfolioChartCard
+        history={history}
         period={period}
         onPeriodChange={setPeriod}
-        history={history}
         amounts={amounts}
       />
 
-      {/* ============================== */}
-      {/* PORTFOLIO ALLOCATION + VOLATILITY */}
-      {/* ============================== */}
-      <PortfolioAllocationSection history={filteredHistory} amounts={amounts} />
+      <PortfolioAllocationSection
+        history={filteredHistory}
+        amounts={amounts}
+      />
 
-      {/* ============================== */}
-      {/* МИНИ-ГРАФИКИ АКТИВОВ (24H) */}
-      {/* ============================== */}
-      <AssetSparklinesSection history={filteredHistory} symbols={profileSymbols} />
+      <AssetSparklinesSection
+        history={filteredHistory}
+        symbols={profileSymbols}
+      />
     </div>
   );
 }

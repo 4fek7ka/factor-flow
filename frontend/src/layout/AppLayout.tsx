@@ -1,80 +1,49 @@
 import { Outlet } from "react-router-dom";
+import { useState } from "react";
 import { Sidebar } from "./Sidebar";
+import { ProfileSwitcher } from "./ProfileSwitcher";
 
 export function AppLayout() {
+  const [profileId, setProfileId] = useState("conservative");
+
   return (
-    <div
-      style={{
-        display: "flex",
-        width: "100vw",
-        height: "100vh",
-        background: "#020617",
-        color: "#e5e7eb",
-        overflow: "hidden",
-      }}
-    >
-      {/* Левый сайдбар */}
+    <div style={{ display: "flex", minHeight: "100vh", background: "#070B17" }}>
       <Sidebar />
 
-      {/* Правая часть: navbar + контент */}
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          minWidth: 0,
-        }}
-      >
-        {/* TOP NAVBAR */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {/* ================= HEADER (STICKY) ================= */}
         <header
           style={{
+            position: "sticky",
+            top: 0,
+            zIndex: 50,
             height: 56,
-            flexShrink: 0,
-            borderBottom: "1px solid rgba(148,163,184,0.2)",
             display: "flex",
             alignItems: "center",
-            padding: "0 24px",
-            background: "#020617",
+            justifyContent: "space-between",
+            padding: "0 20px",
+            background: "#111827",
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
           }}
         >
-          <div
-            style={{
-              width: "100%",
-              maxWidth: 1280,
-              margin: "0 auto",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 18,
-                fontWeight: 600,
-                letterSpacing: 0.3,
-              }}
-            >
-              Factor Flow
-            </div>
-          </div>
+          <div style={{ fontWeight: 600, color: "#fff" }}>Factor Flow</div>
+
+          <ProfileSwitcher
+            selectedId={profileId}
+            onSelect={setProfileId}
+          />
         </header>
 
-        {/* MAIN CONTENT */}
-        <main
-          style={{
-            flex: 1,
-            overflowY: "auto",
-          }}
-        >
+        {/* ================= CONTENT ================= */}
+        <main style={{ padding: 24 }}>
           <div
             style={{
-              width: "100%",
               maxWidth: 1280,
               margin: "0 auto",
-              padding: "20px 24px 32px",
+              width: "100%",
             }}
           >
-            <Outlet />
+            <Outlet context={{ profileId }} />
           </div>
         </main>
       </div>
