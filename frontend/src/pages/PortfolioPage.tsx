@@ -37,8 +37,7 @@ export function PortfolioPage() {
   const history = historyJson as unknown as HistoryPoint[];
   const profiles = (portfoliosJson as any).profiles as Profile[];
 
-  const profile =
-    profiles.find((p) => p.id === profileId) ?? profiles[0];
+  const profile = profiles.find((p) => p.id === profileId) ?? profiles[0];
 
   const amounts = profile.assets;
 
@@ -79,15 +78,11 @@ export function PortfolioPage() {
         amounts={amounts}
       />
 
-      <PortfolioAllocationSection
-        history={filteredHistory}
-        amounts={amounts}
-      />
+      {/* ✅ VolatilityArcCard под графиком УБРАН (чтобы не было дубля) */}
 
-      <AssetSparklinesSection
-        history={filteredHistory}
-        symbols={profileSymbols}
-      />
+      <PortfolioAllocationSection history={filteredHistory} amounts={amounts} />
+
+      <AssetSparklinesSection history={filteredHistory} symbols={profileSymbols} />
     </div>
   );
 }
