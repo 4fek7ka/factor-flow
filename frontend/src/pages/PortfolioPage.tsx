@@ -82,7 +82,7 @@ export function PortfolioPage() {
 
       <PortfolioAllocationSection history={filteredHistory} amounts={amounts} />
 
-      <AssetSparklinesSection history={filteredHistory} symbols={profileSymbols} />
+    {/*<AssetSparklinesSection history={filteredHistory} symbols={profileSymbols} />*/}
     </div>
   );
 }

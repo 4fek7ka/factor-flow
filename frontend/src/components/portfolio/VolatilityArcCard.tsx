@@ -137,7 +137,7 @@ export function VolatilityArcCard({ history, amounts }: Props) {
      Arc math
   ========================= */
 
-  const pct = Math.min(Math.max(arcVolatility / 40, 0), 1);
+  const pct = Math.min(Math.max(arcVolatility / 120, 0), 1);
 
   const radius = 100;
   const circumference = Math.PI * radius;
