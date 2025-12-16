@@ -1,4 +1,677 @@
-#!/bin/bash
+export type AssetRow = {
+  symbol: string;
+  iconUrl: string | null;
+
+  price: number;
+
+  change1hPct: number;
+  change24hPct: number;
+  change7dPct: number;
+
+  marketCapUsd: number;
+  volume24hUsd: number;
+
+  sparkline: number[];
+};
+
+/* =========================
+   Types
+========================= */
+
+type CoinGeckoMarket = {
+  id: string;
+  symbol: string;
+  name: string;
+  image?: string;
+  current_price: number;
+  market_cap: number;
+  total_volume: number;
+  price_change_percentage_1h_in_currency?: number;
+  price_change_percentage_24h_in_currency?: number;
+  price_change_percentage_7d_in_currency?: number;
+  sparkline_in_7d?: { price: number[] };
+};
+
+type CoinGeckoGlobal = {
+  data: {
+    total_market_cap: { usd: number };
+    market_cap_change_percentage_24h_usd: number;
+    market_cap_percentage: {
+      btc: number;
+      eth: number;
+    };
+  };
+};
+
+type FearGreedApiResponse = {
+  data: Array<{
+    value: string;
+    value_classification: string;
+    timestamp: string;
+  }>;
+};
+
+/* =========================
+   Cache keys
+========================= */
+
+const MARKETS_KEY = "assets.cache.markets";
+const GLOBAL_KEY = "assets.cache.global";
+
+const BTC_HISTORY_KEY = "assets.cache.btcMarketCapHistory";
+const BTC_HISTORY_TS_KEY = "assets.cache.btcMarketCapHistory.fetchedAt";
+
+const FEAR_GREED_KEY = "assets.cache.fearGreed";
+const FEAR_GREED_TS_KEY = "assets.cache.fearGreed.fetchedAt";
+
+const ONE_HOUR = 60 * 60 * 1000;
+
+/* =========================
+   Helpers
+========================= */
+
+function readJSON<T>(key: string): T | null {
+  const raw = localStorage.getItem(key);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+/* =========================
+   Assets table
+========================= */
+
+export function getAssetsTableFromCache(): AssetRow[] {
+  const markets = readJSON<CoinGeckoMarket[]>(MARKETS_KEY);
+  if (!markets) return [];
+
+  return markets.map((m) => ({
+    symbol: m.symbol.toUpperCase(),
+    iconUrl: m.image ?? null,
+
+    price: m.current_price,
+    change1hPct: m.price_change_percentage_1h_in_currency ?? 0,
+    change24hPct: m.price_change_percentage_24h_in_currency ?? 0,
+    change7dPct: m.price_change_percentage_7d_in_currency ?? 0,
+
+    marketCapUsd: m.market_cap,
+    volume24hUsd: m.total_volume,
+
+    sparkline: m.sparkline_in_7d?.price ?? [],
+  }));
+}
+
+/* =========================
+   Global snapshot
+========================= */
+
+export function getGlobalMarketCapSnapshot() {
+  const g = readJSON<CoinGeckoGlobal>(GLOBAL_KEY);
+  if (!g) return null;
+
+  return {
+    capUsd: g.data.total_market_cap.usd,
+    changePct24h: g.data.market_cap_change_percentage_24h_usd,
+  };
+}
+
+export function getDominance() {
+  const g = readJSON<CoinGeckoGlobal>(GLOBAL_KEY);
+  if (!g) return null;
+
+  const btc = g.data.market_cap_percentage.btc ?? 0;
+  const eth = g.data.market_cap_percentage.eth ?? 0;
+
+  return {
+    btc,
+    eth,
+    alt: Math.max(0, 100 - btc - eth),
+  };
+}
+
+/* =========================
+   Top Gainer (TOP-30 by market cap)
+========================= */
+
+export function getTopGainer7d() {
+  const markets = readJSON<CoinGeckoMarket[]>(MARKETS_KEY);
+  if (!markets || markets.length === 0) return null;
+
+  // 1️⃣ сортируем по капитализации
+  const top30 = [...markets]
+    .sort((a, b) => b.market_cap - a.market_cap)
+    .slice(0, 30);
+
+  // 2️⃣ ищем максимальный рост цены за 7d
+  const best = top30.reduce((a, b) =>
+    (b.price_change_percentage_7d_in_currency ?? -Infinity) >
+    (a.price_change_percentage_7d_in_currency ?? -Infinity)
+      ? b
+      : a
+  );
+
+  return {
+    name: best.name,
+    symbol: best.symbol,
+    image: best.image,
+    pct7d: best.price_change_percentage_7d_in_currency ?? 0,
+  };
+}
+
+/* =========================
+   BTC surrogate history
+========================= */
+
+export async function getGlobalMarketCapWithBtcSurrogate(): Promise<{
+  capUsd: number;
+  changePct24h: number;
+  sparkline: number[];
+} | null> {
+  const snapshot = getGlobalMarketCapSnapshot();
+  if (!snapshot) return null;
+
+  const ts = Number(localStorage.getItem(BTC_HISTORY_TS_KEY) || 0);
+  const cached = readJSON<number[]>(BTC_HISTORY_KEY);
+  const fresh = Date.now() - ts < ONE_HOUR;
+
+  if (cached && fresh) {
+    return { ...snapshot, sparkline: cached };
+  }
+
+  fetchBtcMarketCapHistory().catch(() => {});
+  return { ...snapshot, sparkline: cached ?? [] };
+}
+
+async function fetchBtcMarketCapHistory() {
+  const res = await fetch(
+    "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=7"
+  );
+  const json = await res.json();
+
+  const series: number[] = json.market_caps.map(
+    ([, value]: [number, number]) => value
+  );
+
+  localStorage.setItem(BTC_HISTORY_KEY, JSON.stringify(series));
+  localStorage.setItem(BTC_HISTORY_TS_KEY, String(Date.now()));
+}
+
+/* =========================
+   Fear & Greed Index
+========================= */
+
+export async function getFearGreedIndex(): Promise<number | null> {
+  const ts = Number(localStorage.getItem(FEAR_GREED_TS_KEY) || 0);
+  const cached = Number(localStorage.getItem(FEAR_GREED_KEY));
+  const fresh = Date.now() - ts < ONE_HOUR;
+
+  if (!Number.isNaN(cached) && fresh) {
+    return cached;
+  }
+
+  try {
+    const res = await fetch("https://api.alternative.me/fng/");
+    const json = (await res.json()) as FearGreedApiResponse;
+
+    const value = Number(json.data[0]?.value);
+    if (Number.isNaN(value)) return cached || null;
+
+    localStorage.setItem(FEAR_GREED_KEY, String(value));
+    localStorage.setItem(FEAR_GREED_TS_KEY, String(Date.now()));
+
+    return value;
+  } catch {
+    return cached || null;
+  }
+}\nfrontend/src/services/simulation/monteCarloService.ts\nexport type Scenario = "conservative" | "baseline" | "stress";
+
+export type MonteCarloInput = {
+  startValue: number;
+  drift: number;
+  volatility: number;
+  horizonDays: number;
+  simulations: number;
+  scenario: Scenario;
+};
+
+export type MonteCarloAdvancedOutput = {
+  timestamps: number[];
+  median: number[];
+  representative: number[];
+  upper: number[];
+  lower: number[];
+  paths: number[][];
+};
+
+const SCENARIO_VOL_MULTIPLIER: Record<Scenario, number> = {
+  conservative: 0.7,
+  baseline: 1.0,
+  stress: 1.5,
+};
+
+const START_RANGE_PCT: Record<Scenario, number> = {
+  conservative: 0.03,
+  baseline: 0.05,
+  stress: 0.07,
+};
+
+const FIXED_SEED = 42;
+const END_PENALTY_LAMBDA = 12;
+
+function mulberry32(seed: number) {
+  let t = seed >>> 0;
+  return function () {
+    t += 0x6d2b79f5;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function randomNormal(rng: () => number): number {
+  let u = 0;
+  let v = 0;
+  while (u === 0) u = rng();
+  while (v === 0) v = rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+export function runMonteCarloAdvanced(
+  input: MonteCarloInput
+): MonteCarloAdvancedOutput {
+  const {
+    startValue,
+    drift,
+    volatility,
+    horizonDays,
+    simulations,
+    scenario,
+  } = input;
+
+  const sigma = volatility * SCENARIO_VOL_MULTIPLIER[scenario];
+  const rng = mulberry32(FIXED_SEED);
+
+  const timestamps = Array.from({ length: horizonDays + 1 }, (_, i) => i);
+  const paths: number[][] = [];
+
+  // 1) paths
+  for (let s = 0; s < simulations; s++) {
+    const path: number[] = [startValue];
+
+    for (let t = 1; t <= horizonDays; t++) {
+      const prev = path[t - 1];
+      const z = randomNormal(rng);
+      path.push(prev * Math.exp(drift + sigma * z));
+    }
+
+    paths.push(path);
+  }
+
+  // 2) median
+  const median = timestamps.map((i) => {
+    const values = paths.map((p) => p[i]).sort((a, b) => a - b);
+    const m = Math.floor(values.length / 2);
+    return values.length % 2
+      ? values[m]
+      : (values[m - 1] + values[m]) / 2;
+  });
+
+  // 3) bounds
+  const endValues = paths.map((p) => p[horizonDays]).sort((a, b) => a - b);
+  const k = Math.max(1, Math.floor(simulations * 0.2));
+
+  const avg = (xs: number[]) =>
+    xs.reduce((s, v) => s + v, 0) / xs.length;
+
+  const lowerEnd = avg(endValues.slice(0, k));
+  const upperEnd = avg(endValues.slice(endValues.length - k));
+
+  const startPct = START_RANGE_PCT[scenario];
+  const lowerStart = median[0] * (1 - startPct);
+  const upperStart = median[0] * (1 + startPct);
+
+  const lower: number[] = [];
+  const upper: number[] = [];
+
+  for (let i = 0; i <= horizonDays; i++) {
+    const t = horizonDays === 0 ? 0 : i / horizonDays;
+    lower.push(lowerStart + (lowerEnd - lowerStart) * t);
+    upper.push(upperStart + (upperEnd - upperStart) * t);
+  }
+
+  // 4) candidate filter: path must stay inside bounds
+  const validIndices: number[] = [];
+
+  for (let p = 0; p < paths.length; p++) {
+    let ok = true;
+    for (let i = 0; i <= horizonDays; i++) {
+      if (paths[p][i] < lower[i] || paths[p][i] > upper[i]) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) validIndices.push(p);
+  }
+
+  const candidates =
+    validIndices.length > 0
+      ? validIndices
+      : paths.map((_, i) => i); // fallback
+
+  // 5) representative selection
+  let bestIdx = candidates[0];
+  let bestDist = Infinity;
+
+  const N = median.length - 1 || 1;
+  const T = horizonDays;
+  const medianEnd = median[T];
+
+  for (const idx of candidates) {
+    let dist = 0;
+
+    for (let i = 0; i < median.length; i++) {
+      const w = (i / N) ** 2;
+      const d = paths[idx][i] - median[i];
+      dist += w * d * d;
+    }
+
+    const endDiff = paths[idx][T] - medianEnd;
+    dist += END_PENALTY_LAMBDA * endDiff * endDiff;
+
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestIdx = idx;
+    }
+  }
+
+  return {
+    timestamps,
+    median,
+    representative: paths[bestIdx],
+    upper,
+    lower,
+    paths,
+  };
+}\nfrontend/src/utils/identicon.ts\n// frontend/src/utils/identicon.ts
+
+function fnv1a32(input: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    // h *= 16777619 (через сдвиги, чтобы стабильно в JS)
+    h = (h + (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24)) >>> 0;
+  }
+  return h >>> 0;
+}
+
+function xorshift32(seed: number): () => number {
+  let x = seed >>> 0;
+  return () => {
+    x ^= x << 13;
+    x ^= x >>> 17;
+    x ^= x << 5;
+    return (x >>> 0) / 0xffffffff;
+  };
+}
+
+function clamp(n: number, a: number, b: number) {
+  return Math.max(a, Math.min(b, n));
+}
+
+function colorFromSeed(seed: number): string {
+  // приятная "tabler-like" палитра через HSL
+  const hue = seed % 360;
+  const sat = 65;
+  const light = 52;
+  return `hsl(${hue} ${sat}% ${light}%)`;
+}
+
+export type IdenticonOptions = {
+  size?: number; // px
+  cells?: number; // grid size, default 5
+  padding?: number; // px
+  bg?: string; // background
+};
+
+export function buildIdenticonSvg(
+  address: string,
+  opts: IdenticonOptions = {}
+): string {
+  const size = opts.size ?? 40;
+  const cells = opts.cells ?? 5;
+  const padding = opts.padding ?? 4;
+  const bg = opts.bg ?? "rgba(255,255,255,0.06)";
+
+  const normalized = (address || "").trim().toLowerCase();
+  const seed = fnv1a32(normalized || "0x0");
+  const rnd = xorshift32(seed);
+
+  const color = colorFromSeed(seed);
+  const cellSize = (size - padding * 2) / cells;
+
+  // зеркалим по вертикали: рисуем только половину + центр
+  const half = Math.ceil(cells / 2);
+
+  const on: boolean[][] = Array.from({ length: cells }, () =>
+    Array.from({ length: cells }, () => false)
+  );
+
+  for (let y = 0; y < cells; y++) {
+    for (let x = 0; x < half; x++) {
+      const v = rnd();
+      const filled = v > 0.5; // плотность
+      on[y][x] = filled;
+      on[y][cells - 1 - x] = filled;
+    }
+  }
+
+  // слегка скруглим
+  const r = clamp(cellSize * 0.22, 1.5, 4);
+
+  const rects: string[] = [];
+  for (let y = 0; y < cells; y++) {
+    for (let x = 0; x < cells; x++) {
+      if (!on[y][x]) continue;
+      const rx = padding + x * cellSize;
+      const ry = padding + y * cellSize;
+      rects.push(
+        `<rect x="${rx.toFixed(2)}" y="${ry.toFixed(2)}" width="${cellSize.toFixed(
+          2
+        )}" height="${cellSize.toFixed(2)}" rx="${r.toFixed(
+          2
+        )}" fill="${color}"/>`
+      );
+    }
+  }
+
+  // круглая маска под "аватар"
+  const maskId = `m_${seed.toString(16)}`;
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+  <defs>
+    <mask id="${maskId}">
+      <rect x="0" y="0" width="${size}" height="${size}" rx="${(size / 2).toFixed(
+    2
+  )}" fill="white"/>
+    </mask>
+  </defs>
+
+  <g mask="url(#${maskId})">
+    <rect x="0" y="0" width="${size}" height="${size}" fill="${bg}"/>
+    ${rects.join("\n    ")}
+  </g>
+</svg>`;
+}
+
+export function buildIdenticonDataUri(
+  address: string,
+  opts: IdenticonOptions = {}
+): string {
+  const svg = buildIdenticonSvg(address, opts)
+    // чуть чистим для data-uri
+    .replace(/\n+/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  // безопасная encode
+  const encoded = encodeURIComponent(svg)
+    .replace(/%20/g, " ")
+    .replace(/%3D/g, "=")
+    .replace(/%3A/g, ":")
+    .replace(/%2F/g, "/");
+
+  return `data:image/svg+xml;charset=utf-8,${encoded}`;
+}\nfrontend/tests/portfolioMetrics.test.ts\nimport historyJson from "../src/data/mock-history.json";
+import portfoliosJson from "../src/data/mock-portfolios.json";
+
+import {
+  buildTopMetrics,
+} from "../src/services/portfolio/portfolioService";
+
+import type { HistoryPoint } from "../src/services/portfolio/portfolioService";
+
+describe("Portfolio metrics", () => {
+  const history = historyJson as unknown as HistoryPoint[];
+  const profiles = (portfoliosJson as any).profiles;
+
+  it("builds metrics without NaN or Infinity", () => {
+    const profile = profiles[0];
+    const metrics = buildTopMetrics(history, profile.assets, "BTC");
+
+    expect(Number.isFinite(metrics.tvl)).toBe(true);
+    expect(Number.isFinite(metrics.changeUsd)).toBe(true);
+    expect(Number.isFinite(metrics.changePct)).toBe(true);
+  });
+
+  it("metrics change when profile changes", () => {
+    const p1 = profiles.find((p: any) => p.id === "conservative");
+    const p2 = profiles.find((p: any) => p.id === "aggressive");
+
+    const m1 = buildTopMetrics(history, p1.assets, "BTC");
+    const m2 = buildTopMetrics(history, p2.assets, "BTC");
+
+    expect(m1.tvl).not.toBe(m2.tvl);
+  });
+
+  it("vs BTC metric is finite", () => {
+    const profile = profiles[1];
+    const metrics = buildTopMetrics(history, profile.assets, "BTC");
+
+    expect(Number.isFinite(metrics.vsBtcPp)).toBe(true);
+  });
+});\nfrontend/tests/portfolioValue.test.ts\nimport historyJson from "../src/data/mock-history.json";
+import portfoliosJson from "../src/data/mock-portfolios.json";
+
+import type { HistoryPoint } from "../src/services/portfolio/portfolioService";
+
+function calcPortfolioValue(
+  p: HistoryPoint,
+  amounts: Record<string, number>
+) {
+  let total = 0;
+  for (const [symbol, amount] of Object.entries(amounts)) {
+    total += (p.prices[symbol] ?? 0) * amount;
+  }
+  return total;
+}
+
+describe("Portfolio value calculation", () => {
+  const history = historyJson as unknown as HistoryPoint[];
+  const profiles = (portfoliosJson as any).profiles;
+
+  it("calculates portfolio value for conservative profile", () => {
+    const profile = profiles.find((p: any) => p.id === "conservative");
+    const last = history[history.length - 1];
+
+    const value = calcPortfolioValue(last, profile.assets);
+
+    expect(value).toBeGreaterThan(0);
+    expect(Number.isFinite(value)).toBe(true);
+  });
+
+  it("different profiles produce different portfolio values", () => {
+    const last = history[history.length - 1];
+
+    const conservative = profiles.find(
+      (p: any) => p.id === "conservative"
+    );
+    const aggressive = profiles.find(
+      (p: any) => p.id === "aggressive"
+    );
+
+    const v1 = calcPortfolioValue(last, conservative.assets);
+    const v2 = calcPortfolioValue(last, aggressive.assets);
+
+    expect(v1).not.toBe(v2);
+  });
+
+  it("portfolio value reacts to history changes over time", () => {
+    const profile = profiles.find((p: any) => p.id === "balanced");
+
+    const first = history[0];
+    const last = history[history.length - 1];
+
+    const vStart = calcPortfolioValue(first, profile.assets);
+    const vEnd = calcPortfolioValue(last, profile.assets);
+
+    expect(vStart).not.toBe(vEnd);
+  });
+});\nfrontend/tests/simulationParams.test.ts\nimport historyJson from "../src/data/mock-history.json";
+import portfoliosJson from "../src/data/mock-portfolios.json";
+
+import {
+  filterHistoryByPeriod,
+} from "../src/services/portfolio/portfolioService";
+
+import {
+  estimatePortfolioParams,
+} from "../src/services/portfolio/portfolioStatsService";
+
+import type { HistoryPoint } from "../src/services/portfolio/portfolioService";
+
+describe("Simulation parameter estimation", () => {
+  const history = historyJson as unknown as HistoryPoint[];
+  const profiles = (portfoliosJson as any).profiles;
+
+  it("estimates drift and volatility for portfolio", () => {
+    const profile = profiles[0];
+    const filtered = filterHistoryByPeriod(history, "year");
+
+    const { drift, volatility } = estimatePortfolioParams(
+      filtered,
+      profile.assets
+    );
+
+    expect(Number.isFinite(drift)).toBe(true);
+    expect(Number.isFinite(volatility)).toBe(true);
+    expect(volatility).toBeGreaterThan(0);
+  });
+
+  it("different profiles give different parameters", () => {
+    const filtered = filterHistoryByPeriod(history, "year");
+
+    const a = estimatePortfolioParams(
+      filtered,
+      profiles[0].assets
+    );
+    const b = estimatePortfolioParams(
+      filtered,
+      profiles[2].assets
+    );
+
+    expect(a.volatility).not.toBe(b.volatility);
+  });
+});\nfrontend/vite.config.ts\nimport { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+})\ngenerate_prices\n#!/bin/bash
 
 echo "⏳ Генерация годовой часовой истории цен (портфель + рынок)..."
 

@@ -167,19 +167,15 @@ export function AssetSparklineCard({ name, values, pct, label }: Props) {
       </div>
     </div>
   );
-}\nfrontend/src/components/portfolio/AssetSparklinesSection.tsx\nimport  { useMemo } from "react";
+}\nfrontend/src/components/portfolio/AssetSparklinesSection.tsx\nimport { useMemo } from "react";
 import type { HistoryPoint } from "../../services/portfolio/portfolioService";
 import { AssetSparklineCard } from "./AssetSparklineCard";
 
 type Props = {
   history: HistoryPoint[];
+  symbols?: string[];
 };
 
-const ASSETS = ["ETH", "WBTC", "USDC", "DAI", "UNI"] as const;
-
-/* ----------------------------------
-   📌 Downsampling до N точек
------------------------------------ */
 function downsample(values: number[], target: number) {
   const n = values.length;
   if (n <= target) return values;
@@ -187,40 +183,40 @@ function downsample(values: number[], target: number) {
   const step = Math.ceil(n / target);
   const out: number[] = [];
 
-  for (let i = 0; i < n; i += step) {
-    out.push(values[i]);
-  }
+  for (let i = 0; i < n; i += step) out.push(values[i]);
 
+  if (out[out.length - 1] !== values[n - 1]) out.push(values[n - 1]);
   return out;
 }
 
-/* ----------------------------------
-   📌 Основной компонент
------------------------------------ */
-export function AssetSparklinesSection({ history }: Props) {
+export function AssetSparklinesSection({ history, symbols }: Props) {
   const data = useMemo(() => {
     if (!history.length) return [];
 
-    // timestamp последней точки
     const lastTs = history[history.length - 1].timestamp;
-
-    // 24 часа в секундах
     const cutoff = lastTs - 24 * 3600;
 
-    // Берём последние 24 часа
     const last24h = history.filter((p) => p.timestamp >= cutoff);
-
-    // Если мало данных – fallback
     const src = last24h.length > 1 ? last24h : history.slice(-24);
 
-    return ASSETS.map((asset) => {
-      const rawValues = src.map((p) => p.prices[asset]);
+    const list = (symbols && symbols.length ? symbols : ["ETH", "BTC", "USDC", "SOL", "BNB"])
+      .slice(0, 5);
+
+    return list.map((asset) => {
+      const rawValues = src.map((p) => p.prices[asset] ?? 0).filter((v) => v > 0);
+
+      if (rawValues.length < 2) {
+        return {
+          name: asset,
+          values: [],
+          pct: 0,
+        };
+      }
 
       const first = rawValues[0];
       const last = rawValues[rawValues.length - 1];
       const pct = first ? ((last - first) / first) * 100 : 0;
 
-      // Downsampling до 60 точек
       const values = downsample(rawValues, 13);
 
       return {
@@ -229,7 +225,7 @@ export function AssetSparklinesSection({ history }: Props) {
         pct,
       };
     });
-  }, [history]);
+  }, [history, symbols]);
 
   return (
     <div className="row row-cards mt-3">
@@ -248,24 +244,27 @@ export function AssetSparklinesSection({ history }: Props) {
               name={d.name}
               values={d.values}
               pct={d.pct}
-              label="24H"  // ← теперь работает
+              label="24H"
             />
           ))}
         </div>
       </div>
     </div>
   );
-}\nfrontend/src/components/portfolio/PortfolioAllocationSection.tsx\n
-import type { HistoryPoint } from "../../services/portfolio/portfolioService";
+}\nfrontend/src/components/portfolio/PortfolioAllocationSection.tsx\nimport type {
+  AssetAmounts,
+  HistoryPoint,
+} from "../../services/portfolio/portfolioService";
 
 import { PortfolioAllocation } from "./PortfolioAllocation";
 import { VolatilityArcCard } from "./VolatilityArcCard";
 
 type Props = {
   history: HistoryPoint[];
+  amounts: AssetAmounts;
 };
 
-export function PortfolioAllocationSection({ history }: Props) {
+export function PortfolioAllocationSection({ history, amounts }: Props) {
   return (
     <div
       style={{
@@ -276,7 +275,6 @@ export function PortfolioAllocationSection({ history }: Props) {
         width: "100%",
       }}
     >
-      {/* LEFT – fixed 620px */}
       <div
         style={{
           width: "620px",
@@ -284,95 +282,89 @@ export function PortfolioAllocationSection({ history }: Props) {
           display: "flex",
         }}
       >
-        <PortfolioAllocation history={history} />
+        <PortfolioAllocation history={history} amounts={amounts} />
       </div>
 
-      {/* RIGHT – expands to fill all remaining space */}
       <div
         style={{
           flex: 1,
           display: "flex",
         }}
       >
-        <VolatilityArcCard history={history} />
+        <VolatilityArcCard history={history} amounts={amounts} />
       </div>
     </div>
   );
 }\nfrontend/src/components/portfolio/PortfolioAllocation.tsx\nimport { useEffect, useRef, useMemo } from "react";
 import * as echarts from "echarts";
-import type { HistoryPoint } from "../../services/portfolio/portfolioService";
+
+import type {
+  AssetAmounts,
+  HistoryPoint,
+} from "../../services/portfolio/portfolioService";
 
 const ASSET_COLORS: Record<string, string> = {
   ETH: "#8A7FFF",
+  BTC: "#FFB45A",
   WBTC: "#FFB45A",
   USDC: "#5DA7FF",
+  USDT: "#2BB673",
   DAI: "#FFD86B",
   UNI: "#FF6F9E",
-  Others: "#6B7280", // серый для суммарной группы
-};
-
-const AMOUNTS = {
-  ETH: 2,
-  WBTC: 0.03,
-  USDC: 80,
-  DAI: 40,
-  UNI: 400,
+  SOL: "#66E0FF",
+  BNB: "#F3BA2F",
+  ADA: "#3CC8C8",
+  XRP: "#7C89FF",
+  DOGE: "#C2A633",
+  AVAX: "#E84142",
+  LINK: "#2A5ADA",
+  TON: "#4AA8FF",
+  Others: "#6B7280",
 };
 
 type Props = {
   history: HistoryPoint[];
+  amounts: AssetAmounts;
 };
 
-export function PortfolioAllocation({ history }: Props) {
+export function PortfolioAllocation({ history, amounts }: Props) {
   const chartRef = useRef<HTMLDivElement>(null);
   const chart = useRef<echarts.ECharts | null>(null);
 
-  // ============================
-  // 📌 Расчёт TOP-3 + Others
-  // ============================
   const allocation = useMemo(() => {
     if (!history.length) return [];
 
     const last = history[history.length - 1];
 
-    // 1) считаем стоимость всех активов
-    const values = Object.entries(AMOUNTS).map(([symbol, amount]) => {
-      const price = last.prices[symbol as keyof typeof last.prices];
-      const valueUsd = price * amount;
-      return { symbol, valueUsd };
-    });
+    const values = Object.entries(amounts || {})
+      .map(([symbol, amount]) => {
+        const price = last.prices[symbol] ?? 0;
+        const valueUsd = price * amount;
+        return { symbol, valueUsd };
+      })
+      .filter((x) => Number.isFinite(x.valueUsd) && x.valueUsd > 0);
 
-    // 2) сортировка по убыванию стоимости
+    if (!values.length) return [];
+
     const sorted = values.sort((a, b) => b.valueUsd - a.valueUsd);
-
-    // 3) топ 3
     const top3 = sorted.slice(0, 3);
 
-    // 4) остальные → Others
     const others = sorted.slice(3);
     const othersTotal = others.reduce((s, v) => s + v.valueUsd, 0);
 
     const finalList = [...top3];
-
     if (othersTotal > 0) {
-      finalList.push({
-        symbol: "Others",
-        valueUsd: othersTotal,
-      });
+      finalList.push({ symbol: "Others", valueUsd: othersTotal });
     }
 
-    // 5) проценты только внутри finalList
     const total = finalList.reduce((s, v) => s + v.valueUsd, 0);
 
     return finalList.map((v) => ({
       ...v,
       pct: total ? (v.valueUsd / total) * 100 : 0,
     }));
-  }, [history]);
+  }, [history, amounts]);
 
-  // ============================
-  // 📌 Инициализация donut один раз
-  // ============================
   useEffect(() => {
     if (!chartRef.current) return;
 
@@ -389,9 +381,6 @@ export function PortfolioAllocation({ history }: Props) {
     };
   }, []);
 
-  // ============================
-  // 📌 Обновление данных без пересоздания
-  // ============================
   useEffect(() => {
     if (!chart.current) return;
     if (!allocation.length) return;
@@ -407,135 +396,80 @@ export function PortfolioAllocation({ history }: Props) {
           center: ["50%", "50%"],
           label: { show: false },
           labelLine: { show: false },
-          minAngle: 2, // гарантирует видимость сегментов
+          minAngle: 2,
           data: allocation.map((a) => ({
             value: a.valueUsd,
             name: a.symbol,
-            itemStyle: { color: ASSET_COLORS[a.symbol] },
+            itemStyle: { color: ASSET_COLORS[a.symbol] ?? "#6B7280" },
           })),
         },
       ],
     };
 
     inst.setOption(option, {
-      notMerge: false,
-      lazyUpdate: false,
+      notMerge: true,
+      lazyUpdate: true,
       silent: true,
     });
   }, [allocation]);
 
-  if (!allocation.length) return null;
-
   return (
-    <div
-      className="card"
-      style={{
-        borderRadius: "10px",
-        height: "100%",
-        width: "100%",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <div
-        className="card-body"
-        style={{
-          display: "flex",
-          gap: "24px",
-          alignItems: "center",
-        }}
-      >
-        {/* ----------------------------------------------------
-           Donut
-        ---------------------------------------------------- */}
-        <div
-          ref={chartRef}
-          style={{
-            width: "190px",
-            height: "190px",
-            flexShrink: 0,
-          }}
-        />
+    <div className="card p-3" style={{ width: "100%" }}>
+      <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+        Portfolio Allocation
+      </div>
 
-        {/* ----------------------------------------------------
-            Легенда TOP-3 + Others
-        ---------------------------------------------------- */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "14px",
-            width: "100%",
-          }}
-        >
-          {/* Заголовок */}
-          <h4
-            style={{
-              margin: 0,
-              fontSize: "20px",
-              color: "#FAFAFA",
-              fontWeight: 600,
-              letterSpacing: "0.2px",
-            }}
-          >
-            Portfolio Allocation
-          </h4>
+      <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 14 }}>
+        <div style={{ height: 220 }}>
+          <div ref={chartRef} style={{ width: "100%", height: "100%" }} />
+        </div>
 
-          {/* Header */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "18px 110px 110px 70px",
-              fontSize: "14px",
-              color: "#E8E8E8",
-              paddingBottom: "6px",
-              borderBottom: "1px solid rgba(255,255,255,0.08)",
-              fontWeight: 500,
+              gridTemplateColumns: "14px 1fr 1fr 60px",
+              gap: 10,
+              alignItems: "center",
+              fontSize: 13,
+              color: "rgba(255,255,255,0.6)",
+              marginBottom: 4,
             }}
           >
-            <div></div>
+            <div />
             <div>Asset</div>
             <div>Value</div>
-            <div style={{ textAlign: "right" }}>Share</div>
+            <div style={{ textAlign: "right" }}>%</div>
           </div>
 
-          {/* Rows */}
           {allocation.map((a) => (
             <div
               key={a.symbol}
               style={{
                 display: "grid",
-                gridTemplateColumns: "18px 110px 110px 70px",
+                gridTemplateColumns: "14px 1fr 1fr 60px",
+                gap: 10,
                 alignItems: "center",
-                fontSize: "15px",
-                color: "#EFEFEF",
+                padding: "8px 10px",
+                borderRadius: 10,
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.06)",
               }}
             >
-              {/* Colored dot */}
               <div
                 style={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: "50%",
-                  background: ASSET_COLORS[a.symbol],
+                  width: 10,
+                  height: 10,
+                  borderRadius: 999,
+                  background: ASSET_COLORS[a.symbol] ?? "#6B7280",
                   justifySelf: "center",
                 }}
               />
 
-              {/* Asset name */}
               <div style={{ fontWeight: 500 }}>{a.symbol}</div>
-
-              {/* USD value */}
               <div>${a.valueUsd.toFixed(0)}</div>
 
-              {/* percentage */}
-              <div
-                style={{
-                  textAlign: "right",
-                  fontWeight: 500,
-                  color: "#EFEFEF",
-                }}
-              >
+              <div style={{ textAlign: "right", fontWeight: 500, color: "#EFEFEF" }}>
                 {a.pct.toFixed(1)}%
               </div>
             </div>
@@ -550,6 +484,7 @@ import * as echarts from "echarts";
 import {
   buildPortfolioSeries,
   filterHistoryByPeriod,
+  type AssetAmounts,
 } from "../../services/portfolio/portfolioService";
 
 import type { HistoryPoint, Period } from "../../services/portfolio/portfolioService";
@@ -560,12 +495,14 @@ type Props = {
   history: HistoryPoint[];
   period: Period;
   onPeriodChange: (p: Period) => void;
+  amounts: AssetAmounts;
 };
 
 export function PortfolioChartCard({
   history,
   period,
   onPeriodChange,
+  amounts,
 }: Props) {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
@@ -590,31 +527,33 @@ export function PortfolioChartCard({
     };
   }, []);
 
-  // Update chart (анимация как раньше)
+  // Update chart
   useEffect(() => {
     const chart = chartInstance.current;
     if (!chart) return;
 
     const filteredHistory = filterHistoryByPeriod(history, period);
-    const { timestamps, percentValues } =
-      buildPortfolioSeries(filteredHistory, period);
+    const { timestamps, percentValues } = buildPortfolioSeries(
+      filteredHistory,
+      period,
+      amounts
+    );
 
     if (!percentValues.length) return;
 
     const option = buildPortfolioChartOption(timestamps, percentValues, {
       seriesId: seriesIdRef.current,
-      initial: true, // всегда проигрываем "первичную" анимацию линии
+      initial: true,
       opacity: 1,
     });
 
     chart.setOption(option, {
-      notMerge: true,   // создаём новую серию
+      notMerge: true,
       lazyUpdate: true,
       silent: true,
     });
-  }, [history, period]);
+  }, [history, period, amounts]);
 
-  // Переключение табов — только смена id серии + периода
   const switchPeriod = (next: Period) => {
     if (next === period) return;
 
@@ -674,7 +613,6 @@ export function PortfolioChartCard({
         }
       `}</style>
 
-      {/* Tabs */}
       <div className="period-tabs-wrap">
         <div className="period-tabs">
           <div
@@ -704,7 +642,6 @@ export function PortfolioChartCard({
         </div>
       </div>
 
-      {/* Chart без внешнего fade/blur */}
       <div style={{ width: "100%", height: "350px" }}>
         <div ref={chartRef} style={{ width: "100%", height: "100%" }} />
       </div>
@@ -884,24 +821,40 @@ export function PortfolioMetricsRow({
     </div>
   );
 }\nfrontend/src/components/portfolio/VolatilityArcCard.tsx\nimport { useMemo } from "react";
-import type { HistoryPoint } from "../../services/portfolio/portfolioService";
+import type {
+  HistoryPoint,
+  AssetAmounts,
+} from "../../services/portfolio/portfolioService";
 
-function calcPortfolioValue(p: HistoryPoint) {
-  const AMOUNTS = { ETH: 2, WBTC: 0.03, USDC: 80, DAI: 40, UNI: 400 };
-  return (
-    p.prices.ETH * AMOUNTS.ETH +
-    p.prices.WBTC * AMOUNTS.WBTC +
-    p.prices.USDC * AMOUNTS.USDC +
-    p.prices.DAI * AMOUNTS.DAI +
-    p.prices.UNI * AMOUNTS.UNI
-  );
+/* =========================
+   Helpers
+========================= */
+
+function calcPortfolioValue(p: HistoryPoint, amounts: AssetAmounts) {
+  let total = 0;
+
+  for (const [symbol, amount] of Object.entries(amounts)) {
+    const price = p.prices[symbol] ?? 0;
+    total += price * amount;
+  }
+
+  return total;
 }
+
+/* =========================
+   Types
+========================= */
 
 type Props = {
   history: HistoryPoint[];
+  amounts: AssetAmounts; // ⬅️ ВАЖНО: реальные количества из профиля
 };
 
-export function VolatilityArcCard({ history }: Props) {
+/* =========================
+   Component
+========================= */
+
+export function VolatilityArcCard({ history, amounts }: Props) {
   const {
     volatility,
     minVol,
@@ -922,7 +875,20 @@ export function VolatilityArcCard({ history }: Props) {
     const points = 24 * 7;
     const lastWeek = history.slice(-points);
 
-    const vals = lastWeek.map(calcPortfolioValue);
+    const vals = lastWeek
+      .map((p) => calcPortfolioValue(p, amounts))
+      .filter((v) => Number.isFinite(v) && v > 0);
+
+    if (vals.length < 2) {
+      return {
+        volatility: 0,
+        minVol: 0,
+        maxVol: 0,
+        avgMove: 0,
+        stdDev: 0,
+      };
+    }
+
     const minVal = Math.min(...vals);
     const maxVal = Math.max(...vals);
     const avg = vals.reduce((s, x) => s + x, 0) / vals.length || 1;
@@ -933,23 +899,16 @@ export function VolatilityArcCard({ history }: Props) {
     const maxPct = ((maxVal - avg) / avg) * 100;
 
     const avgMoveCalc =
-      vals.length > 1
-        ? vals
-            .slice(1)
-            .reduce((s, v, i) => s + Math.abs(v - vals[i]), 0) /
-          (vals.length - 1)
-        : 0;
+      vals
+        .slice(1)
+        .reduce((s, v, i) => s + Math.abs(v - vals[i]), 0) /
+      (vals.length - 1);
 
     const avgMovePct = (avgMoveCalc / avg) * 100;
 
-    const std =
-      vals.length > 1
-        ? Math.sqrt(
-            vals.map((v) => Math.pow(v - avg, 2)).reduce((a, b) => a + b, 0) /
-              vals.length
-          )
-        : 0;
-
+    const variance =
+      vals.reduce((s, v) => s + (v - avg) ** 2, 0) / vals.length;
+    const std = Math.sqrt(variance);
     const stdDevPct = (std / avg) * 100;
 
     return {
@@ -959,9 +918,12 @@ export function VolatilityArcCard({ history }: Props) {
       avgMove: avgMovePct,
       stdDev: stdDevPct,
     };
-  }, [history]);
+  }, [history, amounts]);
 
-  // ---- arc math ----
+  /* =========================
+     Arc math
+  ========================= */
+
   const pct = Math.min(Math.max(volatility / 40, 0), 1); // 0..1
 
   const radius = 100;
@@ -995,13 +957,18 @@ export function VolatilityArcCard({ history }: Props) {
         <div style={{ flex: "0 0 260px" }}>
           <div style={{ display: "flex", justifyContent: "center" }}>
             <svg width="260" height="170" viewBox="0 0 260 170">
-
               {/* ---- DEFINING GRADIENT ---- */}
               <defs>
-                <linearGradient id="volaGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%"   stopColor="#22c55e" />  {/* green */}
-                  <stop offset="50%"  stopColor="#eab308" />  {/* yellow */}
-                  <stop offset="100%" stopColor="#ef4444" />  {/* red */}
+                <linearGradient
+                  id="volaGradient"
+                  x1="0%"
+                  y1="0%"
+                  x2="100%"
+                  y2="0%"
+                >
+                  <stop offset="0%" stopColor="#22c55e" />
+                  <stop offset="50%" stopColor="#eab308" />
+                  <stop offset="100%" stopColor="#ef4444" />
                 </linearGradient>
               </defs>
 
@@ -1013,7 +980,7 @@ export function VolatilityArcCard({ history }: Props) {
                 fill="none"
               />
 
-              {/* Foreground arc — GRADIENT */}
+              {/* Foreground arc */}
               <path
                 d="M30 120 A100 100 0 0 1 230 120"
                 stroke="url(#volaGradient)"
@@ -1036,7 +1003,7 @@ export function VolatilityArcCard({ history }: Props) {
                 {volatility.toFixed(2)}%
               </text>
 
-              {/* Low */}
+              {/* Low / High */}
               <text
                 x="12"
                 y="155"
@@ -1048,7 +1015,6 @@ export function VolatilityArcCard({ history }: Props) {
                 Low
               </text>
 
-              {/* High */}
               <text
                 x="248"
                 y="155"
