@@ -53,14 +53,7 @@ export function OutcomeDistributionCard({
     const medianPos = ((median - min) / (max - min || 1)) * 100;
     const isPositive = median >= start;
 
-    return {
-      bins,
-      min,
-      max,
-      median,
-      medianPos,
-      isPositive,
-    };
+    return { bins, min, max, median, medianPos, isPositive };
   }, [paths]);
 
   if (!model) return null;
@@ -74,59 +67,24 @@ export function OutcomeDistributionCard({
   )`;
 
   return (
-    <div
-      className="card card-sm w-100"
-      style={{
-        background: "#0f172a",
-        border: "1px solid rgba(255,255,255,0.06)",
-      }}
-    >
+    <div className="card card-sm w-100">
       <div className="card-body">
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginBottom: 10,
-          }}
-        >
-          <div
-            style={{
-              fontWeight: 700,
-              color: "rgba(226,232,240,0.95)",
-            }}
-          >
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+          <div style={{ fontWeight: 700, color: "rgba(226,232,240,0.95)" }}>
             {title}
           </div>
 
           <div style={{ textAlign: "right" }}>
-            <div
-              style={{
-                fontSize: 12,
-                color: "rgba(148,163,184,0.9)",
-              }}
-            >
+            <div style={{ fontSize: 12, color: "rgba(148,163,184,0.9)" }}>
               median
             </div>
-            <div
-              style={{
-                fontWeight: 800,
-                color: MEDIAN_COLOR,
-              }}
-            >
+            <div style={{ fontWeight: 800, color: MEDIAN_COLOR }}>
               {formatMoney(model.median)}
             </div>
           </div>
         </div>
 
-        <div
-          style={{
-            position: "relative",
-            height: 72,
-            display: "flex",
-            alignItems: "flex-end",
-            gap: 5,
-          }}
-        >
+        <div style={{ position: "relative", height: 72, display: "flex", alignItems: "flex-end", gap: 5 }}>
           {model.bins.map((v, i) => (
             <div
               key={i}
@@ -141,7 +99,6 @@ export function OutcomeDistributionCard({
             />
           ))}
 
-          {/* median marker: чуть толще + rounded ends */}
           <div
             style={{
               position: "absolute",
@@ -149,23 +106,14 @@ export function OutcomeDistributionCard({
               top: -6,
               bottom: -6,
               transform: "translateX(-50%)",
-              width: 3, // ← чуть толще (было 2)
+              width: 3,
               background: MEDIAN_COLOR,
               borderRadius: 999,
-              boxShadow: "0 0 10px rgba(226,232,240,0.07)",
             }}
           />
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginTop: 8,
-            fontSize: 12,
-            color: "rgba(226,232,240,0.95)",
-          }}
-        >
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 12 }}>
           <div>min {formatMoney(model.min)}</div>
           <div>max {formatMoney(model.max)}</div>
         </div>

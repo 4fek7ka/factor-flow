@@ -29,6 +29,10 @@ const SCENARIOS = [
   ["stress", "Stress"],
 ] as const satisfies readonly (readonly [Scenario, string])[];
 
+/* =========================
+   UI helpers
+========================= */
+
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div style={{ marginBottom: 12 }}>
@@ -68,24 +72,19 @@ function SegButton({
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-
         fontSize: 12,
         fontWeight: 800,
         lineHeight: "16px",
         borderRadius: 8,
-
         border: active
           ? "1px solid rgba(56,189,248,0.55)"
           : "1px solid rgba(255,255,255,0.10)",
-
         background: active
           ? "rgba(14,165,233,0.22)"
-          : "rgba(15,23,42,0.45)",
-
+          : "rgba(15,23,42,0.55)",
         color: active
           ? "rgba(226,232,240,0.95)"
           : "rgba(226,232,240,0.75)",
-
         cursor: "pointer",
         transition: "all 120ms ease",
         userSelect: "none",
@@ -131,19 +130,15 @@ function ToggleRow({
         alignItems: "center",
         justifyContent: "space-between",
         borderRadius: 10,
-
         border: active
           ? "1px solid rgba(56,189,248,0.45)"
           : "1px solid rgba(255,255,255,0.08)",
-
         background: active
           ? "rgba(14,165,233,0.14)"
-          : "rgba(15,23,42,0.28)",
-
+          : "rgba(15,23,42,0.45)",
         color: active
           ? "rgba(226,232,240,0.95)"
           : "rgba(226,232,240,0.80)",
-
         cursor: "pointer",
         userSelect: "none",
       }}
@@ -154,117 +149,123 @@ function ToggleRow({
           width: 10,
           height: 10,
           borderRadius: 999,
-          background: active ? "rgba(14,165,233,1)" : "rgba(100,116,139,1)",
+          background: active
+            ? "rgba(14,165,233,1)"
+            : "rgba(100,116,139,1)",
         }}
       />
     </button>
   );
 }
 
+/* =========================
+   Component
+========================= */
+
 export function SimulationControls({ value, onChange }: Props) {
   const patch = (next: Partial<SimulationParams>) =>
     onChange({ ...value, ...next });
 
   return (
-    <div
-      style={{
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        borderRadius: 12,
-        background: "rgba(15,23,42,0.34)",
-        backdropFilter: "blur(12px)",
-        border: "1px solid rgba(255,255,255,0.05)",
-      }}
-    >
-      <div style={{ padding: 14, flexShrink: 0 }}>
-        <div style={{ fontWeight: 800, fontSize: 14 }}>Simulation settings</div>
-        <div style={{ fontSize: 12, color: "rgba(148,163,184,0.8)" }}>
-          Horizon, scenario and runs
-        </div>
-      </div>
-
+    <div className="card" style={{ height: "100%" }}>
       <div
+        className="card-body"
         style={{
-          padding: "0 14px 14px",
-          overflowY: "auto",
-          flex: 1,
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          padding: 0, // важно: управляем паддингами вручную
         }}
       >
-        <Section title="Horizon">
-          <SegGroup cols={4}>
-            {HORIZONS.map((d) => (
-              <SegButton
-                key={d}
-                label={`${d}d`}
-                active={value.horizonDays === d}
-                onClick={() => patch({ horizonDays: d })}
-              />
-            ))}
-          </SegGroup>
-        </Section>
-
-        <Section title="Scenario">
-          <SegGroup cols={3}>
-            {SCENARIOS.map(([key, label]) => (
-              <SegButton
-                key={key}
-                label={label}
-                active={value.scenario === key}
-                onClick={() => patch({ scenario: key })}
-              />
-            ))}
-          </SegGroup>
-        </Section>
-
-        <Section title="Simulations">
-          <SegGroup cols={3}>
-            {SIMULATIONS.map((n) => (
-              <SegButton
-                key={n}
-                label={`${n}`}
-                active={value.simulations === n}
-                onClick={() => patch({ simulations: n })}
-              />
-            ))}
-          </SegGroup>
-        </Section>
-
-        <Section title="Overlays">
-          <div style={{ display: "grid", gap: 8 }}>
-            <ToggleRow
-              label="Main"
-              active={value.showRepresentative}
-              onClick={() =>
-                patch({ showRepresentative: !value.showRepresentative })
-              }
-            />
-
-            <ToggleRow
-              label="Fan (Quantiles)"
-              active={value.showFan}
-              onClick={() => patch({ showFan: !value.showFan })}
-            />
-
-            <ToggleRow
-              label="Median"
-              active={value.showMedian}
-              onClick={() => patch({ showMedian: !value.showMedian })}
-            />
-
-            <ToggleRow
-              label="Cloud"
-              active={value.showCloud}
-              onClick={() => patch({ showCloud: !value.showCloud })}
-            />
-
-            <ToggleRow
-              label="Range"
-              active={value.showRange}
-              onClick={() => patch({ showRange: !value.showRange })}
-            />
+        {/* HEADER */}
+        <div style={{ padding: 14, flexShrink: 0 }}>
+          <div style={{ fontWeight: 800, fontSize: 14 }}>
+            Simulation settings
           </div>
-        </Section>
+          <div style={{ fontSize: 12, color: "rgba(148,163,184,0.8)" }}>
+            Horizon, scenario and runs
+          </div>
+        </div>
+
+        {/* CONTENT */}
+        <div
+          style={{
+            padding: "0 14px 14px",
+            overflowY: "auto",
+            flex: 1,
+          }}
+        >
+          <Section title="Horizon">
+            <SegGroup cols={4}>
+              {HORIZONS.map((d) => (
+                <SegButton
+                  key={d}
+                  label={`${d}d`}
+                  active={value.horizonDays === d}
+                  onClick={() => patch({ horizonDays: d })}
+                />
+              ))}
+            </SegGroup>
+          </Section>
+
+          <Section title="Scenario">
+            <SegGroup cols={3}>
+              {SCENARIOS.map(([key, label]) => (
+                <SegButton
+                  key={key}
+                  label={label}
+                  active={value.scenario === key}
+                  onClick={() => patch({ scenario: key })}
+                />
+              ))}
+            </SegGroup>
+          </Section>
+
+          <Section title="Simulations">
+            <SegGroup cols={3}>
+              {SIMULATIONS.map((n) => (
+                <SegButton
+                  key={n}
+                  label={`${n}`}
+                  active={value.simulations === n}
+                  onClick={() => patch({ simulations: n })}
+                />
+              ))}
+            </SegGroup>
+          </Section>
+
+          <Section title="Overlays">
+            <div style={{ display: "grid", gap: 8 }}>
+              <ToggleRow
+                label="Main"
+                active={value.showRepresentative}
+                onClick={() =>
+                  patch({ showRepresentative: !value.showRepresentative })
+                }
+              />
+              <ToggleRow
+                label="Fan (Quantiles)"
+                active={value.showFan}
+                onClick={() => patch({ showFan: !value.showFan })}
+              />
+              <ToggleRow
+                label="Median"
+                active={value.showMedian}
+                onClick={() => patch({ showMedian: !value.showMedian })}
+              />
+              <ToggleRow
+                label="Cloud"
+                active={value.showCloud}
+                onClick={() => patch({ showCloud: !value.showCloud })}
+              />
+              <ToggleRow
+                label="Range"
+                active={value.showRange}
+                onClick={() => patch({ showRange: !value.showRange })}
+              />
+            </div>
+          </Section>
+        </div>
       </div>
     </div>
   );
