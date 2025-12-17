@@ -1,1041 +1,1151 @@
-import { useMemo, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useMemo } from "react";
 
-import historyJson from "../data/mock-history.json";
-import portfoliosJson from "../data/mock-portfolios.json";
-
-import type {
-  AssetAmounts,
-  HistoryPoint,
-} from "../services/portfolio/portfolioService";
-
-import {
-  filterHistoryByPeriod,
-} from "../services/portfolio/portfolioService";
-
-import {
-  estimatePortfolioParams,
-} from "../services/portfolio/portfolioStatsService";
-
-import {
-  runMonteCarloAdvanced,
-} from "../services/simulation/monteCarloService";
-
-import { SimulationChartCard } from "../components/simulation/SimulationChartCard";
-import {
-  SimulationControls,
-  type SimulationParams,
-} from "../components/simulation/SimulationControls";
-import { FinalOutcomeCard } from "../components/simulation/FinalOutcomeCard";
-import { OutcomeDistributionCard } from "../components/simulation/OutcomeDistributionCard";
-
-type OutletCtx = {
-  profileId: string;
+type Props = {
+  startValue: number;
+  median: number;
 };
 
-type Profile = {
-  id: string;
-  assets: AssetAmounts;
-};
-
-function periodFromHorizon(h: number) {
-  if (h <= 30) return "month";
-  if (h <= 90) return "month";
-  return "year";
+function formatMoney(v: number) {
+  return v.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
 }
 
-export function SimulationPage() {
-  const { profileId } = useOutletContext<OutletCtx>();
+export function FinalOutcomeCard({ startValue, median }: Props) {
+  const model = useMemo(() => {
+    const deltaPct =
+      startValue === 0 ? 0 : ((median - startValue) / startValue) * 100;
 
-  const history = historyJson as unknown as HistoryPoint[];
-  const profiles = (portfoliosJson as any).profiles as Profile[];
+    const isPositive = deltaPct >= 0;
 
-  const profile =
-    profiles.find((p) => p.id === profileId) ?? profiles[0];
+    const RANGE = 30;
+    const clamped = Math.max(-RANGE, Math.min(RANGE, deltaPct));
+    const posPct = ((clamped + RANGE) / (RANGE * 2)) * 100;
 
-  const amounts = profile.assets;
+    return { deltaPct, isPositive, posPct, RANGE };
+  }, [startValue, median]);
 
-  const [params, setParams] = useState<SimulationParams>({
-    horizonDays: 90,
-    scenario: "baseline",
-    simulations: 50,
-    showCloud: false,
-    showMedian: false,
-    showRepresentative: true,
-    showRange: false,
-    showFan: true,
-  });
+  const ACCENT_COLOR = model.isPositive ? "#22c55e" : "#ef4444";
+  const sign = model.deltaPct >= 0 ? "+" : "";
 
-  const filteredHistory = useMemo(() => {
-    const period = periodFromHorizon(params.horizonDays) as any;
-    return filterHistoryByPeriod(history, period);
-  }, [history, params.horizonDays]);
-
-  const { drift, volatility } = useMemo(() => {
-    return estimatePortfolioParams(filteredHistory, amounts);
-  }, [filteredHistory, amounts]);
-
-  const startValue = useMemo(() => {
-    if (!filteredHistory.length) return 100;
-    const last = filteredHistory[filteredHistory.length - 1];
-    let v = 0;
-    for (const [sym, amt] of Object.entries(amounts)) {
-      v += (last.prices[sym] ?? 0) * amt;
-    }
-    return v || 100;
-  }, [filteredHistory, amounts]);
-
-  const sim = useMemo(() => {
-    return runMonteCarloAdvanced({
-      startValue,
-      drift,
-      volatility,
-      horizonDays: params.horizonDays,
-      simulations: params.simulations,
-      scenario: params.scenario,
-    });
-  }, [
-    startValue,
-    drift,
-    volatility,
-    params.horizonDays,
-    params.simulations,
-    params.scenario,
-  ]);
-
-  const finalMedian = sim.median.at(-1) ?? startValue;
+  const centerPct = 50;
+  const fillLeft = model.isPositive ? centerPct : model.posPct;
+  const fillWidth = Math.abs(model.posPct - centerPct);
 
   return (
-    <div style={{ marginTop: 10 }}>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr) 320px",
-          gap: 14,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 14,
-            minWidth: 0,
-          }}
-        >
-          <SimulationChartCard
-            timestamps={sim.timestamps}
-            median={sim.median}
-            representative={sim.representative}
-            upper={sim.upper}
-            lower={sim.lower}
-            cloud={sim.paths}
-            showCloud={params.showCloud}
-            showMedian={params.showMedian}
-            showRepresentative={params.showRepresentative}
-            showRange={params.showRange}
-            showFan={params.showFan}
-            onToggleCloud={() =>
-              setParams((p) => ({ ...p, showCloud: !p.showCloud }))
-            }
-            onToggleMedian={() =>
-              setParams((p) => ({ ...p, showMedian: !p.showMedian }))
-            }
-            onToggleRepresentative={() =>
-              setParams((p) => ({
-                ...p,
-                showRepresentative: !p.showRepresentative,
-              }))
-            }
-            onToggleFan={() =>
-              setParams((p) => ({ ...p, showFan: !p.showFan }))
-            }
-            onToggleRange={() =>
-              setParams((p) => ({ ...p, showRange: !p.showRange }))
-            }
+    <div className="card card-sm w-100">
+      <div className="card-body">
+        <div style={{ fontWeight: 700, marginBottom: 10 }}>
+          Final outcome
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+          <div style={{ fontSize: 28, fontWeight: 800 }}>
+            {formatMoney(median)}
+          </div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: ACCENT_COLOR }}>
+            {sign}
+            {Math.abs(model.deltaPct).toFixed(1)}%
+          </div>
+        </div>
+
+        <div style={{ position: "relative", height: 20 }}>
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: 0,
+              right: 0,
+              height: 7,
+              transform: "translateY(-50%)",
+              borderRadius: 999,
+              background: "rgba(255,255,255,0.22)",
+            }}
           />
 
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-              gap: 14,
+              position: "absolute",
+              top: "50%",
+              left: `${fillLeft}%`,
+              width: `${fillWidth}%`,
+              height: 7,
+              transform: "translateY(-50%)",
+              borderRadius: 999,
+              background: model.isPositive
+                ? "rgba(34,197,94,0.45)"
+                : "rgba(239,68,68,0.45)",
             }}
-          >
-            <FinalOutcomeCard
-              startValue={startValue}
-              median={finalMedian}
-            />
-            <OutcomeDistributionCard paths={sim.paths} />
-          </div>
+          />
+
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: 2,
+              height: 14,
+              background: "rgba(226,232,240,0.85)",
+            }}
+          />
+
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: `${model.posPct}%`,
+              transform: "translate(-50%, -50%)",
+              width: 16,
+              height: 16,
+              borderRadius: "50%",
+              background: ACCENT_COLOR,
+            }}
+          />
         </div>
 
-        <SimulationControls value={params} onChange={setParams} />
+        <div style={{ position: "relative", height: 16, marginTop: 6, fontSize: 12 }}>
+          <div style={{ position: "absolute", left: 0 }}>-{model.RANGE}%</div>
+          <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}>0%</div>
+          <div style={{ position: "absolute", right: 0 }}>+{model.RANGE}%</div>
+        </div>
       </div>
     </div>
   );
-}\nfrontend/src/router.tsx\n// src/router.tsx
+}\nfrontend/src/components/simulation/OutcomeDistributionCard.tsx\nimport { useMemo } from "react";
 
-import { createBrowserRouter } from "react-router-dom";
-import { AppLayout } from "./layout/AppLayout";
-
-import { PortfolioPage } from "./pages/PortfolioPage";
-import { PricesPage } from "./pages/PricesPage";
-import { AssetsPage } from "./pages/AssetsPage";
-import { SettingsPage } from "./pages/SettingsPage";
-import { SimulationPage } from "./pages/SimulationPage";
-
-export const router = createBrowserRouter([
-  {
-    path: "/",
-    element: <AppLayout />,
-    children: [
-      { index: true, element: <PortfolioPage /> },
-      { path: "prices", element: <PricesPage /> },
-      { path: "assets", element: <AssetsPage /> },
-      { path: "settings", element: <SettingsPage /> },
-      { path: "simulation", element: <SimulationPage /> },
-    ],
-  },
-]);\nfrontend/src/services/assets/assetsApi.ts\n/* =========================
-   CoinGecko API
-========================= */
-
-const COINGECKO_BASE = "https://api.coingecko.com/api/v3";
-
-export type CoinGeckoMarket = {
-  id: string;
-  symbol: string;
-  name: string;
-  image?: string;
-  current_price: number;
-  market_cap: number;
-  total_volume: number;
-  price_change_percentage_1h_in_currency?: number;
-  price_change_percentage_24h_in_currency?: number;
-  price_change_percentage_7d_in_currency?: number;
-  sparkline_in_7d?: { price: number[] };
+type Props = {
+  paths: number[][];
+  title?: string;
 };
 
-export type CoinGeckoGlobal = {
-  data: {
-    total_market_cap: { usd: number };
-    market_cap_change_percentage_24h_usd: number;
-    market_cap_percentage: {
-      btc: number;
-      eth: number;
-    };
-  };
-};
-
-export async function fetchMarkets(): Promise<CoinGeckoMarket[]> {
-  const url =
-    `${COINGECKO_BASE}/coins/markets` +
-    `?vs_currency=usd` +
-    `&order=market_cap_desc` +
-    `&per_page=100` +
-    `&page=1` +
-    `&sparkline=true` +
-    `&price_change_percentage=1h,24h,7d`;
-
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("CoinGecko markets failed");
-
-  return res.json();
+function medianOf(sorted: number[]): number {
+  const m = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[m] : (sorted[m - 1] + sorted[m]) / 2;
 }
 
-export async function fetchGlobal(): Promise<CoinGeckoGlobal> {
-  const res = await fetch(`${COINGECKO_BASE}/global`);
-  if (!res.ok) throw new Error("CoinGecko global failed");
-
-  return res.json();
+function formatMoney(v: number) {
+  return v.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
 }
 
-/* =========================
-   Fear & Greed
-========================= */
+export function OutcomeDistributionCard({
+  paths,
+  title = "Outcome distribution",
+}: Props) {
+  const model = useMemo(() => {
+    if (!paths.length || !paths[0]?.length) return null;
 
-type FearGreedApiResponse = {
-  data: Array<{
-    value: string;
-    value_classification: string;
-    timestamp: string;
-  }>;
-};
+    const start = paths[0][0];
 
-export async function fetchFearGreed(): Promise<number | null> {
-  const res = await fetch("https://api.alternative.me/fng/");
-  if (!res.ok) return null;
+    const finals = paths
+      .map((p) => p[p.length - 1])
+      .filter(Number.isFinite)
+      .sort((a, b) => a - b);
 
-  const json = (await res.json()) as FearGreedApiResponse;
-  const value = Number(json.data[0]?.value);
+    if (!finals.length) return null;
 
-  return Number.isNaN(value) ? null : value;
-}\nfrontend/src/services/assets/assetsCache.ts\nimport type { CoinGeckoMarket, CoinGeckoGlobal } from "./assetsApi";
+    const min = finals[0];
+    const max = finals[finals.length - 1];
+    const median = medianOf(finals);
 
-/* =========================
-   Cache keys
-========================= */
+    const BUCKETS = 14;
+    const counts = Array(BUCKETS).fill(0);
+    const step = (max - min) / BUCKETS || 1;
 
-const MARKETS_KEY = "assets.cache.markets";
-const GLOBAL_KEY = "assets.cache.global";
+    for (const v of finals) {
+      const i = Math.min(BUCKETS - 1, Math.floor((v - min) / step));
+      counts[i]++;
+    }
 
-const FEAR_GREED_KEY = "assets.cache.fearGreed";
-const FEAR_GREED_TS_KEY = "assets.cache.fearGreed.fetchedAt";
+    const maxCount = Math.max(...counts) || 1;
+    const bins = counts.map((c) => c / maxCount);
 
-const FETCHED_AT_KEY = "assets.cache.fetchedAt";
+    const medianPos = ((median - min) / (max - min || 1)) * 100;
+    const isPositive = median >= start;
 
-const ONE_HOUR = 60 * 60 * 1000;
+    return { bins, min, max, median, medianPos, isPositive };
+  }, [paths]);
 
-/* =========================
-   Helpers
-========================= */
+  if (!model) return null;
 
-function readJSON<T>(key: string): T | null {
-  const raw = localStorage.getItem(key);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
+  const MEDIAN_COLOR = model.isPositive ? "#22c55e" : "#ef4444";
 
-/* =========================
-   Markets
-========================= */
+  const BAR_GRADIENT = `linear-gradient(180deg,
+    rgba(125,211,252,0.70) 0%,
+    rgba(56,189,248,0.56) 45%,
+    rgba(14,165,233,0.34) 100%
+  )`;
 
-export function saveMarkets(markets: CoinGeckoMarket[]) {
-  localStorage.setItem(MARKETS_KEY, JSON.stringify(markets));
-  localStorage.setItem(FETCHED_AT_KEY, String(Date.now()));
-}
+  return (
+    <div className="card card-sm w-100">
+      <div className="card-body">
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+          <div style={{ fontWeight: 700, color: "rgba(226,232,240,0.95)" }}>
+            {title}
+          </div>
 
-export function readMarkets(): CoinGeckoMarket[] | null {
-  return readJSON<CoinGeckoMarket[]>(MARKETS_KEY);
-}
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 12, color: "rgba(148,163,184,0.9)" }}>
+              median
+            </div>
+            <div style={{ fontWeight: 800, color: MEDIAN_COLOR }}>
+              {formatMoney(model.median)}
+            </div>
+          </div>
+        </div>
 
-export function isMarketsFresh(): boolean {
-  const ts = Number(localStorage.getItem(FETCHED_AT_KEY) || 0);
-  return Date.now() - ts < ONE_HOUR;
-}
+        <div style={{ position: "relative", height: 72, display: "flex", alignItems: "flex-end", gap: 5 }}>
+          {model.bins.map((v, i) => (
+            <div
+              key={i}
+              style={{
+                flex: 1,
+                height: `${Math.max(0.06, v) * 100}%`,
+                borderRadius: 4,
+                background: BAR_GRADIENT,
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.12)",
+                transition: "height 200ms ease",
+              }}
+            />
+          ))}
 
-/* =========================
-   Global
-========================= */
+          <div
+            style={{
+              position: "absolute",
+              left: `${model.medianPos}%`,
+              top: -6,
+              bottom: -6,
+              transform: "translateX(-50%)",
+              width: 3,
+              background: MEDIAN_COLOR,
+              borderRadius: 999,
+            }}
+          />
+        </div>
 
-export function saveGlobal(global: CoinGeckoGlobal) {
-  localStorage.setItem(GLOBAL_KEY, JSON.stringify(global));
-}
-
-export function readGlobal(): CoinGeckoGlobal | null {
-  return readJSON<CoinGeckoGlobal>(GLOBAL_KEY);
-}
-
-/* =========================
-   Fear & Greed
-========================= */
-
-export function saveFearGreed(value: number) {
-  localStorage.setItem(FEAR_GREED_KEY, String(value));
-  localStorage.setItem(FEAR_GREED_TS_KEY, String(Date.now()));
-}
-
-export function readFearGreed(): number | null {
-  const ts = Number(localStorage.getItem(FEAR_GREED_TS_KEY) || 0);
-  const fresh = Date.now() - ts < ONE_HOUR;
-
-  const v = Number(localStorage.getItem(FEAR_GREED_KEY));
-  if (Number.isNaN(v)) return null;
-
-  return fresh ? v : null;
-}\nfrontend/src/services/assets/assetsSelectors.ts\nimport type { CoinGeckoMarket, CoinGeckoGlobal } from "./assetsApi";
-
-/* =========================
-   UI types
-========================= */
-
-export type AssetRow = {
-  symbol: string;
-  iconUrl: string | null;
-
-  price: number;
-
-  change1hPct: number;
-  change24hPct: number;
-  change7dPct: number;
-
-  marketCapUsd: number;
-  volume24hUsd: number;
-
-  sparkline: number[];
-};
-
-/* =========================
-   Table
-========================= */
-
-export function buildAssetsTable(markets: CoinGeckoMarket[]): AssetRow[] {
-  return markets.map((m) => ({
-    symbol: m.symbol.toUpperCase(),
-    iconUrl: m.image ?? null,
-
-    price: m.current_price,
-    change1hPct: m.price_change_percentage_1h_in_currency ?? 0,
-    change24hPct: m.price_change_percentage_24h_in_currency ?? 0,
-    change7dPct: m.price_change_percentage_7d_in_currency ?? 0,
-
-    marketCapUsd: m.market_cap,
-    volume24hUsd: m.total_volume,
-
-    sparkline: m.sparkline_in_7d?.price ?? [],
-  }));
-}
-
-/* =========================
-   Global metrics
-========================= */
-
-export function getGlobalMarketCapSnapshot(global: CoinGeckoGlobal) {
-  return {
-    capUsd: global.data.total_market_cap.usd,
-    changePct24h: global.data.market_cap_change_percentage_24h_usd,
-  };
-}
-
-export function getDominance(global: CoinGeckoGlobal) {
-  const btc = global.data.market_cap_percentage.btc ?? 0;
-  const eth = global.data.market_cap_percentage.eth ?? 0;
-
-  return {
-    btc,
-    eth,
-    alt: Math.max(0, 100 - btc - eth),
-  };
-}
-
-/* =========================
-   Top Gainer
-========================= */
-
-export function getTopGainer7d(markets: CoinGeckoMarket[]) {
-  if (markets.length === 0) return null;
-
-  const top30 = [...markets]
-    .sort((a, b) => b.market_cap - a.market_cap)
-    .slice(0, 30);
-
-  const best = top30.reduce((a, b) =>
-    (b.price_change_percentage_7d_in_currency ?? -Infinity) >
-    (a.price_change_percentage_7d_in_currency ?? -Infinity)
-      ? b
-      : a
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 12 }}>
+          <div>min {formatMoney(model.min)}</div>
+          <div>max {formatMoney(model.max)}</div>
+        </div>
+      </div>
+    </div>
   );
+}\nfrontend/src/components/simulation/SimulationChartCard.tsx\n// SimulationChartCard.tsx
+import { useEffect, useRef } from "react";
+import * as echarts from "echarts/core";
+import type { EChartsType } from "echarts/core";
 
-  return {
-    name: best.name,
-    symbol: best.symbol,
-    image: best.image,
-    pct7d: best.price_change_percentage_7d_in_currency ?? 0,
-  };
-}\nfrontend/src/services/assets/binanceService.ts\nexport type BinancePriceMap = Record<string, number>;
+import { LineChart, CustomChart } from "echarts/charts";
+import { TooltipComponent, GridComponent } from "echarts/components";
+import { CanvasRenderer } from "echarts/renderers";
 
-const BINANCE_BASE = "https://api.binance.com";
+import {
+  resample,
+  resampleFan,
+  toPercentFromBase,
+  buildFanQuantiles,
+} from "./simulationChart.utils";
+import { buildSimulationChartOption } from "./simulationChart.option";
 
-// ⛔ ЭКСПЕРИМЕНТАЛЬНО: строго 10 активов
-const SYMBOLS = [
-  "BTC",
-  "ETH",
-  "BNB",
-  "SOL",
-  "XRP",
-  "DOGE",
-  "ADA",
-  "LTC",
-  "AVAX",
-  "LINK",
-];
+echarts.use([
+  LineChart,
+  CustomChart,
+  TooltipComponent,
+  GridComponent,
+  CanvasRenderer,
+]);
 
-let lastFetchAt: number | null = null;
+const TARGET_POINTS = 250;
 
-export async function fetchBinancePrices(): Promise<BinancePriceMap> {
-  const pairs = SYMBOLS.map((s) => `${s}USDT`);
+const ACTIVE_COLOR = "#0ea5e9";
+const INACTIVE_COLOR = "#64748b";
+const TEXT_ACTIVE = "rgba(226,232,240,0.95)";
+const TEXT_INACTIVE = "rgba(226,232,240,0.80)";
 
-  const now = Date.now();
-  if (lastFetchAt) {
-    const diff = ((now - lastFetchAt) / 1000).toFixed(1);
-    console.log(`[Binance] fetch after ${diff}s`);
-  } else {
-    console.log("[Binance] first fetch");
-  }
-  lastFetchAt = now;
+export type SimulationChartCardProps = {
+  timestamps: number[];
+  median: number[];
+  representative: number[];
+  upper: number[];
+  lower: number[];
+  cloud: number[][];
+  showCloud: boolean;
+  showMedian: boolean;
+  showRepresentative?: boolean;
+  showRange: boolean;
 
-  console.log("[Binance] requesting:", pairs.join(", "));
+  showFan?: boolean;
 
-  const url =
-    `${BINANCE_BASE}/api/v3/ticker/price?symbols=` +
-    encodeURIComponent(JSON.stringify(pairs));
-
-  const res = await fetch(url);
-
-  if (!res.ok) {
-    console.log("[Binance] HTTP error", res.status);
-    throw new Error("Binance request failed");
-  }
-
-  const data = (await res.json()) as Array<{ symbol: string; price: string }>;
-
-  const out: BinancePriceMap = {};
-
-  for (const row of data) {
-    if (row.symbol.endsWith("USDT")) {
-      const base = row.symbol.replace("USDT", "");
-      out[base] = Number(row.price);
-    }
-  }
-
-  const summary = Object.entries(out)
-    .map(([k, v]) => `${k} ${v}`)
-    .join(" | ");
-
-  console.log("[Binance] response:", summary || "EMPTY");
-
-  return out;
-}\nfrontend/src/services/assets/moodService.ts\n// src/services/moodService.ts
-import type { HistoryPoint } from "./portfolio/portfolioService";
-
-export type MarketMood = {
-  fearFactor: number; // 0–100
-  label: "Extreme Fear" | "Fear" | "Neutral" | "Greed" | "Extreme Greed";
-  volatilityScore: number; // 0–100
-  gainersScore: number; // 0–100
-  momentumScore: number; // 0–100
+  onToggleCloud?: () => void;
+  onToggleMedian?: () => void;
+  onToggleRepresentative?: () => void;
+  onToggleRange?: () => void;
+  onToggleFan?: () => void;
 };
 
-function clamp(v: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, v));
-}
+export function SimulationChartCard({
+  timestamps,
+  median,
+  representative,
+  upper,
+  lower,
+  cloud,
+  showCloud,
+  showMedian,
+  showRepresentative = true,
+  showRange,
+  showFan = false,
+  onToggleCloud,
+  onToggleMedian,
+  onToggleRepresentative,
+  onToggleRange,
+  onToggleFan,
+}: SimulationChartCardProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<EChartsType | null>(null);
+  const yDomainRef = useRef<{ min: number; max: number } | null>(null);
 
-// последние N часов
-function sliceLastHours(history: HistoryPoint[], hours: number): HistoryPoint[] {
-  if (!history.length) return [];
-  const lastTs = history[history.length - 1].timestamp; // sec
-  const cutoff = lastTs - hours * 3600;
-  return history.filter((p) => p.timestamp >= cutoff);
-}
+  useEffect(() => {
+    if (!ref.current) return;
 
-// средняя абсолютная волатильность % за шаг (по всем активам)
-function calcVolatilityScore(history: HistoryPoint[]): number {
-  if (history.length < 2) return 0;
+    const chart = echarts.init(ref.current);
+    chartRef.current = chart;
 
-  const assets = Object.keys(history[0].prices) as (keyof HistoryPoint["prices"])[];
-  const deltas: number[] = [];
+    const onResize = () => chart.resize();
+    window.addEventListener("resize", onResize);
 
-  for (let i = 1; i < history.length; i++) {
-    const prev = history[i - 1].prices;
-    const curr = history[i].prices;
-
-    for (const a of assets) {
-      const p0 = prev[a];
-      const p1 = curr[a];
-      if (!p0) continue;
-      const pct = ((p1 - p0) / p0) * 100;
-      deltas.push(Math.abs(pct));
-    }
-  }
-
-  if (!deltas.length) return 0;
-  const avgAbs = deltas.reduce((s, x) => s + x, 0) / deltas.length;
-
-  // мапим: 0–5% → 0–100
-  const score = avgAbs * 20;
-  return clamp(score, 0, 100);
-}
-
-// доля активов, которые выросли за период, в %
-function calcGainersScore(history: HistoryPoint[]): number {
-  if (history.length < 2) return 0;
-
-  const first = history[0].prices;
-  const last = history[history.length - 1].prices;
-  const assets = Object.keys(first) as (keyof HistoryPoint["prices"])[];
-
-  let gainers = 0;
-  let total = 0;
-
-  for (const a of assets) {
-    const p0 = first[a];
-    const p1 = last[a];
-    if (!p0) continue;
-    total++;
-    if (p1 > p0) gainers++;
-  }
-
-  if (!total) return 0;
-  return (gainers / total) * 100;
-}
-
-// простой расчёт портфельного PnL за период (для настроения)
-function calcMomentumScore(history: HistoryPoint[]): number {
-  if (history.length < 2) return 50;
-
-  const first = history[0];
-  const last = history[history.length - 1];
-
-  const assets = Object.keys(first.prices) as (keyof HistoryPoint["prices"])[];
-  // условно считаем равный вес по активам (только для настроения, не для отчёта)
-  let v0 = 0;
-  let v1 = 0;
-
-  for (const a of assets) {
-    const p0 = first.prices[a];
-    const p1 = last.prices[a];
-    v0 += p0;
-    v1 += p1;
-  }
-
-  if (!v0) return 50;
-  const pnlPct = ((v1 - v0) / v0) * 100;
-
-  //  -25% → 0, 0% → 50, +25% → 100
-  const score = 50 + pnlPct * 2;
-  return clamp(score, 0, 100);
-}
-
-function moodLabel(value: number): MarketMood["label"] {
-  if (value < 20) return "Extreme Fear";
-  if (value < 40) return "Fear";
-  if (value < 60) return "Neutral";
-  if (value < 80) return "Greed";
-  return "Extreme Greed";
-}
-
-// публичная функция: считаем "настроение рынка" по последним 24 часам
-export function buildMarketMood(history: HistoryPoint[]): MarketMood {
-  const last24h = sliceLastHours(history, 24);
-  if (!last24h.length) {
-    return {
-      fearFactor: 50,
-      label: "Neutral",
-      volatilityScore: 0,
-      gainersScore: 0,
-      momentumScore: 50,
+    return () => {
+      window.removeEventListener("resize", onResize);
+      chart.dispose();
+      chartRef.current = null;
     };
-  }
+  }, []);
 
-  const volatilityScore = calcVolatilityScore(last24h);
-  const gainersScore = calcGainersScore(last24h);
-  const momentumScore = calcMomentumScore(last24h);
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
 
-  // комбинируем, как договаривались
-  const fearFactorRaw =
-    0.4 * (100 - volatilityScore) +
-    0.3 * gainersScore +
-    0.3 * momentumScore;
+    const baseCandidate = median[0] ?? representative[0] ?? 1;
+    const base =
+      Number.isFinite(baseCandidate) && baseCandidate !== 0
+        ? baseCandidate
+        : 1;
 
-  const fearFactor = clamp(fearFactorRaw, 0, 100);
-  const label = moodLabel(fearFactor);
+    const medianPct = toPercentFromBase(median, base);
+    const repPct = toPercentFromBase(representative, base);
+    const upperPct = toPercentFromBase(upper, base);
+    const lowerPct = toPercentFromBase(lower, base);
+    const cloudPct = cloud.map((p) => toPercentFromBase(p, base));
 
-  return {
-    fearFactor,
-    label,
-    volatilityScore,
-    gainersScore,
-    momentumScore,
-  };
-}\nfrontend/src/services/balances/balancesCache.ts\nimport type { BalanceAsset } from "./types";
+    const fanPctRaw = buildFanQuantiles(cloudPct);
+    const fanPct = fanPctRaw ? resampleFan(fanPctRaw, TARGET_POINTS) : null;
 
-const KEY_DATA = "balances.eth.v1";
-const KEY_TS = "balances.eth.fetchedAt";
+    if (!yDomainRef.current) {
+      const all = [
+        ...medianPct,
+        ...repPct,
+        ...upperPct,
+        ...lowerPct,
+        ...cloudPct.flat(),
+        ...(fanPct
+          ? [
+              ...fanPct.q05,
+              ...fanPct.q25,
+              ...fanPct.q50,
+              ...fanPct.q75,
+              ...fanPct.q95,
+            ]
+          : []),
+      ];
 
-const TTL = 10 * 60 * 1000; // 10 min
+      const min = Math.min(...all);
+      const max = Math.max(...all);
+      const pad = (max - min) * 0.08;
+      yDomainRef.current = { min: min - pad, max: max + pad };
+    }
 
-type StoredBalances = {
-  chain: "eth";
-  wallet: string;
-  assets: BalanceAsset[];
-};
+    const ts = resample(timestamps, TARGET_POINTS);
 
-export function saveBalancesEth(
-  wallet: string,
-  assets: BalanceAsset[]
-) {
-  const payload: StoredBalances = {
-    chain: "eth",
-    wallet,
-    assets,
-  };
-
-  localStorage.setItem(KEY_DATA, JSON.stringify(payload));
-  localStorage.setItem(KEY_TS, String(Date.now()));
-}
-
-export function readBalancesEth(): StoredBalances | null {
-  const raw = localStorage.getItem(KEY_DATA);
-  if (!raw) return null;
-
-  try {
-    return JSON.parse(raw) as StoredBalances;
-  } catch {
-    return null;
-  }
-}
-
-export function isBalancesEthFresh(): boolean {
-  const ts = Number(localStorage.getItem(KEY_TS) || 0);
-  return Date.now() - ts < TTL;
-}\nfrontend/src/services/balances/balancesService.ts\nimport {
-  fetchEthNativeBalance,
-  fetchEthTokenBalances,
-} from "./moralisClient";
-import type { BalanceAsset } from "./types";
-
-function toNumber(raw: string, decimals: number): number {
-  if (!raw) return 0;
-  return Number(raw) / 10 ** decimals;
-}
-
-function isValidAsset(a: BalanceAsset): boolean {
-  if (!a.symbol) return false;
-  if (!Number.isFinite(a.balance)) return false;
-  if (a.balance <= 0) return false;
-  if (a.decimals < 0 || a.decimals > 36) return false;
-  return true;
-}
-
-export async function fetchBalancesEth(
-  wallet: string
-): Promise<BalanceAsset[]> {
-  const [native, tokens] = await Promise.all([
-    fetchEthNativeBalance(wallet),
-    fetchEthTokenBalances(wallet),
+    chart.setOption(
+      buildSimulationChartOption({
+        timestamps: ts,
+        median: resample(medianPct, TARGET_POINTS),
+        representative: resample(repPct, TARGET_POINTS),
+        upper: resample(upperPct, TARGET_POINTS),
+        lower: resample(lowerPct, TARGET_POINTS),
+        cloud: cloudPct.map((p) => resample(p, TARGET_POINTS)),
+        yDomain: yDomainRef.current!,
+        flags: {
+          showCloud,
+          showMedian,
+          showRepresentative,
+          showRange,
+          showFan,
+        },
+        fan: fanPct ?? undefined,
+      }),
+      { notMerge: true }
+    );
+  }, [
+    timestamps,
+    median,
+    representative,
+    upper,
+    lower,
+    cloud,
+    showCloud,
+    showMedian,
+    showRepresentative,
+    showRange,
+    showFan,
   ]);
 
-  const out: BalanceAsset[] = [];
+  return (
+    <div
+      className="card"
+      style={{
+        position: "relative",
+        width: "100%",
+        height: 380,
 
-  // ETH native
-  {
-    const decimals = 18;
-    const balance = toNumber(native.balance, decimals);
+        /* ✅ ТОЧНО как у других карточек */
+        background: "var(--tblr-card-bg)",
+        border: "1px solid var(--tblr-border-color)",
+      }}
+    >
+      <style>{`
+        .sim-legend {
+          position: absolute;
+          top: 12px;
+          left: 50%;
+          transform: translateX(-50%);
+          display: flex;
+          gap: 16px;
+          z-index: 3;
+          padding: 6px 12px;
+          border-radius: 12px;
+          background: rgba(2,6,23,0.35);
+          border: 1px solid rgba(255,255,255,0.05);
+          backdrop-filter: blur(10px);
+        }
 
-    const eth: BalanceAsset = {
-      source: "moralis",
-      symbol: "ETH",
-      name: "Ethereum",
-      decimals,
-      balanceRaw: native.balance,
-      balance,
-      isNative: true,
-    };
+        .sim-legend-item {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          user-select: none;
+          color: ${TEXT_INACTIVE};
+        }
 
-    if (isValidAsset(eth)) out.push(eth);
-  }
+        .sim-legend-item.is-on {
+          color: ${TEXT_ACTIVE};
+        }
 
-  // ERC-20 tokens
-  for (const t of tokens) {
-    const balance = toNumber(t.balance, t.decimals);
+        .sim-legend-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 999px;
+          background: ${INACTIVE_COLOR};
+          transition: background 120ms ease;
+        }
 
-    const asset: BalanceAsset = {
-      source: "moralis",
-      symbol: t.symbol,
-      name: t.name,
-      decimals: t.decimals,
-      balanceRaw: t.balance,
-      balance,
-      tokenAddress: t.token_address,
-      isNative: false,
-    };
+        .sim-legend-item.is-on .sim-legend-dot {
+          background: ${ACTIVE_COLOR};
+        }
+      `}</style>
 
-    if (isValidAsset(asset)) out.push(asset);
-  }
+      <div className="sim-legend">
+        <div
+          className={`sim-legend-item ${showRepresentative ? "is-on" : ""}`}
+          onClick={onToggleRepresentative}
+        >
+          <span className="sim-legend-dot" />
+          Main
+        </div>
 
-  return out;
-}\nfrontend/src/services/balances/index.ts\nimport { fetchBalancesEth } from "./balancesService";
-import {
-  saveBalancesEth,
-  readBalancesEth,
-  isBalancesEthFresh,
-} from "./balancesCache";
+        <div
+          className={`sim-legend-item ${showFan ? "is-on" : ""}`}
+          onClick={onToggleFan}
+        >
+          <span className="sim-legend-dot" />
+          Fan
+        </div>
 
-export async function getBalancesEth(wallet: string) {
-  if (isBalancesEthFresh()) {
-    const cached = readBalancesEth();
-    if (cached && cached.wallet === wallet) {
-      return cached.assets;
-    }
-  }
+        <div
+          className={`sim-legend-item ${showMedian ? "is-on" : ""}`}
+          onClick={onToggleMedian}
+        >
+          <span className="sim-legend-dot" />
+          Median
+        </div>
 
-  const assets = await fetchBalancesEth(wallet);
-  saveBalancesEth(wallet, assets);
-  return assets;
-}\nfrontend/src/services/balances/moralisClient.ts\nconst MORALIS_BASE = "https://deep-index.moralis.io/api/v2";
+        <div
+          className={`sim-legend-item ${showCloud ? "is-on" : ""}`}
+          onClick={onToggleCloud}
+        >
+          <span className="sim-legend-dot" />
+          Cloud
+        </div>
 
-/**
- * ⚠️ TEMP HARDCODE
- * Только для MVP / локальной разработки
- * Потом убрать в .env или backend
- */
-const MORALIS_API_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjM1ZDc2OTRmLTBmOWUtNDM4Yy1iNTBmLTRmNmE4YTEyZGY0YiIsIm9yZ0lkIjoiNDg2Mjg2IiwidXNlcklkIjoiNTAwMjkxIiwidHlwZUlkIjoiYzM3MzRjOGMtMzUzNC00MDI4LTlmNzEtOGRlOGRiM2Q4MmYwIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NjU4NTM5MzMsImV4cCI6NDkyMTYxMzkzM30.wQ9VlqQKyg6v5f7wU85HEozh1el1pUwnvSXkf3FS-Gk";
+        <div
+          className={`sim-legend-item ${showRange ? "is-on" : ""}`}
+          onClick={onToggleRange}
+        >
+          <span className="sim-legend-dot" />
+          Range
+        </div>
+      </div>
 
-type FetchOptions = {
-  path: string;
-  params?: Record<string, string | number | boolean | undefined>;
+      <div ref={ref} style={{ width: "100%", height: "100%" }} />
+    </div>
+  );
+}\nfrontend/src/components/simulation/simulationChart.option.ts\n// simulationChart.option.ts
+import type { EChartsCoreOption } from "echarts/core";
+
+const FAN_OUTER = "rgba(148,163,184,0.12)";
+const FAN_INNER = "rgba(148,163,184,0.20)";
+
+const COLOR_MAIN = "#0ea5e9";
+const COLOR_UPPER = "#22c55e";
+const COLOR_LOWER = "#ef4444";
+
+type FanQuantiles = {
+  q05: number[];
+  q25: number[];
+  q50: number[];
+  q75: number[];
+  q95: number[];
 };
 
-async function moralisFetch<T>({ path, params }: FetchOptions): Promise<T> {
-  const url = new URL(`${MORALIS_BASE}${path}`);
+type BuildOptionParams = {
+  timestamps: number[];
+  median: number[];
+  representative: number[];
+  upper: number[];
+  lower: number[];
+  cloud: number[][];
+  fan?: FanQuantiles;
+  yDomain: { min: number; max: number };
+  flags: {
+    showCloud: boolean;
+    showMedian: boolean;
+    showRepresentative: boolean;
+    showRange: boolean;
+    showFan: boolean;
+  };
+};
 
-  if (params) {
-    Object.entries(params).forEach(([k, v]) => {
-      if (v !== undefined) url.searchParams.set(k, String(v));
-    });
-  }
+function tooltipRow(label: string, value: number, color: string) {
+  const sign = value >= 0 ? "+" : "";
+  return `
+    <div style="
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      margin-top:4px;
+      font-weight:600;
+    ">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="
+          width:8px;
+          height:8px;
+          border-radius:50%;
+          background:${color};
+        "></span>
+        <span style="color:rgba(226,232,240,0.85)">${label}</span>
+      </div>
+      <span style="color:rgba(226,232,240,0.95)">
+        ${sign}${value.toFixed(2)}%
+      </span>
+    </div>
+  `;
+}
 
-  const res = await fetch(url.toString(), {
-    headers: {
-      "X-API-Key": MORALIS_API_KEY,
+export function buildSimulationChartOption({
+  timestamps,
+  median,
+  representative,
+  upper,
+  lower,
+  cloud,
+  fan,
+  yDomain,
+  flags,
+}: BuildOptionParams): EChartsCoreOption {
+  return {
+    backgroundColor: "transparent",
+
+    tooltip: {
+      trigger: "axis",
+      appendToBody: true,
+
+      /* ✅ Tabler card colors */
+      backgroundColor: "var(--tblr-card-bg)",
+      borderColor: "var(--tblr-border-color)",
+      borderWidth: 1,
+
+      textStyle: {
+        color: "rgba(226,232,240,0.95)",
+        fontSize: 12,
+      },
+
+      axisPointer: {
+        type: "line",
+        lineStyle: {
+          color: "rgba(148,163,184,0.45)",
+          width: 1,
+          type: "dashed",
+        },
+      },
+
+      formatter: (params: any[]) => {
+        const main = params.find((p) => p.seriesName === "Main");
+        if (!main) return "";
+
+        const i = main.dataIndex;
+
+        let html = `
+          <div style="
+            font-weight:700;
+            margin-bottom:6px;
+            color:rgba(226,232,240,0.95)
+          ">
+            Simulation
+          </div>
+        `;
+
+        if (flags.showRange) {
+          html += tooltipRow("Upper", upper[i], COLOR_UPPER);
+        }
+
+        if (flags.showRepresentative) {
+          html += tooltipRow("Main", representative[i], COLOR_MAIN);
+        }
+
+        if (flags.showMedian) {
+          html += tooltipRow("Median", median[i], "rgba(226,232,240,0.7)");
+        }
+
+        if (flags.showRange) {
+          html += tooltipRow("Lower", lower[i], COLOR_LOWER);
+        }
+
+        return html;
+      },
     },
-  });
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`[Moralis] ${res.status}: ${text}`);
+    grid: { left: 40, right: 48, top: 44, bottom: 40 },
+
+    xAxis: {
+      type: "value",
+      min: 0,
+      max: timestamps[timestamps.length - 1],
+      axisLabel: {
+        color: "rgba(148,163,184,0.85)",
+        formatter: (v: number) => `${Math.round(v)}d`,
+      },
+      axisLine: { lineStyle: { color: "rgba(148,163,184,0.25)" } },
+      splitLine: { show: false },
+    },
+
+    yAxis: {
+      type: "value",
+      min: yDomain.min,
+      max: yDomain.max,
+      position: "right",
+      axisLabel: {
+        color: "rgba(148,163,184,0.85)",
+        formatter: (v: number) =>
+          v === yDomain.min || v === yDomain.max ? "" : `${v}%`,
+      },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: {
+        show: true,
+        lineStyle: { color: "rgba(148,163,184,0.18)" },
+      },
+    },
+
+    series: [
+      ...cloud.map((p) => ({
+        type: "line",
+        name: "Cloud",
+        data: timestamps.map((t, i) => [t, p[i]]),
+        showSymbol: false,
+        silent: true,
+        tooltip: { show: false },
+        lineStyle: {
+          color: "#64748b",
+          width: 1,
+          opacity: flags.showCloud ? 0.15 : 0,
+        },
+        z: 1,
+      })),
+
+      fan && {
+        type: "custom",
+        name: "FanOuter",
+        silent: true,
+        tooltip: { show: false },
+        data: [0],
+        z: 2,
+        renderItem: (_: unknown, api: any) => ({
+          type: "polygon",
+          shape: {
+            points: [
+              ...timestamps.map((t, i) => api.coord([t, fan.q95[i]])),
+              ...timestamps
+                .slice()
+                .reverse()
+                .map((t, i) =>
+                  api.coord([t, fan.q05[fan.q05.length - 1 - i]])
+                ),
+            ],
+          },
+          style: { fill: FAN_OUTER, opacity: flags.showFan ? 1 : 0 },
+        }),
+      },
+
+      fan && {
+        type: "custom",
+        name: "FanInner",
+        silent: true,
+        tooltip: { show: false },
+        data: [0],
+        z: 3,
+        renderItem: (_: unknown, api: any) => ({
+          type: "polygon",
+          shape: {
+            points: [
+              ...timestamps.map((t, i) => api.coord([t, fan.q75[i]])),
+              ...timestamps
+                .slice()
+                .reverse()
+                .map((t, i) =>
+                  api.coord([t, fan.q25[fan.q25.length - 1 - i]])
+                ),
+            ],
+          },
+          style: { fill: FAN_INNER, opacity: flags.showFan ? 1 : 0 },
+        }),
+      },
+
+      {
+        type: "line",
+        name: "Median",
+        data: timestamps.map((t, i) => [t, median[i]]),
+        showSymbol: false,
+        lineStyle: {
+          color: "rgba(226,232,240,0.7)",
+          width: 2,
+          opacity: flags.showMedian ? 1 : 0,
+          type: "dashed",
+        },
+        z: 10,
+      },
+
+      {
+        type: "line",
+        name: "Main",
+        data: timestamps.map((t, i) => [t, representative[i]]),
+        showSymbol: false,
+        lineStyle: {
+          color: COLOR_MAIN,
+          width: 2,
+          opacity: flags.showRepresentative ? 1 : 0,
+        },
+        z: 12,
+      },
+    ].filter(Boolean),
+  };
+}\nfrontend/src/components/simulation/simulationChart.utils.ts\n// simulationChart.utils.ts
+
+export type FanQuantiles = {
+  q05: number[];
+  q25: number[];
+  q50: number[];
+  q75: number[];
+  q95: number[];
+};
+
+export function resample<T>(arr: T[], target: number): T[] {
+  if (arr.length <= target) return arr;
+
+  const res: T[] = [];
+  const step = (arr.length - 1) / (target - 1);
+
+  for (let i = 0; i < target; i++) {
+    res.push(arr[Math.round(i * step)]);
   }
 
-  return res.json();
+  return res;
+}
+
+export function toPercentFromBase(values: number[], base: number): number[] {
+  if (values.length === 0) return values;
+  if (!Number.isFinite(base) || base === 0) return values.map(() => 0);
+  return values.map((v) => ((v - base) / base) * 100);
+}
+
+function quantileSorted(sorted: number[], q: number): number {
+  const n = sorted.length;
+  if (n === 0) return 0;
+  if (n === 1) return sorted[0];
+
+  const qq = Math.max(0, Math.min(1, q));
+  const pos = (n - 1) * qq;
+  const base = Math.floor(pos);
+  const rest = pos - base;
+
+  const left = sorted[base]!;
+  const right = sorted[Math.min(base + 1, n - 1)]!;
+  return left + (right - left) * rest;
+}
+
+function finiteOnly(values: number[]): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    if (Number.isFinite(v)) out.push(v);
+  }
+  return out;
+}
+
+/**
+ * Builds a quantile "fan" from Monte Carlo paths.
+ * Each path is an array of values over time, all paths must have the same length.
+ */
+export function buildFanQuantiles(paths: number[][]): FanQuantiles | null {
+  if (!paths || paths.length === 0) return null;
+
+  const T = paths[0]?.length ?? 0;
+  if (T === 0) return null;
+
+  // Ensure consistent lengths
+  for (let p = 0; p < paths.length; p++) {
+    if ((paths[p]?.length ?? 0) !== T) return null;
+  }
+
+  const q05: number[] = new Array(T);
+  const q25: number[] = new Array(T);
+  const q50: number[] = new Array(T);
+  const q75: number[] = new Array(T);
+  const q95: number[] = new Array(T);
+
+  for (let t = 0; t < T; t++) {
+    const col: number[] = new Array(paths.length);
+    for (let p = 0; p < paths.length; p++) {
+      col[p] = paths[p]![t]!;
+    }
+
+    const vals = finiteOnly(col);
+    if (vals.length === 0) {
+      q05[t] = 0;
+      q25[t] = 0;
+      q50[t] = 0;
+      q75[t] = 0;
+      q95[t] = 0;
+      continue;
+    }
+
+    vals.sort((a, b) => a - b);
+
+    q05[t] = quantileSorted(vals, 0.05);
+    q25[t] = quantileSorted(vals, 0.25);
+    q50[t] = quantileSorted(vals, 0.5);
+    q75[t] = quantileSorted(vals, 0.75);
+    q95[t] = quantileSorted(vals, 0.95);
+  }
+
+  return { q05, q25, q50, q75, q95 };
+}
+
+export function resampleFan(fan: FanQuantiles, target: number): FanQuantiles {
+  return {
+    q05: resample(fan.q05, target),
+    q25: resample(fan.q25, target),
+    q50: resample(fan.q50, target),
+    q75: resample(fan.q75, target),
+    q95: resample(fan.q95, target),
+  };
+}\nfrontend/src/components/simulation/SimulationControls.tsx\n// SimulationControls.tsx
+import type { ReactNode } from "react";
+import type { Scenario } from "../../services/simulation/monteCarloService";
+
+export type SimulationParams = {
+  horizonDays: 30 | 90 | 180 | 365;
+  scenario: Scenario;
+  simulations: 50 | 100 | 200;
+
+  showCloud: boolean;
+  showMedian: boolean;
+  showRepresentative: boolean;
+  showRange: boolean;
+
+  showFan: boolean;
+};
+
+type Props = {
+  value: SimulationParams;
+  onChange: (next: SimulationParams) => void;
+};
+
+const HORIZONS = [30, 90, 180, 365] as const;
+const SIMULATIONS = [50, 100, 200] as const;
+
+const SCENARIOS = [
+  ["conservative", "Conservative"],
+  ["baseline", "Baseline"],
+  ["stress", "Stress"],
+] as const satisfies readonly (readonly [Scenario, string])[];
+
+/* =========================
+   UI helpers
+========================= */
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 800,
+          letterSpacing: 0.4,
+          textTransform: "uppercase",
+          color: "rgba(148,163,184,0.75)",
+          marginBottom: 6,
+        }}
+      >
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function SegButton({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        height: 32,
+        padding: "0 10px",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 12,
+        fontWeight: 800,
+        lineHeight: "16px",
+        borderRadius: 8,
+        border: active
+          ? "1px solid rgba(56,189,248,0.55)"
+          : "1px solid rgba(255,255,255,0.10)",
+        background: active
+          ? "rgba(14,165,233,0.22)"
+          : "rgba(15,23,42,0.55)",
+        color: active
+          ? "rgba(226,232,240,0.95)"
+          : "rgba(226,232,240,0.75)",
+        cursor: "pointer",
+        transition: "all 120ms ease",
+        userSelect: "none",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function SegGroup({ children, cols }: { children: ReactNode; cols: number }) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+        gap: 6,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function ToggleRow({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        height: 34,
+        width: "100%",
+        padding: "0 10px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        borderRadius: 10,
+        border: active
+          ? "1px solid rgba(56,189,248,0.45)"
+          : "1px solid rgba(255,255,255,0.08)",
+        background: active
+          ? "rgba(14,165,233,0.14)"
+          : "rgba(15,23,42,0.45)",
+        color: active
+          ? "rgba(226,232,240,0.95)"
+          : "rgba(226,232,240,0.80)",
+        cursor: "pointer",
+        userSelect: "none",
+      }}
+    >
+      <span style={{ fontSize: 12, fontWeight: 800 }}>{label}</span>
+      <span
+        style={{
+          width: 10,
+          height: 10,
+          borderRadius: 999,
+          background: active
+            ? "rgba(14,165,233,1)"
+            : "rgba(100,116,139,1)",
+        }}
+      />
+    </button>
+  );
 }
 
 /* =========================
-   ETH MAINNET
+   Component
 ========================= */
 
-export function fetchEthNativeBalance(address: string) {
-  return moralisFetch<{
-    balance: string;
-  }>({
-    path: `/${address}/balance`,
-    params: { chain: "eth" },
-  });
-}
+export function SimulationControls({ value, onChange }: Props) {
+  const patch = (next: Partial<SimulationParams>) =>
+    onChange({ ...value, ...next });
 
-export function fetchEthTokenBalances(address: string) {
-  return moralisFetch<
-    Array<{
-      token_address: string;
-      symbol: string;
-      name: string;
-      decimals: number;
-      balance: string;
-    }>
-  >({
-    path: `/${address}/erc20`,
-    params: { chain: "eth" },
-  });
-}\nfrontend/src/services/balances/types.ts\nexport type BalanceAsset = {
-  source: "moralis";
+  return (
+    <div className="card" style={{ height: "100%" }}>
+      <div
+        className="card-body"
+        style={{
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          padding: 0, // важно: управляем паддингами вручную
+        }}
+      >
+        {/* HEADER */}
+        <div style={{ padding: 14, flexShrink: 0 }}>
+          <div style={{ fontWeight: 800, fontSize: 14 }}>
+            Simulation settings
+          </div>
+          <div style={{ fontSize: 12, color: "rgba(148,163,184,0.8)" }}>
+            Horizon, scenario and runs
+          </div>
+        </div>
 
-  symbol: string;
-  name: string;
-  decimals: number;
+        {/* CONTENT */}
+        <div
+          style={{
+            padding: "0 14px 14px",
+            overflowY: "auto",
+            flex: 1,
+          }}
+        >
+          <Section title="Horizon">
+            <SegGroup cols={4}>
+              {HORIZONS.map((d) => (
+                <SegButton
+                  key={d}
+                  label={`${d}d`}
+                  active={value.horizonDays === d}
+                  onClick={() => patch({ horizonDays: d })}
+                />
+              ))}
+            </SegGroup>
+          </Section>
 
-  balanceRaw: string;
-  balance: number;
+          <Section title="Scenario">
+            <SegGroup cols={3}>
+              {SCENARIOS.map(([key, label]) => (
+                <SegButton
+                  key={key}
+                  label={label}
+                  active={value.scenario === key}
+                  onClick={() => patch({ scenario: key })}
+                />
+              ))}
+            </SegGroup>
+          </Section>
 
-  tokenAddress?: string;
-  isNative: boolean;
-};\nfrontend/src/services/portfolio/portfolioService.ts\nexport type Period = "year" | "month" | "week";
+          <Section title="Simulations">
+            <SegGroup cols={3}>
+              {SIMULATIONS.map((n) => (
+                <SegButton
+                  key={n}
+                  label={`${n}`}
+                  active={value.simulations === n}
+                  onClick={() => patch({ simulations: n })}
+                />
+              ))}
+            </SegGroup>
+          </Section>
 
-export type AssetAmounts = Record<string, number>;
-
-export type HistoryPoint = {
-  timestamp: number; // unix seconds
-  prices: Record<string, number>;
-};
-
-// fallback (если где-то не передали amounts)
-export const DEFAULT_AMOUNTS: AssetAmounts = {
-  ETH: 2,
-  WBTC: 0.03,
-  USDC: 80,
-  DAI: 40,
-  UNI: 400,
-};
-
-export function calcPortfolioValue(
-  p: HistoryPoint,
-  amounts: AssetAmounts = DEFAULT_AMOUNTS
-): number {
-  const pr = p.prices;
-  let total = 0;
-
-  for (const [sym, amount] of Object.entries(amounts)) {
-    const price = pr[sym] ?? 0;
-    total += price * amount;
-  }
-
-  return total;
-}
-
-export function filterHistoryByPeriod(history: HistoryPoint[], period: Period) {
-  if (!history.length) return [];
-
-  const last = history[history.length - 1].timestamp;
-  const seconds =
-    period === "week"
-      ? 7 * 24 * 3600
-      : period === "month"
-      ? 30 * 24 * 3600
-      : 365 * 24 * 3600;
-
-  const cutoff = last - seconds;
-  return history.filter((p) => p.timestamp >= cutoff);
-}
-
-/* ================================
-   📌 Downsampling (visual)
-================================ */
-
-function downsample(xs: number[], ys: number[], target: number) {
-  const n = xs.length;
-  if (n <= target) return { xs, ys };
-
-  const step = Math.ceil(n / target);
-  const outX: number[] = [];
-  const outY: number[] = [];
-
-  for (let i = 0; i < n; i += step) {
-    outX.push(xs[i]);
-    outY.push(ys[i]);
-  }
-
-  // гарантируем последнюю точку
-  if (outX[outX.length - 1] !== xs[n - 1]) {
-    outX.push(xs[n - 1]);
-    outY.push(ys[n - 1]);
-  }
-
-  return { xs: outX, ys: outY };
-}
-
-/* ================================
-   ✅ Series
-================================ */
-
-export function buildPortfolioSeries(
-  history: HistoryPoint[],
-  period: Period,
-  amounts: AssetAmounts = DEFAULT_AMOUNTS
-) {
-  const rawTimestamps = history.map((p) => p.timestamp * 1000);
-  const values = history.map((p) => calcPortfolioValue(p, amounts));
-
-  if (!values.length) {
-    return { timestamps: [], percentValues: [] };
-  }
-
-  const base = values[0];
-  const rawPercentValues = values.map((v) =>
-    base === 0 ? 0 : ((v - base) / base) * 100
+          <Section title="Overlays">
+            <div style={{ display: "grid", gap: 8 }}>
+              <ToggleRow
+                label="Main"
+                active={value.showRepresentative}
+                onClick={() =>
+                  patch({ showRepresentative: !value.showRepresentative })
+                }
+              />
+              <ToggleRow
+                label="Fan (Quantiles)"
+                active={value.showFan}
+                onClick={() => patch({ showFan: !value.showFan })}
+              />
+              <ToggleRow
+                label="Median"
+                active={value.showMedian}
+                onClick={() => patch({ showMedian: !value.showMedian })}
+              />
+              <ToggleRow
+                label="Cloud"
+                active={value.showCloud}
+                onClick={() => patch({ showCloud: !value.showCloud })}
+              />
+              <ToggleRow
+                label="Range"
+                active={value.showRange}
+                onClick={() => patch({ showRange: !value.showRange })}
+              />
+            </div>
+          </Section>
+        </div>
+      </div>
+    </div>
   );
-
-  const target = period === "week" ? 50 : period === "month" ? 70 : 150;
-  const { xs, ys } = downsample(rawTimestamps, rawPercentValues, target);
-
-  return { timestamps: xs, percentValues: ys };
-}
-
-export function buildTopMetrics(
-  history: HistoryPoint[],
-  amounts: AssetAmounts = DEFAULT_AMOUNTS,
-  btcSymbol: string = "BTC"
-) {
-  if (history.length < 2) {
-    return {
-      tvl: 0,
-      lastTsMs: 0,
-      changeUsd: 0,
-      changePct: 0,
-      btcPct: 0,
-      vsBtcPp: 0,
-    };
-  }
-
-  const first = history[0];
-  const last = history[history.length - 1];
-
-  const startValue = calcPortfolioValue(first, amounts);
-  const endValue = calcPortfolioValue(last, amounts);
-
-  const changeUsd = endValue - startValue;
-  const changePct = startValue === 0 ? 0 : (changeUsd / startValue) * 100;
-
-  // BTC benchmark (если BTC нет — fallback на WBTC)
-  const btcStart =
-    first.prices[btcSymbol] ?? first.prices["WBTC"] ?? first.prices["BTC"] ?? 0;
-  const btcEnd =
-    last.prices[btcSymbol] ?? last.prices["WBTC"] ?? last.prices["BTC"] ?? 0;
-
-  const btcPct = btcStart === 0 ? 0 : ((btcEnd - btcStart) / btcStart) * 100;
-
-  const vsBtcPp = changePct - btcPct;
-
-  return {
-    tvl: endValue,
-    lastTsMs: last.timestamp * 1000,
-    changeUsd,
-    changePct,
-    btcPct,
-    vsBtcPp,
-  };
-}\nfrontend/src/services/portfolio/portfolioStatsService.ts\nimport type {
-  AssetAmounts,
-  HistoryPoint,
-} from "./portfolioService";
-import { calcPortfolioValue, DEFAULT_AMOUNTS } from "./portfolioService";
-
-export type EstimatedParams = {
-  drift: number; // μ — mean log-return per day
-  volatility: number; // σ — std of log-returns per day
-};
-
-export function estimatePortfolioParams(
-  history: HistoryPoint[],
-  amounts: AssetAmounts = DEFAULT_AMOUNTS
-): EstimatedParams {
-  if (history.length < 2) {
-    return { drift: 0, volatility: 0 };
-  }
-
-  const values: number[] = history
-    .map((p) => calcPortfolioValue(p, amounts))
-    .filter((v) => Number.isFinite(v) && v > 0);
-
-  if (values.length < 2) {
-    return { drift: 0, volatility: 0 };
-  }
-
-  // log-returns
-  const returns: number[] = [];
-
-  for (let i = 1; i < values.length; i++) {
-    const r = Math.log(values[i] / values[i - 1]);
-    if (Number.isFinite(r)) returns.push(r);
-  }
-
-  if (!returns.length) {
-    return { drift: 0, volatility: 0 };
-  }
-
-  // mean (drift)
-  const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
-
-  // std (volatility)
-  const variance =
-    returns.reduce((sum, r) => sum + (r - mean) ** 2, 0) / returns.length;
-
-  const std = Math.sqrt(variance);
-
-  return {
-    drift: mean,
-    volatility: std,
-  };
-}\nfrontend/src/services/simulation/assetsService.ts\n
+}\nfrontend/src/layout/AppLayout.tsx\n

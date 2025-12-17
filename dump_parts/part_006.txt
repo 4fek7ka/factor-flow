@@ -1,24 +1,977 @@
-export type AssetRow = {
-  symbol: string;
-  iconUrl: string | null;
+import { Outlet } from "react-router-dom";
+import { useState } from "react";
+import { Sidebar } from "./Sidebar";
+import { ProfileSwitcher } from "./ProfileSwitcher";
 
-  price: number;
+export function AppLayout() {
+  const [profileId, setProfileId] = useState("conservative");
 
-  change1hPct: number;
-  change24hPct: number;
-  change7dPct: number;
+  return (
+    <div
+      style={{
+        display: "flex",
+        minHeight: "100vh",
+        background: "#070B17",
+      }}
+    >
+      <Sidebar />
 
-  marketCapUsd: number;
-  volume24hUsd: number;
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {/* ================= HEADER ================= */}
+        <header
+          style={{
+            position: "sticky",
+            top: 0,
+            zIndex: 50,
+            height: 56,
+            display: "flex",
+            alignItems: "center",
+            padding: "0 24px",
+            background: "#111827",
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+          }}
+        >
+          {/* LOGO + TITLE (из public) */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginLeft: 43,
+            }}
+          >
+            <img
+              src="/favicon.png"
+              alt="Factor Flow"
+              style={{
+                width: 40,
+                height: 40,
+                objectFit: "contain",
+              }}
+            />
 
-  sparkline: number[];
+            <span
+              style={{
+                fontWeight: 600,
+                fontSize: 16,
+                color: "#ffffff",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Factor Flow
+            </span>
+          </div>
+
+          {/* RIGHT */}
+          <div
+            style={{
+              marginLeft: "auto",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            <ProfileSwitcher
+              selectedId={profileId}
+              onSelect={setProfileId}
+            />
+          </div>
+        </header>
+
+        {/* ================= CONTENT ================= */}
+        <main style={{ padding: 24 }}>
+          <div
+            style={{
+              maxWidth: 1280,
+              margin: "0 auto",
+              width: "100%",
+            }}
+          >
+            <Outlet context={{ profileId }} />
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}\nfrontend/src/layout/Navbar.tsx\nimport { NavLink } from "react-router-dom";
+
+export function Navbar() {
+  return (
+    <header
+      className="navbar navbar-expand-md navbar-dark"
+      style={{
+        background: "#111827",
+        borderBottom: "1px solid rgba(255,255,255,0.08)",
+      }}
+    >
+      <div className="container-xl d-flex justify-content-between">
+        {/* ЛОГО */}
+        <NavLink
+          to="/"
+          className="navbar-brand"
+          style={{
+            fontWeight: 600,
+            fontSize: "20px",
+          }}
+        >
+          Factor Flow
+        </NavLink>
+
+        {/* НАВИГАЦИЯ */}
+        <ul className="navbar-nav flex-row">
+          <NavItem to="/" label="Dashboard" />
+          <NavItem to="/prices" label="Prices" />
+          <NavItem to="/assets" label="Assets" />
+          <NavItem to="/settings" label="Settings" />
+        </ul>
+      </div>
+    </header>
+  );
+}
+
+function NavItem({ to, label }: { to: string; label: string }) {
+  return (
+    <li className="nav-item mx-2">
+      <NavLink
+        to={to}
+        end
+        className={({ isActive }) =>
+          "nav-link px-3" + (isActive ? " active" : "")
+        }
+        style={({ isActive }) => ({
+          color: isActive ? "#b351f9" : "#d1d5db",
+          fontWeight: isActive ? 600 : 400,
+        })}
+      >
+        {label}
+      </NavLink>
+    </li>
+  );
+}\nfrontend/src/layout/ProfileSwitcher.tsx\nimport { useEffect, useMemo, useRef, useState } from "react";
+import portfoliosJson from "../data/mock-portfolios.json";
+import { buildIdenticonDataUri } from "../utils/identicon";
+
+type Profile = {
+  id: string;
+  name: string;
+  owner: { name: string; address: string };
+  assets: Record<string, number>;
 };
 
-/* =========================
-   Types
+type Props = {
+  selectedId: string;
+  onSelect: (id: string) => void;
+};
+
+export function ProfileSwitcher({ selectedId, onSelect }: Props) {
+  const profiles = (portfoliosJson as any).profiles as Profile[];
+  const selected = profiles.find((p) => p.id === selectedId) ?? profiles[0];
+
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  const avatar = useMemo(
+    () =>
+      buildIdenticonDataUri(selected.owner.address, {
+        size: 32,
+      }),
+    [selected.owner.address]
+  );
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          display: "flex",
+          gap: 10,
+          alignItems: "center",
+          padding: "6px 10px",
+          borderRadius: 10,
+          background: "#0f172a",
+          border: "1px solid rgba(255,255,255,0.08)",
+          color: "#fff",
+          cursor: "pointer",
+        }}
+      >
+        <img
+          src={avatar}
+          width={32}
+          height={32}
+          style={{ borderRadius: 999 }}
+          alt=""
+        />
+        <span style={{ fontWeight: 600 }}>{selected.name}</span>
+        <span style={{ opacity: 0.7 }}>▾</span>
+      </button>
+
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            right: 0,
+            top: "100%",
+            marginTop: 6,
+            background: "#0b1220",
+            border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 10,
+            minWidth: 260,
+            zIndex: 20,
+          }}
+        >
+          {profiles.map((p) => {
+            const icon = buildIdenticonDataUri(p.owner.address, {
+              size: 28,
+            });
+
+            return (
+              <button
+                key={p.id}
+                onClick={() => {
+                  onSelect(p.id);
+                  setOpen(false);
+                }}
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  alignItems: "center",
+                  padding: "10px",
+                  width: "100%",
+                  background:
+                    p.id === selectedId
+                      ? "rgba(179,81,249,0.15)"
+                      : "transparent",
+                  border: "none",
+                  color: "#fff",
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
+              >
+                <img
+                  src={icon}
+                  width={28}
+                  height={28}
+                  style={{ borderRadius: 999 }}
+                  alt=""
+                />
+                <span>{p.name}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}\nfrontend/src/layout/SidebarItem.tsx\nimport { NavLink } from "react-router-dom";
+import type { ReactNode } from "react";
+
+type Props = {
+  to: string;
+  icon: ReactNode;
+  label: string;
+  expanded: boolean;
+};
+
+export function SidebarItem({ to, icon, label, expanded }: Props) {
+  return (
+    <NavLink
+      to={to}
+      end
+      className={({ isActive }) =>
+        `nav-link d-flex align-items-center ${isActive ? "active" : ""}`
+      }
+      style={({ isActive }) => ({
+        padding: "10px 12px",
+        gap: "14px",
+        color: isActive ? "#b351f9" : "#9ca3af",
+        transition: "color 0.2s ease-in-out",
+        whiteSpace: "nowrap",
+      })}
+      title={!expanded ? label : undefined}
+    >
+      {/* ICON — теперь тоже двигается чуть-чуть */}
+      <div
+        style={{
+          width: 32,
+          minWidth: 32,
+          display: "flex",
+          justifyContent: "center",
+          transition: "transform 0.35s ease-in-out",
+          transform: expanded ? "translateX(6px)" : "translateX(0px)",
+        }}
+      >
+        {icon}
+      </div>
+
+      {/* LABEL — фирменная mask-анимация */}
+      <span
+        style={{
+          fontSize: "15px",
+          fontWeight: 500,
+          opacity: expanded ? 1 : 0,
+          transition:
+            "opacity 0.25s ease-in-out, mask-image 0.35s ease-in-out, -webkit-mask-image 0.35s ease-in-out",
+
+          maskImage: expanded
+            ? "linear-gradient(90deg, black 100%, transparent 100%)"
+            : "linear-gradient(90deg, black 0%, transparent 0%)",
+
+          WebkitMaskImage: expanded
+            ? "linear-gradient(90deg, black 100%, transparent 100%)"
+            : "linear-gradient(90deg, black 0%, transparent 0%)",
+
+          maskSize: "200% 100%",
+          WebkitMaskSize: "200% 100%",
+
+          overflow: "hidden",
+          display: "inline-block",
+
+          marginLeft: expanded ? "2px" : "-4px", // лёгкое движение текста
+          transitionProperty: "opacity, margin-left, mask-image, -webkit-mask-image",
+        }}
+      >
+        {label}
+      </span>
+    </NavLink>
+  );
+}\nfrontend/src/layout/SidebarToggle.tsx\nimport { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
+
+type Props = {
+  expanded: boolean;
+  onToggle: () => void;
+};
+
+export function SidebarToggle({ expanded, onToggle }: Props) {
+  return (
+    <button
+      onClick={onToggle}
+      style={{
+        width: "100%",
+        height: 38,
+        border: "none",
+        background: "transparent",
+        color: "#9ca3af",
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        paddingLeft: expanded ? 16 : 0,
+      }}
+      title="Toggle sidebar"
+    >
+      <div style={{ width: 28, textAlign: "center" }}>
+        {expanded ? <IconChevronLeft size={20} /> : <IconChevronRight size={20} />}
+      </div>
+
+      {expanded && (
+        <span style={{ fontSize: "14px", color: "#e5e7eb" }}>Collapse</span>
+      )}
+    </button>
+  );
+}\nfrontend/src/layout/Sidebar.tsx\n// src/layout/Sidebar.tsx
+
+import { useState } from "react";
+import { SidebarItem } from "./SidebarItem";
+import {
+  IconLayoutDashboard,
+  IconTable,
+  IconChartDots,
+} from "@tabler/icons-react";
+
+export function Sidebar() {
+  const [expanded, setExpanded] = useState(false);
+
+  const WIDTH_COLLAPSED = 70;
+  const WIDTH_EXPANDED = 220;
+
+  return (
+    <aside
+      onMouseEnter={() => setExpanded(true)}
+      onMouseLeave={() => setExpanded(false)}
+      style={{
+        width: expanded ? WIDTH_EXPANDED : WIDTH_COLLAPSED,
+        transition: "width 0.35s ease-in-out",
+        background: "#111827",
+        borderRight: "1px solid rgba(255,255,255,0.05)",
+        paddingTop: "20px",
+        height: "calc(100vh - 55px)",
+        position: "fixed",
+        top: 55,
+        left: 0,
+        overflow: "hidden",
+        zIndex: 20,
+      }}
+    >
+      <div style={{ display: "flex", flexDirection: "column", marginTop: 10 }}>
+        <SidebarItem
+          to="/"
+          label="Dashboard"
+          icon={<IconLayoutDashboard size={22} />}
+          expanded={expanded}
+        />
+        <SidebarItem
+          to="/assets"
+          label="Assets"
+          icon={<IconTable size={22} />}
+          expanded={expanded}
+        />
+
+        {/* ➜ Новый пункт меню Simulation */}
+        <SidebarItem
+          to="/simulation"
+          label="Simulation"
+          icon={<IconChartDots size={22} />}
+          expanded={expanded}
+        />
+
+       
+      </div>
+    </aside>
+  );
+}\nfrontend/src/main.tsx\nimport { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import App from "./App.tsx";
+
+import "@tabler/core/dist/css/tabler.min.css";
+import "@tabler/core/dist/js/tabler.min.js";
+
+// Включаем тёмную тему Tabler
+document.documentElement.setAttribute("data-bs-theme", "dark");
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);\nfrontend/src/pages/AssetsPage.tsx\nimport { useEffect, useMemo, useState } from "react";
+
+import {
+  fetchMarkets,
+  fetchGlobal,
+  fetchFearGreed,
+} from "../services//assets/assetsApi";
+
+import {
+  saveMarkets,
+  readMarkets,
+  isMarketsFresh,
+  saveGlobal,
+  readGlobal,
+  saveFearGreed,
+  readFearGreed,
+} from "../services/assets/assetsCache";
+
+import {
+  buildAssetsTable,
+  getDominance,
+  getGlobalMarketCapSnapshot,
+  getTopGainer7d,
+  type AssetRow,
+} from "../services/assets/assetsSelectors";
+
+import { fetchBinancePrices } from "../services/assets/binanceService";
+
+import { AssetsTable } from "../components/assets/AssetsTable";
+import { MarketCapCard } from "../components/assets/MarketCapCard";
+import { FearGreedCard } from "../components/assets/FearGreedCard";
+import { BtcEthAltCard } from "../components/assets/BtcEthAltCard";
+import { TopGainer7dCard } from "../components/assets/TopGainer7dCard";
+
+const PAGE_SIZE = 20;
+
+export function AssetsPage() {
+  const [assets, setAssets] = useState<AssetRow[]>([]);
+  const [livePrices, setLivePrices] = useState<Record<string, number>>({});
+  const [page, setPage] = useState(1);
+
+  const [fearGreed, setFearGreed] = useState<number | null>(null);
+  const [marketCap, setMarketCap] = useState<{
+    capUsd: number;
+    changePct24h: number;
+    sparkline: number[];
+  } | null>(null);
+
+  const [dominance, setDominance] = useState<{
+    btc: number;
+    eth: number;
+    alt: number;
+  } | null>(null);
+
+  const [topGainer, setTopGainer] = useState<{
+    name: string;
+    symbol: string;
+    image?: string;
+    pct7d: number;
+  } | null>(null);
+
+  /* ===== BASE DATA ===== */
+  useEffect(() => {
+    async function load() {
+      if (!isMarketsFresh()) {
+        const [markets, global, fear] = await Promise.all([
+          fetchMarkets(),
+          fetchGlobal(),
+          fetchFearGreed(),
+        ]);
+
+        saveMarkets(markets);
+        saveGlobal(global);
+        if (fear !== null) saveFearGreed(fear);
+      }
+
+      const markets = readMarkets() ?? [];
+      const global = readGlobal();
+      const fear = readFearGreed();
+
+      setAssets(buildAssetsTable(markets));
+      setFearGreed(fear);
+
+      if (global) {
+        const snap = getGlobalMarketCapSnapshot(global);
+        setMarketCap({
+          capUsd: snap.capUsd,
+          changePct24h: snap.changePct24h,
+          sparkline: markets[0]?.sparkline_in_7d?.price ?? [],
+        });
+
+        setDominance(getDominance(global));
+      }
+
+      setTopGainer(getTopGainer7d(markets));
+    }
+
+    load().catch(console.error);
+  }, []);
+
+  /* ===== PAGINATION ===== */
+  const totalPages = Math.max(1, Math.ceil(assets.length / PAGE_SIZE));
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const pagedAssets = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return assets.slice(start, start + PAGE_SIZE);
+  }, [assets, page]);
+
+  /* ===== LIVE PRICES ===== */
+  const visibleSymbols = useMemo(
+    () => pagedAssets.map((a) => a.symbol),
+    [pagedAssets]
+  );
+
+  useEffect(() => {
+    if (!visibleSymbols.length) return;
+
+    let active = true;
+
+    async function tick() {
+      try {
+        const prices = await fetchBinancePrices();
+        if (active) setLivePrices(prices);
+      } catch {}
+    }
+
+    tick();
+    const id = setInterval(tick, 4_000);
+
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, [visibleSymbols]);
+
+  return (
+    <div>
+      <div className="row row-cards mb-2">
+        <div className="col-12 col-md-6 col-lg-3 d-flex">
+          {marketCap && (
+            <MarketCapCard
+              capUsd={marketCap.capUsd}
+              changePct={marketCap.changePct24h}
+              spark={marketCap.sparkline}
+            />
+          )}
+        </div>
+
+        <div className="col-12 col-md-6 col-lg-3 d-flex">
+          {fearGreed !== null && <FearGreedCard value={fearGreed} />}
+        </div>
+
+        <div className="col-12 col-md-6 col-lg-3 d-flex">
+          {dominance && (
+            <BtcEthAltCard
+              btc={dominance.btc}
+              eth={dominance.eth}
+              alt={dominance.alt}
+            />
+          )}
+        </div>
+
+        <div className="col-12 col-md-6 col-lg-3 d-flex">
+          {topGainer && (
+            <TopGainer7dCard
+              name={topGainer.name}
+              symbol={topGainer.symbol}
+              image={topGainer.image}
+              pct7d={topGainer.pct7d}
+            />
+          )}
+        </div>
+      </div>
+
+      <div style={{ marginTop: 15 }}>
+        <AssetsTable assets={pagedAssets} livePrices={livePrices} />
+      </div>
+
+      {/* Pagination */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          marginTop: 16,
+          gap: 8,
+        }}
+      >
+        <button
+          className="btn btn-sm"
+          disabled={page === 1}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+        >
+          Prev
+        </button>
+
+        {Array.from({ length: totalPages }).map((_, i) => {
+          const p = i + 1;
+          const active = p === page;
+
+          return (
+            <button
+              key={p}
+              className={`btn btn-sm ${active ? "btn-primary" : ""}`}
+              onClick={() => setPage(p)}
+            >
+              {p}
+            </button>
+          );
+        })}
+
+        <button
+          className="btn btn-sm"
+          disabled={page === totalPages}
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}\nfrontend/src/pages/PortfolioPage.tsx\n// frontend/src/pages/PortfolioPage.tsx
+
+import { useMemo, useState } from "react";
+import { useOutletContext } from "react-router-dom";
+
+import historyJson from "../data/mock-history.json";
+import portfoliosJson from "../data/mock-portfolios.json";
+
+import {
+  buildTopMetrics,
+  filterHistoryByPeriod,
+} from "../services/portfolio/portfolioService";
+
+import type {
+  HistoryPoint,
+  Period,
+  AssetAmounts,
+} from "../services/portfolio/portfolioService";
+
+// portfolio components
+import { PortfolioMetricsRow } from "../components/portfolio/PortfolioMetricsRow";
+import { PortfolioChartCard } from "../components/portfolio/PortfolioChartCard";
+import { PortfolioAllocationSection } from "../components/portfolio/PortfolioAllocationSection";
+
+type OutletCtx = {
+  profileId: string;
+};
+
+type Profile = {
+  id: string;
+  assets: AssetAmounts;
+};
+
+// локальный fallback (если profileId не найден)
+const FALLBACK_AMOUNTS: AssetAmounts = {
+  ETH: 2,
+  WBTC: 0.03,
+  USDC: 80,
+  DAI: 40,
+  UNI: 400,
+};
+
+const PROFILES = ((portfoliosJson as any).profiles ?? []) as Profile[];
+
+export function PortfolioPage() {
+  const { profileId } = useOutletContext<OutletCtx>();
+
+  const history = historyJson as unknown as HistoryPoint[];
+
+  const amounts: AssetAmounts = useMemo(() => {
+    const p = PROFILES.find((x) => x.id === profileId);
+    return p?.assets ?? FALLBACK_AMOUNTS;
+  }, [profileId]);
+
+  const [period, setPeriod] = useState<Period>("year");
+
+  const filteredHistory = useMemo(
+    () => filterHistoryByPeriod(history, period),
+    [history, period]
+  );
+
+  const metrics = useMemo(
+    () => buildTopMetrics(filteredHistory, amounts, "BTC"),
+    [filteredHistory, amounts]
+  );
+
+  return (
+    <div>
+      <PortfolioMetricsRow
+        tvl={metrics.tvl}
+        lastTsMs={metrics.lastTsMs}
+        changeUsd={metrics.changeUsd}
+        changePct={metrics.changePct}
+        vsBtcPp={metrics.vsBtcPp}
+        btcPct={metrics.btcPct}
+        period={period}
+      />
+
+      <PortfolioChartCard
+        history={filteredHistory}
+        period={period}
+        onPeriodChange={setPeriod}
+        amounts={amounts}
+      />
+
+      <PortfolioAllocationSection history={filteredHistory} amounts={amounts} />
+    </div>
+  );
+}\nfrontend/src/pages/PricesPage.tsx\nexport function PricesPage() {
+  return <div>Prices Page</div>;
+}\nfrontend/src/pages/SettingsPage.tsx\nexport function SettingsPage() {
+  return <div>Settings</div>;
+}\nfrontend/src/pages/SimulationPage.tsx\nimport { useMemo, useState } from "react";
+import { useOutletContext } from "react-router-dom";
+
+import historyJson from "../data/mock-history.json";
+import portfoliosJson from "../data/mock-portfolios.json";
+
+import type {
+  AssetAmounts,
+  HistoryPoint,
+} from "../services/portfolio/portfolioService";
+
+import {
+  filterHistoryByPeriod,
+} from "../services/portfolio/portfolioService";
+
+import {
+  estimatePortfolioParams,
+} from "../services/portfolio/portfolioStatsService";
+
+import {
+  runMonteCarloAdvanced,
+} from "../services/simulation/monteCarloService";
+
+import { SimulationChartCard } from "../components/simulation/SimulationChartCard";
+import {
+  SimulationControls,
+  type SimulationParams,
+} from "../components/simulation/SimulationControls";
+import { FinalOutcomeCard } from "../components/simulation/FinalOutcomeCard";
+import { OutcomeDistributionCard } from "../components/simulation/OutcomeDistributionCard";
+
+type OutletCtx = {
+  profileId: string;
+};
+
+type Profile = {
+  id: string;
+  assets: AssetAmounts;
+};
+
+function periodFromHorizon(h: number) {
+  if (h <= 30) return "month";
+  if (h <= 90) return "month";
+  return "year";
+}
+
+export function SimulationPage() {
+  const { profileId } = useOutletContext<OutletCtx>();
+
+  const history = historyJson as unknown as HistoryPoint[];
+  const profiles = (portfoliosJson as any).profiles as Profile[];
+
+  const profile =
+    profiles.find((p) => p.id === profileId) ?? profiles[0];
+
+  const amounts = profile.assets;
+
+  const [params, setParams] = useState<SimulationParams>({
+    horizonDays: 90,
+    scenario: "baseline",
+    simulations: 50,
+    showCloud: false,
+    showMedian: false,
+    showRepresentative: true,
+    showRange: false,
+    showFan: true,
+  });
+
+  const filteredHistory = useMemo(() => {
+    const period = periodFromHorizon(params.horizonDays) as any;
+    return filterHistoryByPeriod(history, period);
+  }, [history, params.horizonDays]);
+
+  const { drift, volatility } = useMemo(() => {
+    return estimatePortfolioParams(filteredHistory, amounts);
+  }, [filteredHistory, amounts]);
+
+  const startValue = useMemo(() => {
+    if (!filteredHistory.length) return 100;
+    const last = filteredHistory[filteredHistory.length - 1];
+    let v = 0;
+    for (const [sym, amt] of Object.entries(amounts)) {
+      v += (last.prices[sym] ?? 0) * amt;
+    }
+    return v || 100;
+  }, [filteredHistory, amounts]);
+
+  const sim = useMemo(() => {
+    return runMonteCarloAdvanced({
+      startValue,
+      drift,
+      volatility,
+      horizonDays: params.horizonDays,
+      simulations: params.simulations,
+      scenario: params.scenario,
+    });
+  }, [
+    startValue,
+    drift,
+    volatility,
+    params.horizonDays,
+    params.simulations,
+    params.scenario,
+  ]);
+
+  const finalMedian = sim.median.at(-1) ?? startValue;
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) 320px",
+          gap: 14,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 14,
+            minWidth: 0,
+          }}
+        >
+          <SimulationChartCard
+            timestamps={sim.timestamps}
+            median={sim.median}
+            representative={sim.representative}
+            upper={sim.upper}
+            lower={sim.lower}
+            cloud={sim.paths}
+            showCloud={params.showCloud}
+            showMedian={params.showMedian}
+            showRepresentative={params.showRepresentative}
+            showRange={params.showRange}
+            showFan={params.showFan}
+            onToggleCloud={() =>
+              setParams((p) => ({ ...p, showCloud: !p.showCloud }))
+            }
+            onToggleMedian={() =>
+              setParams((p) => ({ ...p, showMedian: !p.showMedian }))
+            }
+            onToggleRepresentative={() =>
+              setParams((p) => ({
+                ...p,
+                showRepresentative: !p.showRepresentative,
+              }))
+            }
+            onToggleFan={() =>
+              setParams((p) => ({ ...p, showFan: !p.showFan }))
+            }
+            onToggleRange={() =>
+              setParams((p) => ({ ...p, showRange: !p.showRange }))
+            }
+          />
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+              gap: 14,
+            }}
+          >
+            <FinalOutcomeCard
+              startValue={startValue}
+              median={finalMedian}
+            />
+            <OutcomeDistributionCard paths={sim.paths} />
+          </div>
+        </div>
+
+        <SimulationControls value={params} onChange={setParams} />
+      </div>
+    </div>
+  );
+}\nfrontend/src/router.tsx\n// src/router.tsx
+
+import { createBrowserRouter } from "react-router-dom";
+import { AppLayout } from "./layout/AppLayout";
+
+import { PortfolioPage } from "./pages/PortfolioPage";
+import { PricesPage } from "./pages/PricesPage";
+import { AssetsPage } from "./pages/AssetsPage";
+import { SettingsPage } from "./pages/SettingsPage";
+import { SimulationPage } from "./pages/SimulationPage";
+
+export const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <AppLayout />,
+    children: [
+      { index: true, element: <PortfolioPage /> },
+      { path: "prices", element: <PricesPage /> },
+      { path: "assets", element: <AssetsPage /> },
+      { path: "settings", element: <SettingsPage /> },
+      { path: "simulation", element: <SimulationPage /> },
+    ],
+  },
+]);\nfrontend/src/services/assets/assetsApi.ts\n/* =========================
+   CoinGecko API
 ========================= */
 
-type CoinGeckoMarket = {
+const COINGECKO_BASE = "https://api.coingecko.com/api/v3";
+
+export type CoinGeckoMarket = {
   id: string;
   symbol: string;
   name: string;
@@ -32,7 +985,7 @@ type CoinGeckoMarket = {
   sparkline_in_7d?: { price: number[] };
 };
 
-type CoinGeckoGlobal = {
+export type CoinGeckoGlobal = {
   data: {
     total_market_cap: { usd: number };
     market_cap_change_percentage_24h_usd: number;
@@ -43,6 +996,33 @@ type CoinGeckoGlobal = {
   };
 };
 
+export async function fetchMarkets(): Promise<CoinGeckoMarket[]> {
+  const url =
+    `${COINGECKO_BASE}/coins/markets` +
+    `?vs_currency=usd` +
+    `&order=market_cap_desc` +
+    `&per_page=100` +
+    `&page=1` +
+    `&sparkline=true` +
+    `&price_change_percentage=1h,24h,7d`;
+
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("CoinGecko markets failed");
+
+  return res.json();
+}
+
+export async function fetchGlobal(): Promise<CoinGeckoGlobal> {
+  const res = await fetch(`${COINGECKO_BASE}/global`);
+  if (!res.ok) throw new Error("CoinGecko global failed");
+
+  return res.json();
+}
+
+/* =========================
+   Fear & Greed
+========================= */
+
 type FearGreedApiResponse = {
   data: Array<{
     value: string;
@@ -51,6 +1031,16 @@ type FearGreedApiResponse = {
   }>;
 };
 
+export async function fetchFearGreed(): Promise<number | null> {
+  const res = await fetch("https://api.alternative.me/fng/");
+  if (!res.ok) return null;
+
+  const json = (await res.json()) as FearGreedApiResponse;
+  const value = Number(json.data[0]?.value);
+
+  return Number.isNaN(value) ? null : value;
+}\nfrontend/src/services/assets/assetsCache.ts\nimport type { CoinGeckoMarket, CoinGeckoGlobal } from "./assetsApi";
+
 /* =========================
    Cache keys
 ========================= */
@@ -58,11 +1048,10 @@ type FearGreedApiResponse = {
 const MARKETS_KEY = "assets.cache.markets";
 const GLOBAL_KEY = "assets.cache.global";
 
-const BTC_HISTORY_KEY = "assets.cache.btcMarketCapHistory";
-const BTC_HISTORY_TS_KEY = "assets.cache.btcMarketCapHistory.fetchedAt";
-
 const FEAR_GREED_KEY = "assets.cache.fearGreed";
 const FEAR_GREED_TS_KEY = "assets.cache.fearGreed.fetchedAt";
+
+const FETCHED_AT_KEY = "assets.cache.fetchedAt";
 
 const ONE_HOUR = 60 * 60 * 1000;
 
@@ -81,827 +1070,50 @@ function readJSON<T>(key: string): T | null {
 }
 
 /* =========================
-   Assets table
+   Markets
 ========================= */
 
-export function getAssetsTableFromCache(): AssetRow[] {
-  const markets = readJSON<CoinGeckoMarket[]>(MARKETS_KEY);
-  if (!markets) return [];
+export function saveMarkets(markets: CoinGeckoMarket[]) {
+  localStorage.setItem(MARKETS_KEY, JSON.stringify(markets));
+  localStorage.setItem(FETCHED_AT_KEY, String(Date.now()));
+}
 
-  return markets.map((m) => ({
-    symbol: m.symbol.toUpperCase(),
-    iconUrl: m.image ?? null,
+export function readMarkets(): CoinGeckoMarket[] | null {
+  return readJSON<CoinGeckoMarket[]>(MARKETS_KEY);
+}
 
-    price: m.current_price,
-    change1hPct: m.price_change_percentage_1h_in_currency ?? 0,
-    change24hPct: m.price_change_percentage_24h_in_currency ?? 0,
-    change7dPct: m.price_change_percentage_7d_in_currency ?? 0,
-
-    marketCapUsd: m.market_cap,
-    volume24hUsd: m.total_volume,
-
-    sparkline: m.sparkline_in_7d?.price ?? [],
-  }));
+export function isMarketsFresh(): boolean {
+  const ts = Number(localStorage.getItem(FETCHED_AT_KEY) || 0);
+  return Date.now() - ts < ONE_HOUR;
 }
 
 /* =========================
-   Global snapshot
+   Global
 ========================= */
 
-export function getGlobalMarketCapSnapshot() {
-  const g = readJSON<CoinGeckoGlobal>(GLOBAL_KEY);
-  if (!g) return null;
-
-  return {
-    capUsd: g.data.total_market_cap.usd,
-    changePct24h: g.data.market_cap_change_percentage_24h_usd,
-  };
+export function saveGlobal(global: CoinGeckoGlobal) {
+  localStorage.setItem(GLOBAL_KEY, JSON.stringify(global));
 }
 
-export function getDominance() {
-  const g = readJSON<CoinGeckoGlobal>(GLOBAL_KEY);
-  if (!g) return null;
-
-  const btc = g.data.market_cap_percentage.btc ?? 0;
-  const eth = g.data.market_cap_percentage.eth ?? 0;
-
-  return {
-    btc,
-    eth,
-    alt: Math.max(0, 100 - btc - eth),
-  };
+export function readGlobal(): CoinGeckoGlobal | null {
+  return readJSON<CoinGeckoGlobal>(GLOBAL_KEY);
 }
 
 /* =========================
-   Top Gainer (TOP-30 by market cap)
+   Fear & Greed
 ========================= */
 
-export function getTopGainer7d() {
-  const markets = readJSON<CoinGeckoMarket[]>(MARKETS_KEY);
-  if (!markets || markets.length === 0) return null;
-
-  // 1️⃣ сортируем по капитализации
-  const top30 = [...markets]
-    .sort((a, b) => b.market_cap - a.market_cap)
-    .slice(0, 30);
-
-  // 2️⃣ ищем максимальный рост цены за 7d
-  const best = top30.reduce((a, b) =>
-    (b.price_change_percentage_7d_in_currency ?? -Infinity) >
-    (a.price_change_percentage_7d_in_currency ?? -Infinity)
-      ? b
-      : a
-  );
-
-  return {
-    name: best.name,
-    symbol: best.symbol,
-    image: best.image,
-    pct7d: best.price_change_percentage_7d_in_currency ?? 0,
-  };
+export function saveFearGreed(value: number) {
+  localStorage.setItem(FEAR_GREED_KEY, String(value));
+  localStorage.setItem(FEAR_GREED_TS_KEY, String(Date.now()));
 }
 
-/* =========================
-   BTC surrogate history
-========================= */
-
-export async function getGlobalMarketCapWithBtcSurrogate(): Promise<{
-  capUsd: number;
-  changePct24h: number;
-  sparkline: number[];
-} | null> {
-  const snapshot = getGlobalMarketCapSnapshot();
-  if (!snapshot) return null;
-
-  const ts = Number(localStorage.getItem(BTC_HISTORY_TS_KEY) || 0);
-  const cached = readJSON<number[]>(BTC_HISTORY_KEY);
-  const fresh = Date.now() - ts < ONE_HOUR;
-
-  if (cached && fresh) {
-    return { ...snapshot, sparkline: cached };
-  }
-
-  fetchBtcMarketCapHistory().catch(() => {});
-  return { ...snapshot, sparkline: cached ?? [] };
-}
-
-async function fetchBtcMarketCapHistory() {
-  const res = await fetch(
-    "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=7"
-  );
-  const json = await res.json();
-
-  const series: number[] = json.market_caps.map(
-    ([, value]: [number, number]) => value
-  );
-
-  localStorage.setItem(BTC_HISTORY_KEY, JSON.stringify(series));
-  localStorage.setItem(BTC_HISTORY_TS_KEY, String(Date.now()));
-}
-
-/* =========================
-   Fear & Greed Index
-========================= */
-
-export async function getFearGreedIndex(): Promise<number | null> {
+export function readFearGreed(): number | null {
   const ts = Number(localStorage.getItem(FEAR_GREED_TS_KEY) || 0);
-  const cached = Number(localStorage.getItem(FEAR_GREED_KEY));
   const fresh = Date.now() - ts < ONE_HOUR;
 
-  if (!Number.isNaN(cached) && fresh) {
-    return cached;
-  }
-
-  try {
-    const res = await fetch("https://api.alternative.me/fng/");
-    const json = (await res.json()) as FearGreedApiResponse;
-
-    const value = Number(json.data[0]?.value);
-    if (Number.isNaN(value)) return cached || null;
-
-    localStorage.setItem(FEAR_GREED_KEY, String(value));
-    localStorage.setItem(FEAR_GREED_TS_KEY, String(Date.now()));
-
-    return value;
-  } catch {
-    return cached || null;
-  }
-}\nfrontend/src/services/simulation/monteCarloService.ts\n// frontend/src/services/monteCarloService.ts
-
-export type Scenario = "conservative" | "baseline" | "stress";
-
-export type MonteCarloInput = {
-  startValue: number;
-  drift: number; // daily log-return (historical)
-  volatility: number; // daily vol of log-returns (historical)
-  horizonDays: number;
-  simulations: number;
-  scenario: Scenario;
-};
-
-export type MonteCarloAdvancedOutput = {
-  timestamps: number[];
-  median: number[];
-  representative: number[];
-  upper: number[];
-  lower: number[];
-  paths: number[][];
-};
-
-const SCENARIO_VOL_MULTIPLIER: Record<Scenario, number> = {
-  conservative: 0.7,
-  baseline: 1.0,
-  stress: 1.5,
-};
-
-const START_RANGE_PCT: Record<Scenario, number> = {
-  conservative: 0.03,
-  baseline: 0.05,
-  stress: 0.07,
-};
-
-const FIXED_SEED = 42;
-const END_PENALTY_LAMBDA = 12;
-
-/**
- * Регулировка долгосрочного роста рынка:
- * 1.0 = +100% в год (удвоение)
- * 0.5 = +50% в год
- * 0.0 = без добавочного тренда (чисто по истории)
- */
-const LONG_TERM_ANNUAL_GROWTH = 0.3;
-
-function annualGrowthToDailyLogDrift(annualGrowth: number): number {
-  // annualGrowth = 1.0 => log(2)/365
-  if (!Number.isFinite(annualGrowth) || annualGrowth <= -1) return 0;
-  return Math.log(1 + annualGrowth) / 365;
-}
-
-function mulberry32(seed: number) {
-  let t = seed >>> 0;
-  return function () {
-    t += 0x6d2b79f5;
-    let r = Math.imul(t ^ (t >>> 15), 1 | t);
-    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function randomNormal(rng: () => number): number {
-  let u = 0;
-  let v = 0;
-  while (u === 0) u = rng();
-  while (v === 0) v = rng();
-  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-}
-
-export function runMonteCarloAdvanced(
-  input: MonteCarloInput
-): MonteCarloAdvancedOutput {
-  const {
-    startValue,
-    drift,
-    volatility,
-    horizonDays,
-    simulations,
-    scenario,
-  } = input;
-
-  const sigma = volatility * SCENARIO_VOL_MULTIPLIER[scenario];
-  const rng = mulberry32(FIXED_SEED);
-
-  // ✅ добавляем структурный тренд вверх (регулируется одной константой)
-  const longTermDailyDrift = annualGrowthToDailyLogDrift(
-    LONG_TERM_ANNUAL_GROWTH
-  );
-  const effectiveDrift = drift + longTermDailyDrift;
-
-  const timestamps = Array.from({ length: horizonDays + 1 }, (_, i) => i);
-  const paths: number[][] = [];
-
-  // 1) paths
-  for (let s = 0; s < simulations; s++) {
-    const path: number[] = [startValue];
-
-    for (let t = 1; t <= horizonDays; t++) {
-      const prev = path[t - 1];
-      const z = randomNormal(rng);
-      path.push(prev * Math.exp(effectiveDrift + sigma * z));
-    }
-
-    paths.push(path);
-  }
-
-  // 2) median
-  const median = timestamps.map((i) => {
-    const values = paths.map((p) => p[i]).sort((a, b) => a - b);
-    const m = Math.floor(values.length / 2);
-    return values.length % 2 ? values[m] : (values[m - 1] + values[m]) / 2;
-  });
-
-  // 3) bounds
-  const endValues = paths.map((p) => p[horizonDays]).sort((a, b) => a - b);
-  const k = Math.max(1, Math.floor(simulations * 0.2));
-
-  const avg = (xs: number[]) => xs.reduce((s, v) => s + v, 0) / xs.length;
-
-  const lowerEnd = avg(endValues.slice(0, k));
-  const upperEnd = avg(endValues.slice(endValues.length - k));
-
-  const startPct = START_RANGE_PCT[scenario];
-  const lowerStart = median[0] * (1 - startPct);
-  const upperStart = median[0] * (1 + startPct);
-
-  const lower: number[] = [];
-  const upper: number[] = [];
-
-  for (let i = 0; i <= horizonDays; i++) {
-    const t = horizonDays === 0 ? 0 : i / horizonDays;
-    lower.push(lowerStart + (lowerEnd - lowerStart) * t);
-    upper.push(upperStart + (upperEnd - upperStart) * t);
-  }
-
-  // 4) candidate filter: path must stay inside bounds
-  const validIndices: number[] = [];
-
-  for (let p = 0; p < paths.length; p++) {
-    let ok = true;
-    for (let i = 0; i <= horizonDays; i++) {
-      if (paths[p][i] < lower[i] || paths[p][i] > upper[i]) {
-        ok = false;
-        break;
-      }
-    }
-    if (ok) validIndices.push(p);
-  }
-
-  const candidates =
-    validIndices.length > 0 ? validIndices : paths.map((_, i) => i); // fallback
-
-  // 5) representative selection
-  let bestIdx = candidates[0];
-  let bestDist = Infinity;
-
-  const N = median.length - 1 || 1;
-  const T = horizonDays;
-  const medianEnd = median[T];
-
-  for (const idx of candidates) {
-    let dist = 0;
-
-    for (let i = 0; i < median.length; i++) {
-      const w = (i / N) ** 2;
-      const d = paths[idx][i] - median[i];
-      dist += w * d * d;
-    }
-
-    const endDiff = paths[idx][T] - medianEnd;
-    dist += END_PENALTY_LAMBDA * endDiff * endDiff;
-
-    if (dist < bestDist) {
-      bestDist = dist;
-      bestIdx = idx;
-    }
-  }
-
-  return {
-    timestamps,
-    median,
-    representative: paths[bestIdx],
-    upper,
-    lower,
-    paths,
-  };
-}\nfrontend/src/utils/identicon.ts\n// frontend/src/utils/identicon.ts
-
-function fnv1a32(input: string): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < input.length; i++) {
-    h ^= input.charCodeAt(i);
-    // h *= 16777619 (через сдвиги, чтобы стабильно в JS)
-    h = (h + (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24)) >>> 0;
-  }
-  return h >>> 0;
-}
-
-function xorshift32(seed: number): () => number {
-  let x = seed >>> 0;
-  return () => {
-    x ^= x << 13;
-    x ^= x >>> 17;
-    x ^= x << 5;
-    return (x >>> 0) / 0xffffffff;
-  };
-}
-
-function clamp(n: number, a: number, b: number) {
-  return Math.max(a, Math.min(b, n));
-}
-
-function colorFromSeed(seed: number): string {
-  // приятная "tabler-like" палитра через HSL
-  const hue = seed % 360;
-  const sat = 65;
-  const light = 52;
-  return `hsl(${hue} ${sat}% ${light}%)`;
-}
-
-export type IdenticonOptions = {
-  size?: number; // px
-  cells?: number; // grid size, default 5
-  padding?: number; // px
-  bg?: string; // background
-};
-
-export function buildIdenticonSvg(
-  address: string,
-  opts: IdenticonOptions = {}
-): string {
-  const size = opts.size ?? 40;
-  const cells = opts.cells ?? 5;
-  const padding = opts.padding ?? 4;
-  const bg = opts.bg ?? "rgba(255,255,255,0.06)";
-
-  const normalized = (address || "").trim().toLowerCase();
-  const seed = fnv1a32(normalized || "0x0");
-  const rnd = xorshift32(seed);
-
-  const color = colorFromSeed(seed);
-  const cellSize = (size - padding * 2) / cells;
-
-  // зеркалим по вертикали: рисуем только половину + центр
-  const half = Math.ceil(cells / 2);
-
-  const on: boolean[][] = Array.from({ length: cells }, () =>
-    Array.from({ length: cells }, () => false)
-  );
-
-  for (let y = 0; y < cells; y++) {
-    for (let x = 0; x < half; x++) {
-      const v = rnd();
-      const filled = v > 0.5; // плотность
-      on[y][x] = filled;
-      on[y][cells - 1 - x] = filled;
-    }
-  }
-
-  // слегка скруглим
-  const r = clamp(cellSize * 0.22, 1.5, 4);
-
-  const rects: string[] = [];
-  for (let y = 0; y < cells; y++) {
-    for (let x = 0; x < cells; x++) {
-      if (!on[y][x]) continue;
-      const rx = padding + x * cellSize;
-      const ry = padding + y * cellSize;
-      rects.push(
-        `<rect x="${rx.toFixed(2)}" y="${ry.toFixed(2)}" width="${cellSize.toFixed(
-          2
-        )}" height="${cellSize.toFixed(2)}" rx="${r.toFixed(
-          2
-        )}" fill="${color}"/>`
-      );
-    }
-  }
-
-  // круглая маска под "аватар"
-  const maskId = `m_${seed.toString(16)}`;
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-  <defs>
-    <mask id="${maskId}">
-      <rect x="0" y="0" width="${size}" height="${size}" rx="${(size / 2).toFixed(
-    2
-  )}" fill="white"/>
-    </mask>
-  </defs>
-
-  <g mask="url(#${maskId})">
-    <rect x="0" y="0" width="${size}" height="${size}" fill="${bg}"/>
-    ${rects.join("\n    ")}
-  </g>
-</svg>`;
-}
-
-export function buildIdenticonDataUri(
-  address: string,
-  opts: IdenticonOptions = {}
-): string {
-  const svg = buildIdenticonSvg(address, opts)
-    // чуть чистим для data-uri
-    .replace(/\n+/g, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-
-  // безопасная encode
-  const encoded = encodeURIComponent(svg)
-    .replace(/%20/g, " ")
-    .replace(/%3D/g, "=")
-    .replace(/%3A/g, ":")
-    .replace(/%2F/g, "/");
-
-  return `data:image/svg+xml;charset=utf-8,${encoded}`;
-}\nfrontend/tests/portfolioMetrics.test.ts\nimport historyJson from "../src/data/mock-history.json";
-import portfoliosJson from "../src/data/mock-portfolios.json";
-
-import {
-  buildTopMetrics,
-} from "../src/services/portfolio/portfolioService";
-
-import type { HistoryPoint } from "../src/services/portfolio/portfolioService";
-
-describe("Portfolio metrics", () => {
-  const history = historyJson as unknown as HistoryPoint[];
-  const profiles = (portfoliosJson as any).profiles;
-
-  it("builds metrics without NaN or Infinity", () => {
-    const profile = profiles[0];
-    const metrics = buildTopMetrics(history, profile.assets, "BTC");
-
-    expect(Number.isFinite(metrics.tvl)).toBe(true);
-    expect(Number.isFinite(metrics.changeUsd)).toBe(true);
-    expect(Number.isFinite(metrics.changePct)).toBe(true);
-  });
-
-  it("metrics change when profile changes", () => {
-    const p1 = profiles.find((p: any) => p.id === "conservative");
-    const p2 = profiles.find((p: any) => p.id === "aggressive");
-
-    const m1 = buildTopMetrics(history, p1.assets, "BTC");
-    const m2 = buildTopMetrics(history, p2.assets, "BTC");
-
-    expect(m1.tvl).not.toBe(m2.tvl);
-  });
-
-  it("vs BTC metric is finite", () => {
-    const profile = profiles[1];
-    const metrics = buildTopMetrics(history, profile.assets, "BTC");
-
-    expect(Number.isFinite(metrics.vsBtcPp)).toBe(true);
-  });
-});\nfrontend/tests/portfolioValue.test.ts\nimport historyJson from "../src/data/mock-history.json";
-import portfoliosJson from "../src/data/mock-portfolios.json";
-
-import type { HistoryPoint } from "../src/services/portfolio/portfolioService";
-
-function calcPortfolioValue(
-  p: HistoryPoint,
-  amounts: Record<string, number>
-) {
-  let total = 0;
-  for (const [symbol, amount] of Object.entries(amounts)) {
-    total += (p.prices[symbol] ?? 0) * amount;
-  }
-  return total;
-}
-
-describe("Portfolio value calculation", () => {
-  const history = historyJson as unknown as HistoryPoint[];
-  const profiles = (portfoliosJson as any).profiles;
-
-  it("calculates portfolio value for conservative profile", () => {
-    const profile = profiles.find((p: any) => p.id === "conservative");
-    const last = history[history.length - 1];
-
-    const value = calcPortfolioValue(last, profile.assets);
-
-    expect(value).toBeGreaterThan(0);
-    expect(Number.isFinite(value)).toBe(true);
-  });
-
-  it("different profiles produce different portfolio values", () => {
-    const last = history[history.length - 1];
-
-    const conservative = profiles.find(
-      (p: any) => p.id === "conservative"
-    );
-    const aggressive = profiles.find(
-      (p: any) => p.id === "aggressive"
-    );
-
-    const v1 = calcPortfolioValue(last, conservative.assets);
-    const v2 = calcPortfolioValue(last, aggressive.assets);
-
-    expect(v1).not.toBe(v2);
-  });
-
-  it("portfolio value reacts to history changes over time", () => {
-    const profile = profiles.find((p: any) => p.id === "balanced");
-
-    const first = history[0];
-    const last = history[history.length - 1];
-
-    const vStart = calcPortfolioValue(first, profile.assets);
-    const vEnd = calcPortfolioValue(last, profile.assets);
-
-    expect(vStart).not.toBe(vEnd);
-  });
-});\nfrontend/tests/simulationParams.test.ts\nimport historyJson from "../src/data/mock-history.json";
-import portfoliosJson from "../src/data/mock-portfolios.json";
-
-import {
-  filterHistoryByPeriod,
-} from "../src/services/portfolio/portfolioService";
-
-import {
-  estimatePortfolioParams,
-} from "../src/services/portfolio/portfolioStatsService";
-
-import type { HistoryPoint } from "../src/services/portfolio/portfolioService";
-
-describe("Simulation parameter estimation", () => {
-  const history = historyJson as unknown as HistoryPoint[];
-  const profiles = (portfoliosJson as any).profiles;
-
-  it("estimates drift and volatility for portfolio", () => {
-    const profile = profiles[0];
-    const filtered = filterHistoryByPeriod(history, "year");
-
-    const { drift, volatility } = estimatePortfolioParams(
-      filtered,
-      profile.assets
-    );
-
-    expect(Number.isFinite(drift)).toBe(true);
-    expect(Number.isFinite(volatility)).toBe(true);
-    expect(volatility).toBeGreaterThan(0);
-  });
-
-  it("different profiles give different parameters", () => {
-    const filtered = filterHistoryByPeriod(history, "year");
-
-    const a = estimatePortfolioParams(
-      filtered,
-      profiles[0].assets
-    );
-    const b = estimatePortfolioParams(
-      filtered,
-      profiles[2].assets
-    );
-
-    expect(a.volatility).not.toBe(b.volatility);
-  });
-});\nfrontend/vite.config.ts\nimport { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [react()],
-})\ngenerate_prices\n#!/bin/bash
-
-echo "⏳ Генерация годовой часовой истории цен (портфель + рынок)..."
-
-OUTPUT="mock-history-hourly.json"
-
-node << 'EOF'
-const fs = require("fs");
-
-// =======================================
-// 🔹 КОНФИГ: ВСЕ АКТИВЫ (портфель + рынок)
-// =======================================
-
-const assets = [
-  // портфельные
-  "ETH",
-  "WBTC",
-  "USDC",
-  "DAI",
-  "UNI",
-
-  // рыночные дополнительные
-  "BTC",
-  "SOL",
-  "BNB",
-  "TON",
-  "XRP",
-  "ADA",
-  "DOGE",
-  "AVAX",
-  "LINK",
-  "ATOM",
-];
-
-// Реалистичные базовые цены + волатильности
-const cfg = {
-  // ==== портфельные ====
-  WBTC: { base: 30000, noise: 0.002,  shockP: 1 / (24 * 3.5), shockMin: -0.04, shockMax: 0.04 },
-  ETH:  { base: 1800,  noise: 0.004,  shockP: 1 / (24 * 3),   shockMin: -0.06, shockMax: 0.06 },
-  UNI:  { base: 6.5,   noise: 0.012,  shockP: 1 / (24 * 2),   shockMin: -0.12, shockMax: 0.14 },
-  USDC: { base: 1.0,   noise: 0.0003, shockP: 1 / (24 * 20),  shockMin: -0.003,shockMax: 0.003 },
-  DAI:  { base: 1.0,   noise: 0.00035,shockP: 1 / (24 * 18),  shockMin: -0.004,shockMax: 0.004 },
-
-  // ==== рыночные (новые) ====
-  // BTC — низкая волатильность
-  BTC: {
-    base: 68000,
-    noise: 0.0018,
-    shockP: 1 / (24 * 4.5),  // примерно раз в 4–5 дней
-    shockMin: -0.03,
-    shockMax: 0.03,
-  },
-
-  // SOL — высокая волатильность
-  SOL: {
-    base: 120,
-    noise: 0.009,
-    shockP: 1 / (24 * 2.5),
-    shockMin: -0.10,
-    shockMax: 0.12,
-  },
-
-  // BNB — умеренная волатильность
-  BNB: {
-    base: 300,
-    noise: 0.004,
-    shockP: 1 / (24 * 3.5),
-    shockMin: -0.06,
-    shockMax: 0.07,
-  },
-
-  // TON — высокая волатильность
-  TON: {
-    base: 2.8,
-    noise: 0.012,
-    shockP: 1 / (24 * 2),
-    shockMin: -0.14,
-    shockMax: 0.16,
-  },
-
-  // XRP — резкие скачки, средняя волатильность
-  XRP: {
-    base: 0.52,
-    noise: 0.007,
-    shockP: 1 / (24 * 3),
-    shockMin: -0.12,
-    shockMax: 0.12,
-  },
-
-  // ADA — умеренная волатильность
-  ADA: {
-    base: 0.42,
-    noise: 0.006,
-    shockP: 1 / (24 * 3.5),
-    shockMin: -0.08,
-    shockMax: 0.09,
-  },
-
-  // DOGE — очень высокая волатильность
-  DOGE: {
-    base: 0.09,
-    noise: 0.015,
-    shockP: 1 / (24 * 2),
-    shockMin: -0.18,
-    shockMax: 0.20,
-  },
-
-  // AVAX — высокая волатильность
-  AVAX: {
-    base: 28,
-    noise: 0.010,
-    shockP: 1 / (24 * 2.5),
-    shockMin: -0.12,
-    shockMax: 0.14,
-  },
-
-  // LINK — умеренно высокая
-  LINK: {
-    base: 15,
-    noise: 0.008,
-    shockP: 1 / (24 * 2.7),
-    shockMin: -0.09,
-    shockMax: 0.11,
-  },
-
-  // ATOM — умеренная волатильность
-  ATOM: {
-    base: 10,
-    noise: 0.007,
-    shockP: 1 / (24 * 3),
-    shockMin: -0.08,
-    shockMax: 0.10,
-  },
-};
-
-// ===============================
-// ⚙️ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-// ===============================
-const HOURS = 24 * 365;
-const now = Math.floor(Date.now() / 1000);
-const startTs = now - HOURS * 3600;
-
-// нормальное распределение (Box–Muller)
-function normal(std) {
-  return (
-    std *
-    Math.sqrt(-2 * Math.log(Math.random())) *
-    Math.cos(2 * Math.PI * Math.random())
-  );
-}
-function rand(min, max) {
-  return min + Math.random() * (max - min);
-}
-
-// ===============================
-// 🧮 ИНИЦИАЛИЗАЦИЯ
-// ===============================
-const prices = Object.fromEntries(
-  assets.map((a) => [a, cfg[a].base])
-);
-
-const history = [];
-
-// ===============================
-// 🔄 ГЕНЕРАЦИЯ ИСТОРИИ
-// ===============================
-for (let i = 0; i < HOURS; i++) {
-  const ts = startTs + i * 3600;
-  const row = { timestamp: ts, prices: {} };
-
-  for (const a of assets) {
-    const c = cfg[a];
-
-    // базовый шум
-    const noise = normal(c.noise);
-
-    // редкие рыночные "шоки"
-    const shock =
-      Math.random() < c.shockP ? rand(c.shockMin, c.shockMax) : 0;
-
-    // результирующая доходность
-    let ret = noise + shock;
-
-    // новый расчёт цены
-    let newPrice = prices[a] * (1 + ret);
-
-    // защита от NaN / Infinity / отрицательных значений
-    if (!Number.isFinite(newPrice) || newPrice <= 0) {
-      // fallback: откат к базовой цене ± случайный диапазон
-      newPrice = c.base * (0.5 + Math.random() * 0.5);
-    }
-
-    prices[a] = newPrice;
-
-    // округление
-    const rounded = Number(newPrice.toFixed(4));
-
-    // дополнительная защита JSON
-    row.prices[a] = Number.isFinite(rounded) ? rounded : c.base;
-  }
-
-  history.push(row);
-}
-
-// ===============================
-// 💾 СОХРАНЕНИЕ В ФАЙЛ
-// ===============================
-fs.writeFileSync(
-  "mock-history-hourly.json",
-  JSON.stringify(history, null, 2)
-);
-
-console.log("✅ Сгенерировано точек:", history.length);
-console.log("✅ Активов:", assets.length);
-EOF
-
-echo "✅ Файл mock-history-hourly.json успешно создан!"\n
+  const v = Number(localStorage.getItem(FEAR_GREED_KEY));
+  if (Number.isNaN(v)) return null;
+
+  return fresh ? v : null;
+}\nfrontend/src/services/assets/assetsSelectors.ts\n

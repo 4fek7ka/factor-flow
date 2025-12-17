@@ -1,1090 +1,1029 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { HistoryPoint, AssetAmounts } from "../../services/portfolio/portfolioService";
+frontend/public/vite.svg\n<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--logos" width="31.88" height="32" preserveAspectRatio="xMidYMid meet" viewBox="0 0 256 257"><defs><linearGradient id="IconifyId1813088fe1fbc01fb466" x1="-.828%" x2="57.636%" y1="7.652%" y2="78.411%"><stop offset="0%" stop-color="#41D1FF"></stop><stop offset="100%" stop-color="#BD34FE"></stop></linearGradient><linearGradient id="IconifyId1813088fe1fbc01fb467" x1="43.376%" x2="50.316%" y1="2.242%" y2="89.03%"><stop offset="0%" stop-color="#FFEA83"></stop><stop offset="8.333%" stop-color="#FFDD35"></stop><stop offset="100%" stop-color="#FFA800"></stop></linearGradient></defs><path fill="url(#IconifyId1813088fe1fbc01fb466)" d="M255.153 37.938L134.897 252.976c-2.483 4.44-8.862 4.466-11.382.048L.875 37.958c-2.746-4.814 1.371-10.646 6.827-9.67l120.385 21.517a6.537 6.537 0 0 0 2.322-.004l117.867-21.483c5.438-.991 9.574 4.796 6.877 9.62Z"></path><path fill="url(#IconifyId1813088fe1fbc01fb467)" d="M185.432.063L96.44 17.501a3.268 3.268 0 0 0-2.634 3.014l-5.474 92.456a3.268 3.268 0 0 0 3.997 3.378l24.777-5.718c2.318-.535 4.413 1.507 3.936 3.838l-7.361 36.047c-.495 2.426 1.782 4.5 4.151 3.78l15.304-4.649c2.372-.72 4.652 1.36 4.15 3.788l-11.698 56.621c-.732 3.542 3.979 5.473 5.943 2.437l1.313-2.028l72.516-144.72c1.215-2.423-.88-5.186-3.54-4.672l-25.505 4.922c-2.396.462-4.435-1.77-3.759-4.114l16.646-57.705c.677-2.35-1.37-4.583-3.769-4.113Z"></path></svg>\nfrontend/README.md\n# React + TypeScript + Vite
 
-/* =========================
-   Helpers
-========================= */
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-function calcPortfolioValue(p: HistoryPoint, amounts: AssetAmounts) {
-  let total = 0;
+Currently, two official plugins are available:
 
-  for (const [symbol, amount] of Object.entries(amounts)) {
-    const price = p.prices[symbol] ?? 0;
-    total += price * amount;
-  }
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
-  return total;
-}
+## React Compiler
 
-function computeStats(history: HistoryPoint[], amounts: AssetAmounts) {
-  if (history.length < 2) {
-    return { volatility: 0, minVol: 0, maxVol: 0, avgMove: 0, stdDev: 0 };
-  }
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-  const vals = history
-    .map((p) => calcPortfolioValue(p, amounts))
-    .filter((v) => Number.isFinite(v) && v > 0);
+## Expanding the ESLint configuration
 
-  if (vals.length < 2) {
-    return { volatility: 0, minVol: 0, maxVol: 0, avgMove: 0, stdDev: 0 };
-  }
+If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
 
-  const minVal = Math.min(...vals);
-  const maxVal = Math.max(...vals);
-  const avg = vals.reduce((s, x) => s + x, 0) / vals.length || 1;
+```js
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
 
-  const volatilityRange = ((maxVal - minVal) / avg) * 100;
+      // Remove tseslint.configs.recommended and replace with this
+      tseslint.configs.recommendedTypeChecked,
+      // Alternatively, use this for stricter rules
+      tseslint.configs.strictTypeChecked,
+      // Optionally, add this for stylistic rules
+      tseslint.configs.stylisticTypeChecked,
 
-  const minPct = ((minVal - avg) / avg) * 100;
-  const maxPct = ((maxVal - avg) / avg) * 100;
+      // Other configs...
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+```
 
-  const avgMoveCalc =
-    vals
-      .slice(1)
-      .reduce((s, v, i) => s + Math.abs(v - vals[i]), 0) /
-    (vals.length - 1);
+You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
-  const avgMovePct = (avgMoveCalc / avg) * 100;
+```js
+// eslint.config.js
+import reactX from 'eslint-plugin-react-x'
+import reactDom from 'eslint-plugin-react-dom'
 
-  const variance = vals.reduce((s, v) => s + (v - avg) ** 2, 0) / vals.length;
-  const std = Math.sqrt(variance);
-  const stdDevPct = (std / avg) * 100;
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+      // Enable lint rules for React
+      reactX.configs['recommended-typescript'],
+      // Enable lint rules for React DOM
+      reactDom.configs.recommended,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+```\nfrontend/src/App.tsx\nimport { RouterProvider } from "react-router-dom";
+import { router } from "./router";
 
+export default function App() {
+  return <RouterProvider router={router} />;
+}\nfrontend/src/charts/portfolioChartOptions.ts\ntype ChartParams = {
+  seriesId?: string;
+  initial?: boolean;
+  opacity?: number; // 0..1
+};
+
+export function buildTooltip() {
   return {
-    volatility: volatilityRange,
-    minVol: minPct,
-    maxVol: maxPct,
-    avgMove: avgMovePct,
-    stdDev: stdDevPct,
+    trigger: "axis",
+    formatter: (params: any) => {
+      const val = params[0].value[1] as number;
+      const sign = val >= 0 ? "+" : "";
+      const date = new Date(params[0].value[0]);
+
+      return `
+        <div>
+          <strong>${sign}${val.toFixed(2)}%</strong><br/>
+          ${date.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}
+        </div>
+      `;
+    },
   };
 }
 
-/* =========================
-   Types
-========================= */
+export function buildGrid() {
+  return {
+    left: 20,
+    right: 48, // ✅ место под проценты справа
+    top: 20,
+    bottom: 40,
+  };
+}
+
+export function buildXAxis() {
+  return {
+    type: "time",
+    axisLabel: {
+      color: "#999",
+      formatter: (value: number) => {
+        const d = new Date(value);
+        return d.toLocaleDateString("en-GB", { month: "short" });
+      },
+    },
+    axisLine: { lineStyle: { color: "#555" } },
+    splitLine: { show: false },
+  };
+}
+
+export function buildYAxis() {
+  return {
+    type: "value",
+    position: "right", // ✅ проценты справа
+    axisLabel: {
+      formatter: (v: number) => `${v.toFixed(0)}%`,
+      color: "#999",
+      margin: 12,
+    },
+    axisLine: { lineStyle: { color: "#555" } },
+    axisTick: { show: true },
+    splitLine: { lineStyle: { color: "#333" } },
+  };
+}
+
+export function buildSeries(
+  timestamps: number[],
+  percentValues: number[],
+  params: ChartParams = {}
+) {
+  const { seriesId = "portfolio-line", initial = false, opacity = 1 } = params;
+
+  const first = percentValues[0];
+  const last = percentValues[percentValues.length - 1];
+  const isUp = last >= first;
+
+  const lineColor = isUp ? "#27a95e" : "#e11c14";
+  const areaTop = isUp ? "rgba(39,169,94,0.40)" : "rgba(225,28,20,0.40)";
+  const areaBottom = isUp ? "rgba(39,169,94,0.05)" : "rgba(225,28,20,0.05)";
+
+  return [
+    {
+      id: seriesId,
+      name: "Portfolio % Change",
+      type: "line",
+      smooth: false,
+      showSymbol: false,
+
+
+      animationDuration: initial ? 1500 : 0,
+      animationEasing: initial ? "quadraticInOut" : "linear",
+
+      animationDurationUpdate: 750,
+      animationEasingUpdate: "quadraticInOut",
+
+      lineStyle: {
+        width: 3,
+        color: lineColor,
+        opacity,
+      },
+
+      areaStyle: {
+        origin: "start",
+        opacity,
+        color: {
+          type: "linear",
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [
+            { offset: 0, color: areaTop },
+            { offset: 1, color: areaBottom },
+          ],
+        },
+      },
+
+      data: percentValues.map((v, i) => [timestamps[i], v]),
+    },
+  ];
+}
+
+export function buildPortfolioChartOption(
+  timestamps: number[],
+  percentValues: number[],
+  params: ChartParams = {}
+) {
+  return {
+    backgroundColor: "transparent",
+    animation: true,
+    tooltip: buildTooltip(),
+    grid: buildGrid(),
+    xAxis: buildXAxis(),
+    yAxis: buildYAxis(),
+    series: buildSeries(timestamps, percentValues, params),
+  };
+}\nfrontend/src/charts/SparklineBase.tsx\n
 
 type Props = {
-  history: HistoryPoint[]; // уже filteredHistory
-  amounts: AssetAmounts;
+  values: number[];
+  color: string;
+  width?: number;         // internal viewBox width (fixed mode)
+  height?: number;
+  strokeWidth?: number;
+  fullWidth?: boolean;    // NEW: adaptive width mode
 };
 
-type Stats = {
-  volatility: number;
-  minVol: number;
-  maxVol: number;
-  avgMove: number;
-  stdDev: number;
-};
+export function SparklineBase({
+  values,
+  color,
+  width = 200,
+  height = 45,
+  strokeWidth = 2,
+  fullWidth = false,
+}: Props) {
+  if (!values.length) return null;
 
-/* =========================
-   Component
-========================= */
+  // 1) Convert to percent change
+  const base = values[0];
+  const pctValues = values.map((v) => ((v - base) / base) * 100);
 
-export function VolatilityArcCard({ history, amounts }: Props) {
-  // "истина" (новые значения при смене периода)
-  const nextStats = useMemo<Stats>(() => computeStats(history, amounts), [history, amounts]);
+  // 2) Range
+  const min = Math.min(...pctValues);
+  const max = Math.max(...pctValues);
+  const range = max - min || 0;
 
-  // то, что реально отображаем в цифрах (анимируем fade)
-  const [displayStats, setDisplayStats] = useState<Stats>(nextStats);
+  // 3) Volatility scale
+  const A = Math.abs(range);
+  const K = 1.5;
+  const scale = A === 0 ? 0 : Math.min(1, A / (A + K));
 
-  // дуга анимируется отдельно: обновляем сразу
-  const [arcVolatility, setArcVolatility] = useState<number>(nextStats.volatility);
+  const centerY = height / 2;
 
-  // фаза для fade цифр
-  const [fadePhase, setFadePhase] = useState<"in" | "out">("in");
-
-  // signature, чтобы понимать "переключили период"
-  const signature = useMemo(() => {
-    const first = history[0]?.timestamp ?? 0;
-    const last = history[history.length - 1]?.timestamp ?? 0;
-
-    const amountsKey = Object.entries(amounts)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([k, v]) => `${k}:${v}`)
-      .join("|");
-
-    return `${history.length}:${first}:${last}:${amountsKey}`;
-  }, [history, amounts]);
-
-  const prevSigRef = useRef<string>(signature);
-  const timerRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (prevSigRef.current === signature) return;
-    prevSigRef.current = signature;
-
-    // 1) дуга — сразу, sweep-анимация
-    setArcVolatility(nextStats.volatility);
-
-    // 2) цифры — плавно тухнут → обновляем → плавно появляются
-    setFadePhase("out");
-
-    if (timerRef.current) window.clearTimeout(timerRef.current);
-
-    timerRef.current = window.setTimeout(() => {
-      setDisplayStats(nextStats);
-      setFadePhase("in");
-      timerRef.current = null;
-    }, 180);
-
-    return () => {
-      if (timerRef.current) window.clearTimeout(timerRef.current);
-      timerRef.current = null;
-    };
-  }, [signature, nextStats]);
-
-  /* =========================
-     Arc math
-  ========================= */
-
-  const pct = Math.min(Math.max(arcVolatility / 120, 0), 1);
-
-  const radius = 100;
-  const circumference = Math.PI * radius;
-  const filled = pct * circumference;
-  const empty = circumference - filled;
-
-  const TEXT_PRIMARY = "#EFEFEF";
-  const TEXT_SECONDARY = "rgba(255,255,255,0.75)";
+  // 4) Build polyline
+  const points = pctValues
+    .map((v, i) => {
+      const norm = range === 0 ? 0.5 : (v - min) / range;
+      const normCentered = norm - 0.5;
+      const y = centerY - normCentered * height * scale;
+      const x = (i / Math.max(values.length - 1, 1)) * width;
+      return `${x},${y}`;
+    })
+    .join(" ");
 
   return (
-    <div
-      className="card vola-card"
-      style={{
-        borderRadius: "10px",
-        height: "100%",
-        width: "100%",
-      }}
+    <svg
+      width={fullWidth ? "100%" : width}     // dynamic or fixed width
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio={fullWidth ? "none" : "xMidYMid meet"}
     >
+      <polyline
+        fill="none"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        points={points}
+      />
+    </svg>
+  );
+}\nfrontend/src/components/assets/AssetRow.tsx\nimport { useEffect, useRef, useState } from "react";
+import type { AssetRow } from "../../services/assetsService";
+import { SparklineBase } from "../../charts/SparklineBase";
+
+type Props = {
+  asset: AssetRow;
+  index: number;
+  livePrice?: number;
+};
+
+function colorize(v: number) {
+  return v >= 0 ? "#4ADE80" : "#F87171";
+}
+
+export function AssetRowItem({ asset, index, livePrice }: Props) {
+  const price = livePrice ?? asset.price;
+
+  const prevRef = useRef<number>(price);
+  const [flash, setFlash] = useState<"up" | "down" | null>(null);
+  const [fade, setFade] = useState(false);
+
+  useEffect(() => {
+    const prev = prevRef.current;
+
+    if (price > prev) {
+      setFlash("up");
+      setFade(false);
+    } else if (price < prev) {
+      setFlash("down");
+      setFade(false);
+    }
+
+    prevRef.current = price;
+
+    if (price !== prev) {
+      const t1 = setTimeout(() => setFade(true), 50);     // включаем fade
+      const t2 = setTimeout(() => setFlash(null), 300); // сбрасываем flash
+
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    }
+  }, [price]);
+
+  const priceColor =
+    flash === "up"
+      ? "#22c55e"
+      : flash === "down"
+      ? "#ef4444"
+      : "#E4E4E7";
+
+  return (
+    <tr>
+      {/* Index */}
+      <td>
+        <div className="cell" style={{ paddingLeft: 24, color: "#A1A1AA" }}>
+          {index + 1}
+        </div>
+      </td>
+
+      {/* Asset */}
+      <td>
+        <div className="cell" style={{ fontWeight: 600, color: "#F4F4F5" }}>
+          {asset.symbol}
+        </div>
+      </td>
+
+      {/* Price */}
+      <td>
+        <div
+          className="cell"
+          style={{
+            textAlign: "right",
+            paddingRight: 16,
+            color: priceColor,
+            transition: fade ? "color 1.5s ease-out" : "none",
+          }}
+        >
+          ${price.toFixed(2)}
+        </div>
+      </td>
+
+      {/* 1h */}
+      <td>
+        <div
+          className="cell"
+          style={{ textAlign: "center", color: colorize(asset.change1hPct) }}
+        >
+          {asset.change1hPct.toFixed(2)}%
+        </div>
+      </td>
+
+      {/* 24h */}
+      <td>
+        <div
+          className="cell"
+          style={{ textAlign: "center", color: colorize(asset.change24hPct) }}
+        >
+          {asset.change24hPct.toFixed(2)}%
+        </div>
+      </td>
+
+      {/* 7d */}
+      <td>
+        <div
+          className="cell"
+          style={{ textAlign: "center", color: colorize(asset.change7dPct) }}
+        >
+          {asset.change7dPct.toFixed(2)}%
+        </div>
+      </td>
+
+      {/* Market Cap */}
+      <td>
+        <div
+          className="cell"
+          style={{ textAlign: "right", paddingRight: 16, color: "#E5E7EB" }}
+        >
+          ${asset.marketCapUsd.toLocaleString()}
+        </div>
+      </td>
+
+      {/* Sparkline */}
+      <td>
+        <div className="cell" style={{ textAlign: "right", paddingRight: 32 }}>
+          <SparklineBase
+            values={asset.sparkline}
+            color={asset.change7dPct >= 0 ? "#4ADE80" : "#F87171"}
+            width={150}
+            height={34}
+          />
+        </div>
+      </td>
+    </tr>
+  );
+}\nfrontend/src/components/assets/AssetsTable.tsx\nimport type { AssetRow } from "../../services/assets/assetsSelectors";
+import { AssetRowItem } from "./AssetRow";
+
+type Props = {
+  assets: AssetRow[];
+  livePrices?: Record<string, number>;
+};
+
+export function AssetsTable({ assets, livePrices }: Props) {
+  return (
+    <>
       <style>{`
-        .vola-card {
-          will-change: opacity, transform;
-          transition: opacity 220ms ease, transform 220ms ease;
+        .assets-table {
+          width: 100%;
+          border-collapse: collapse;
+          table-layout: fixed;
         }
 
-        .vola-fade {
-          transition: opacity 220ms ease, filter 220ms ease;
-          will-change: opacity, filter;
+        .assets-table th,
+        .assets-table td {
+          padding: 0;
         }
 
-        .vola-fade.out {
-          opacity: 0;
-          filter: blur(2px);
+        .cell {
+          height: 48px;
+          line-height: 48px;
+          font-size: 14px;
+          white-space: nowrap;
+          vertical-align: middle;
         }
 
-        .vola-fade.in {
-          opacity: 1;
-          filter: blur(0px);
+        th .cell {
+          font-weight: 600;
+          font-size: 15px;
+          color: #e5e7eb;
+          letter-spacing: 0.25px;
         }
 
-        /* ДУГА: отдельная анимация (другая длительность/easing) */
-        .vola-arc {
-          transition: stroke-dasharray 900ms cubic-bezier(0.22, 1, 0.36, 1);
-          will-change: stroke-dasharray;
+        .assets-table tbody tr {
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .assets-table tbody tr:hover {
+          background: rgba(255,255,255,0.03);
         }
       `}</style>
 
+      <div className="card" style={{ padding: 0, overflowX: "auto" }}>
+        <table className="assets-table">
+          <colgroup>
+            <col style={{ width: "60px" }} />
+            <col style={{ width: "160px" }} />
+            <col style={{ width: "150px" }} />
+            <col style={{ width: "110px" }} />
+            <col style={{ width: "110px" }} />
+            <col style={{ width: "110px" }} />
+            <col style={{ width: "180px" }} />
+            <col style={{ width: "240px" }} />
+          </colgroup>
+
+          <thead>
+            <tr>
+              <th>
+                <div className="cell" style={{ paddingLeft: 24 }}>
+                  #
+                </div>
+              </th>
+              <th>
+                <div className="cell">ASSET</div>
+              </th>
+              <th>
+                <div
+                  className="cell"
+                  style={{ textAlign: "right", paddingRight: 16 }}
+                >
+                  PRICE
+                </div>
+              </th>
+              <th>
+                <div className="cell" style={{ textAlign: "center" }}>
+                  1h %
+                </div>
+              </th>
+              <th>
+                <div className="cell" style={{ textAlign: "center" }}>
+                  24h %
+                </div>
+              </th>
+              <th>
+                <div className="cell" style={{ textAlign: "center" }}>
+                  7d %
+                </div>
+              </th>
+              <th>
+                <div
+                  className="cell"
+                  style={{ textAlign: "right", paddingRight: 16 }}
+                >
+                  Market Cap
+                </div>
+              </th>
+              <th>
+                <div
+                  className="cell"
+                  style={{ textAlign: "right", paddingRight: 32 }}
+                >
+                  Sparkline
+                </div>
+              </th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {assets.map((asset, i) => (
+              <AssetRowItem
+                key={`${asset.symbol}-${i}`}
+                asset={asset}
+                index={i}
+                livePrice={livePrices?.[asset.symbol]}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}\nfrontend/src/components/assets/BtcEthAltCard.tsx\nimport type { FC } from "react";
+
+type Props = {
+  btc: number; // BTC dominance %
+  eth: number; // ETH dominance %
+  alt: number; // ALT dominance %
+};
+
+export const BtcEthAltCard: FC<Props> = ({ btc, eth, alt }) => {
+  const btcPct = btc.toFixed(1);
+  const ethPct = eth.toFixed(1);
+  const altPct = alt.toFixed(1);
+
+  const btcColor = "#fbbf24";  // amber-400
+  const ethColor = "#c084fc";  // violet-400 (нежный фиолетовый)
+  const altColor = "#475569";  // slate-700
+
+  return (
+    <div
+      className="card card-sm mb-3 h-100"
+      style={{
+        flex: 1,
+      }}
+    >
       <div
         className="card-body"
         style={{
+          padding: "12px 16px",
           display: "flex",
-          gap: "28px",
-          alignItems: "center",
-          paddingTop: 20,
-          paddingBottom: 20,
+          flexDirection: "column",
+          gap: 8,
         }}
       >
-        {/* ======================= GAUGE ======================= */}
-        <div style={{ flex: "0 0 260px" }}>
-          <div style={{ display: "flex", justifyContent: "center" }}>
-            <svg width="260" height="170" viewBox="0 0 260 170">
-              <defs>
-                <linearGradient id="volaGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#22c55e" />
-                  <stop offset="50%" stopColor="#eab308" />
-                  <stop offset="100%" stopColor="#ef4444" />
-                </linearGradient>
-              </defs>
+        {/* Заголовок */}
+        <div className="text-muted">Market Dominance</div>
 
-              {/* Background arc */}
-              <path
-                d="M30 120 A100 100 0 0 1 230 120"
-                stroke="rgba(255,255,255,0.08)"
-                strokeWidth="16"
-                fill="none"
-              />
-
-              {/* Foreground arc (sweep animation) */}
-              <path
-                className="vola-arc"
-                d="M30 120 A100 100 0 0 1 230 120"
-                stroke="url(#volaGradient)"
-                strokeWidth="16"
-                fill="none"
-                strokeDasharray={`${filled} ${empty}`}
-                strokeLinecap="round"
-              />
-
-              {/* Percentage (fade) */}
-              <text
-                x="130"
-                y="108"
-                fill={TEXT_PRIMARY}
-                fontSize="28"
-                fontWeight="700"
-                dominantBaseline="middle"
-                textAnchor="middle"
-                className={`vola-fade ${fadePhase}`}
-              >
-                {displayStats.volatility.toFixed(2)}%
-              </text>
-
-              {/* Low / High */}
-              <text x="12" y="155" fill={TEXT_PRIMARY} fontSize="15" fontWeight="600" textAnchor="start">
-                Low
-              </text>
-
-              <text x="248" y="155" fill={TEXT_PRIMARY} fontSize="15" fontWeight="600" textAnchor="end">
-                High
-              </text>
-            </svg>
-          </div>
-
+        {/* Горизонтальная полоса */}
+        <div
+          style={{
+            width: "100%",
+            height: 12, // ← было 18, теперь тоньше
+            borderRadius: 10,
+            overflow: "hidden",
+            display: "flex",
+          }}
+        >
+          {/* BTC */}
           <div
             style={{
-              textAlign: "center",
-              marginTop: 8,
-              fontSize: 15,
-              color: TEXT_SECONDARY,
+              width: `${btc}%`,
+              backgroundColor: btcColor,
+              transition: "width 0.3s ease",
             }}
-          >
-            Period Range Volatility
-          </div>
+          />
+
+          {/* ETH */}
+          <div
+            style={{
+              width: `${eth}%`,
+              backgroundColor: ethColor,
+              transition: "width 0.3s ease",
+            }}
+          />
+
+          {/* ALT */}
+          <div
+            style={{
+              width: `${alt}%`,
+              backgroundColor: altColor,
+              transition: "width 0.3s ease",
+            }}
+          />
         </div>
 
-        {/* ======================= ANALYTICS ======================= */}
+        {/* Подписи */}
         <div
           style={{
             display: "flex",
-            flexDirection: "column",
-            gap: "12px",
-            paddingLeft: "32px",
-            flex: 1,
-            color: TEXT_PRIMARY,
-            fontSize: "15px",
+            justifyContent: "space-between",
+            fontSize: 14,
+            marginTop: 4,
           }}
         >
-          <div
-            style={{
-              marginBottom: "6px",
-              opacity: 0.9,
-              fontWeight: 600,
-              fontSize: "16px",
-            }}
-          >
-            Analytics
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span style={{ color: btcColor, fontWeight: 600 }}>BTC</span>
+            <span style={{ color: ethColor, fontWeight: 600 }}>ETH</span>
+            <span style={{ color: altColor, fontWeight: 600 }}>ALT</span>
           </div>
 
-          {[
-            { label: "Min", value: displayStats.minVol },
-            { label: "Max", value: displayStats.maxVol },
-            { label: "Avg Abs Move", value: displayStats.avgMove },
-            { label: "Std Dev", value: displayStats.stdDev },
-          ].map((m, i) => (
-            <div
-              key={i}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                borderBottom: i < 3 ? "1px solid rgba(255,255,255,0.06)" : "none",
-                paddingBottom: "6px",
-                paddingTop: "4px",
-              }}
-            >
-              <span style={{ opacity: 0.75 }}>{m.label}</span>
-
-              <span
-                className={`vola-fade ${fadePhase}`}
-                style={{
-                  fontFamily: "monospace",
-                  opacity: 0.95,
-                }}
-              >
-                {m.value.toFixed(2)}%
-              </span>
-            </div>
-          ))}
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span style={{ color: btcColor, fontWeight: 600 }}>{btcPct}%</span>
+            <span style={{ color: ethColor, fontWeight: 600 }}>{ethPct}%</span>
+            <span style={{ color: altColor, fontWeight: 600 }}>{altPct}%</span>
+          </div>
         </div>
       </div>
     </div>
   );
-}\nfrontend/src/components/simulation/FinalOutcomeCard.tsx\nimport { useMemo } from "react";
+};\nfrontend/src/components/assets/FearGreedCard.tsx\nimport { FearGreedGauge } from "./FearGreedGauge";
 
 type Props = {
-  startValue: number;
-  median: number;
+  value: number;
 };
 
-function formatMoney(v: number) {
-  return v.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  });
+function labelFromValue(v: number) {
+  if (v < 25) return "Extreme Fear";
+  if (v < 45) return "Fear";
+  if (v < 55) return "Neutral";
+  if (v < 75) return "Greed";
+  return "Extreme Greed";
 }
 
-export function FinalOutcomeCard({ startValue, median }: Props) {
-  const model = useMemo(() => {
-    const deltaPct =
-      startValue === 0 ? 0 : ((median - startValue) / startValue) * 100;
-
-    const isPositive = deltaPct >= 0;
-
-    const RANGE = 30;
-    const clamped = Math.max(-RANGE, Math.min(RANGE, deltaPct));
-    const posPct = ((clamped + RANGE) / (RANGE * 2)) * 100;
-
-    return { deltaPct, isPositive, posPct, RANGE };
-  }, [startValue, median]);
-
-  const ACCENT_COLOR = model.isPositive ? "#22c55e" : "#ef4444";
-  const sign = model.deltaPct >= 0 ? "+" : "";
-
-  const centerPct = 50;
-  const fillLeft = model.isPositive ? centerPct : model.posPct;
-  const fillWidth = Math.abs(model.posPct - centerPct);
-
-  return (
-    <div className="card card-sm w-100">
-      <div className="card-body">
-        <div style={{ fontWeight: 700, marginBottom: 10 }}>
-          Final outcome
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-          <div style={{ fontSize: 28, fontWeight: 800 }}>
-            {formatMoney(median)}
-          </div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: ACCENT_COLOR }}>
-            {sign}
-            {Math.abs(model.deltaPct).toFixed(1)}%
-          </div>
-        </div>
-
-        <div style={{ position: "relative", height: 20 }}>
-          <div
-            style={{
-              position: "absolute",
-              top: "50%",
-              left: 0,
-              right: 0,
-              height: 7,
-              transform: "translateY(-50%)",
-              borderRadius: 999,
-              background: "rgba(255,255,255,0.22)",
-            }}
-          />
-
-          <div
-            style={{
-              position: "absolute",
-              top: "50%",
-              left: `${fillLeft}%`,
-              width: `${fillWidth}%`,
-              height: 7,
-              transform: "translateY(-50%)",
-              borderRadius: 999,
-              background: model.isPositive
-                ? "rgba(34,197,94,0.45)"
-                : "rgba(239,68,68,0.45)",
-            }}
-          />
-
-          <div
-            style={{
-              position: "absolute",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              width: 2,
-              height: 14,
-              background: "rgba(226,232,240,0.85)",
-            }}
-          />
-
-          <div
-            style={{
-              position: "absolute",
-              top: "50%",
-              left: `${model.posPct}%`,
-              transform: "translate(-50%, -50%)",
-              width: 16,
-              height: 16,
-              borderRadius: "50%",
-              background: ACCENT_COLOR,
-            }}
-          />
-        </div>
-
-        <div style={{ position: "relative", height: 16, marginTop: 6, fontSize: 12 }}>
-          <div style={{ position: "absolute", left: 0 }}>-{model.RANGE}%</div>
-          <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}>0%</div>
-          <div style={{ position: "absolute", right: 0 }}>+{model.RANGE}%</div>
-        </div>
-      </div>
-    </div>
-  );
-}\nfrontend/src/components/simulation/OutcomeDistributionCard.tsx\nimport { useMemo } from "react";
-
-type Props = {
-  paths: number[][];
-  title?: string;
-};
-
-function medianOf(sorted: number[]): number {
-  const m = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[m] : (sorted[m - 1] + sorted[m]) / 2;
-}
-
-function formatMoney(v: number) {
-  return v.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  });
-}
-
-export function OutcomeDistributionCard({
-  paths,
-  title = "Outcome distribution",
-}: Props) {
-  const model = useMemo(() => {
-    if (!paths.length || !paths[0]?.length) return null;
-
-    const start = paths[0][0];
-
-    const finals = paths
-      .map((p) => p[p.length - 1])
-      .filter(Number.isFinite)
-      .sort((a, b) => a - b);
-
-    if (!finals.length) return null;
-
-    const min = finals[0];
-    const max = finals[finals.length - 1];
-    const median = medianOf(finals);
-
-    const BUCKETS = 14;
-    const counts = Array(BUCKETS).fill(0);
-    const step = (max - min) / BUCKETS || 1;
-
-    for (const v of finals) {
-      const i = Math.min(BUCKETS - 1, Math.floor((v - min) / step));
-      counts[i]++;
-    }
-
-    const maxCount = Math.max(...counts) || 1;
-    const bins = counts.map((c) => c / maxCount);
-
-    const medianPos = ((median - min) / (max - min || 1)) * 100;
-    const isPositive = median >= start;
-
-    return { bins, min, max, median, medianPos, isPositive };
-  }, [paths]);
-
-  if (!model) return null;
-
-  const MEDIAN_COLOR = model.isPositive ? "#22c55e" : "#ef4444";
-
-  const BAR_GRADIENT = `linear-gradient(180deg,
-    rgba(125,211,252,0.70) 0%,
-    rgba(56,189,248,0.56) 45%,
-    rgba(14,165,233,0.34) 100%
-  )`;
-
-  return (
-    <div className="card card-sm w-100">
-      <div className="card-body">
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ fontWeight: 700, color: "rgba(226,232,240,0.95)" }}>
-            {title}
-          </div>
-
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 12, color: "rgba(148,163,184,0.9)" }}>
-              median
-            </div>
-            <div style={{ fontWeight: 800, color: MEDIAN_COLOR }}>
-              {formatMoney(model.median)}
-            </div>
-          </div>
-        </div>
-
-        <div style={{ position: "relative", height: 72, display: "flex", alignItems: "flex-end", gap: 5 }}>
-          {model.bins.map((v, i) => (
-            <div
-              key={i}
-              style={{
-                flex: 1,
-                height: `${Math.max(0.06, v) * 100}%`,
-                borderRadius: 4,
-                background: BAR_GRADIENT,
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.12)",
-                transition: "height 200ms ease",
-              }}
-            />
-          ))}
-
-          <div
-            style={{
-              position: "absolute",
-              left: `${model.medianPos}%`,
-              top: -6,
-              bottom: -6,
-              transform: "translateX(-50%)",
-              width: 3,
-              background: MEDIAN_COLOR,
-              borderRadius: 999,
-            }}
-          />
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 12 }}>
-          <div>min {formatMoney(model.min)}</div>
-          <div>max {formatMoney(model.max)}</div>
-        </div>
-      </div>
-    </div>
-  );
-}\nfrontend/src/components/simulation/SimulationChartCard.tsx\n// SimulationChartCard.tsx
-import { useEffect, useRef } from "react";
-import * as echarts from "echarts/core";
-import type { EChartsType } from "echarts/core";
-
-import { LineChart, CustomChart } from "echarts/charts";
-import { TooltipComponent, GridComponent } from "echarts/components";
-import { CanvasRenderer } from "echarts/renderers";
-
-import {
-  resample,
-  resampleFan,
-  toPercentFromBase,
-  buildFanQuantiles,
-} from "./simulationChart.utils";
-import { buildSimulationChartOption } from "./simulationChart.option";
-
-echarts.use([
-  LineChart,
-  CustomChart,
-  TooltipComponent,
-  GridComponent,
-  CanvasRenderer,
-]);
-
-const TARGET_POINTS = 250;
-
-const ACTIVE_COLOR = "#0ea5e9";
-const INACTIVE_COLOR = "#64748b";
-const TEXT_ACTIVE = "rgba(226,232,240,0.95)";
-const TEXT_INACTIVE = "rgba(226,232,240,0.80)";
-
-export type SimulationChartCardProps = {
-  timestamps: number[];
-  median: number[];
-  representative: number[];
-  upper: number[];
-  lower: number[];
-  cloud: number[][];
-  showCloud: boolean;
-  showMedian: boolean;
-  showRepresentative?: boolean;
-  showRange: boolean;
-
-  showFan?: boolean;
-
-  onToggleCloud?: () => void;
-  onToggleMedian?: () => void;
-  onToggleRepresentative?: () => void;
-  onToggleRange?: () => void;
-  onToggleFan?: () => void;
-};
-
-export function SimulationChartCard({
-  timestamps,
-  median,
-  representative,
-  upper,
-  lower,
-  cloud,
-  showCloud,
-  showMedian,
-  showRepresentative = true,
-  showRange,
-  showFan = false,
-  onToggleCloud,
-  onToggleMedian,
-  onToggleRepresentative,
-  onToggleRange,
-  onToggleFan,
-}: SimulationChartCardProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<EChartsType | null>(null);
-  const yDomainRef = useRef<{ min: number; max: number } | null>(null);
-
-  useEffect(() => {
-    if (!ref.current) return;
-
-    const chart = echarts.init(ref.current);
-    chartRef.current = chart;
-
-    const onResize = () => chart.resize();
-    window.addEventListener("resize", onResize);
-
-    return () => {
-      window.removeEventListener("resize", onResize);
-      chart.dispose();
-      chartRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart) return;
-
-    const baseCandidate = median[0] ?? representative[0] ?? 1;
-    const base =
-      Number.isFinite(baseCandidate) && baseCandidate !== 0
-        ? baseCandidate
-        : 1;
-
-    const medianPct = toPercentFromBase(median, base);
-    const repPct = toPercentFromBase(representative, base);
-    const upperPct = toPercentFromBase(upper, base);
-    const lowerPct = toPercentFromBase(lower, base);
-    const cloudPct = cloud.map((p) => toPercentFromBase(p, base));
-
-    const fanPctRaw = buildFanQuantiles(cloudPct);
-    const fanPct = fanPctRaw ? resampleFan(fanPctRaw, TARGET_POINTS) : null;
-
-    if (!yDomainRef.current) {
-      const all = [
-        ...medianPct,
-        ...repPct,
-        ...upperPct,
-        ...lowerPct,
-        ...cloudPct.flat(),
-        ...(fanPct
-          ? [
-              ...fanPct.q05,
-              ...fanPct.q25,
-              ...fanPct.q50,
-              ...fanPct.q75,
-              ...fanPct.q95,
-            ]
-          : []),
-      ];
-
-      const min = Math.min(...all);
-      const max = Math.max(...all);
-      const pad = (max - min) * 0.08;
-      yDomainRef.current = { min: min - pad, max: max + pad };
-    }
-
-    const ts = resample(timestamps, TARGET_POINTS);
-
-    chart.setOption(
-      buildSimulationChartOption({
-        timestamps: ts,
-        median: resample(medianPct, TARGET_POINTS),
-        representative: resample(repPct, TARGET_POINTS),
-        upper: resample(upperPct, TARGET_POINTS),
-        lower: resample(lowerPct, TARGET_POINTS),
-        cloud: cloudPct.map((p) => resample(p, TARGET_POINTS)),
-        yDomain: yDomainRef.current!,
-        flags: {
-          showCloud,
-          showMedian,
-          showRepresentative,
-          showRange,
-          showFan,
-        },
-        fan: fanPct ?? undefined,
-      }),
-      { notMerge: true }
-    );
-  }, [
-    timestamps,
-    median,
-    representative,
-    upper,
-    lower,
-    cloud,
-    showCloud,
-    showMedian,
-    showRepresentative,
-    showRange,
-    showFan,
-  ]);
+export function FearGreedCard({ value }: Props) {
+  const label = labelFromValue(value);
 
   return (
     <div
-      className="card"
+      className="card card-sm mb-3 h-100"
       style={{
+        flex: 1,
         position: "relative",
-        width: "100%",
-        height: 380,
-
-        /* ✅ ТОЧНО как у других карточек */
-        background: "var(--tblr-card-bg)",
-        border: "1px solid var(--tblr-border-color)",
       }}
     >
-      <style>{`
-        .sim-legend {
-          position: absolute;
-          top: 12px;
-          left: 50%;
-          transform: translateX(-50%);
-          display: flex;
-          gap: 16px;
-          z-index: 3;
-          padding: 6px 12px;
-          border-radius: 12px;
-          background: rgba(2,6,23,0.35);
-          border: 1px solid rgba(255,255,255,0.05);
-          backdrop-filter: blur(10px);
-        }
+      <div
+        className="card-body"
+        style={{
+          padding: "0 12px",
+          position: "relative",
+        }}
+      >
 
-        .sim-legend-item {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 13px;
-          font-weight: 700;
-          cursor: pointer;
-          user-select: none;
-          color: ${TEXT_INACTIVE};
-        }
-
-        .sim-legend-item.is-on {
-          color: ${TEXT_ACTIVE};
-        }
-
-        .sim-legend-dot {
-          width: 10px;
-          height: 10px;
-          border-radius: 999px;
-          background: ${INACTIVE_COLOR};
-          transition: background 120ms ease;
-        }
-
-        .sim-legend-item.is-on .sim-legend-dot {
-          background: ${ACTIVE_COLOR};
-        }
-      `}</style>
-
-      <div className="sim-legend">
+        {/* Заголовок */}
         <div
-          className={`sim-legend-item ${showRepresentative ? "is-on" : ""}`}
-          onClick={onToggleRepresentative}
+          className="text-muted"
+          style={{
+            position: "absolute",
+            top: 14,       // ← добавили отступ сверху
+            left: 12,
+            fontSize: "0.75rem",
+            opacity: 0.85,
+          }}
         >
-          <span className="sim-legend-dot" />
-          Main
+          Fear & Greed
         </div>
 
+        {/* Контейнер gauge */}
         <div
-          className={`sim-legend-item ${showFan ? "is-on" : ""}`}
-          onClick={onToggleFan}
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            marginTop: 22,
+            position: "relative",
+            height: 90,
+          }}
         >
-          <span className="sim-legend-dot" />
-          Fan
-        </div>
+          <FearGreedGauge value={value} width={160} height={80} />
 
-        <div
-          className={`sim-legend-item ${showMedian ? "is-on" : ""}`}
-          onClick={onToggleMedian}
-        >
-          <span className="sim-legend-dot" />
-          Median
-        </div>
+          {/* ЦЕНТРАЛЬНЫЙ ТЕКСТ ВНУТРИ ДУГИ */}
+          <div
+            style={{
+              position: "absolute",
+              top: "80%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "1.35rem",
+                fontWeight: 600,
+                lineHeight: "1.2",
+                margin: 0,
+              }}
+            >
+              {value}
+            </div>
 
-        <div
-          className={`sim-legend-item ${showCloud ? "is-on" : ""}`}
-          onClick={onToggleCloud}
-        >
-          <span className="sim-legend-dot" />
-          Cloud
-        </div>
-
-        <div
-          className={`sim-legend-item ${showRange ? "is-on" : ""}`}
-          onClick={onToggleRange}
-        >
-          <span className="sim-legend-dot" />
-          Range
+            <div
+              style={{
+                fontSize: "0.85rem",
+                opacity: 0.8,
+              }}
+            >
+              {label}
+            </div>
+          </div>
         </div>
       </div>
-
-      <div ref={ref} style={{ width: "100%", height: "100%" }} />
     </div>
   );
-}\nfrontend/src/components/simulation/simulationChart.option.ts\n// simulationChart.option.ts
-import type { EChartsCoreOption } from "echarts/core";
-
-const FAN_OUTER = "rgba(148,163,184,0.12)";
-const FAN_INNER = "rgba(148,163,184,0.20)";
-
-const COLOR_MAIN = "#0ea5e9";
-const COLOR_UPPER = "#22c55e";
-const COLOR_LOWER = "#ef4444";
-
-type FanQuantiles = {
-  q05: number[];
-  q25: number[];
-  q50: number[];
-  q75: number[];
-  q95: number[];
+}\nfrontend/src/components/assets/FearGreedGauge.tsx\n
+type Props = {
+  value: number; // 0–100
+  width?: number;
+  height?: number;
 };
 
-type BuildOptionParams = {
-  timestamps: number[];
-  median: number[];
-  representative: number[];
-  upper: number[];
-  lower: number[];
-  cloud: number[][];
-  fan?: FanQuantiles;
-  yDomain: { min: number; max: number };
-  flags: {
-    showCloud: boolean;
-    showMedian: boolean;
-    showRepresentative: boolean;
-    showRange: boolean;
-    showFan: boolean;
+// Полярные координаты → (x, y)
+function polar(cx: number, cy: number, r: number, angleDeg: number) {
+  const rad = (angleDeg * Math.PI) / 180;
+  return {
+    x: cx + r * Math.cos(rad),
+    y: cy - r * Math.sin(rad), // минус → верхняя полудуга
   };
-};
-
-function tooltipRow(label: string, value: number, color: string) {
-  const sign = value >= 0 ? "+" : "";
-  return `
-    <div style="
-      display:flex;
-      justify-content:space-between;
-      gap:12px;
-      margin-top:4px;
-      font-weight:600;
-    ">
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="
-          width:8px;
-          height:8px;
-          border-radius:50%;
-          background:${color};
-        "></span>
-        <span style="color:rgba(226,232,240,0.85)">${label}</span>
-      </div>
-      <span style="color:rgba(226,232,240,0.95)">
-        ${sign}${value.toFixed(2)}%
-      </span>
-    </div>
-  `;
 }
 
-export function buildSimulationChartOption({
-  timestamps,
-  median,
-  representative,
-  upper,
-  lower,
-  cloud,
-  fan,
-  yDomain,
-  flags,
-}: BuildOptionParams): EChartsCoreOption {
-  return {
-    backgroundColor: "transparent",
+// Построение пути дуги от startAngle до endAngle
+function buildArcPath(cx: number, cy: number, r: number, start: number, end: number) {
+  const p0 = polar(cx, cy, r, start);
+  const p1 = polar(cx, cy, r, end);
 
-    tooltip: {
-      trigger: "axis",
-      appendToBody: true,
+  const largeArcFlag = Math.abs(end - start) > 180 ? 1 : 0;
+  const sweepFlag = end < start ? 1 : 0; // слева → направо
 
-      /* ✅ Tabler card colors */
-      backgroundColor: "var(--tblr-card-bg)",
-      borderColor: "var(--tblr-border-color)",
-      borderWidth: 1,
+  return `M ${p0.x} ${p0.y} A ${r} ${r} 0 ${largeArcFlag} ${sweepFlag} ${p1.x} ${p1.y}`;
+}
 
-      textStyle: {
-        color: "rgba(226,232,240,0.95)",
-        fontSize: 12,
-      },
+export function FearGreedGauge({
+  value,
+  width = 220,
+  height = 120,
+}: Props) {
+  // Центр круга находится ниже viewBox
+  const cx = width / 2;
+  const cy = height;
+  const r = height - 20;
 
-      axisPointer: {
-        type: "line",
-        lineStyle: {
-          color: "rgba(148,163,184,0.45)",
-          width: 1,
-          type: "dashed",
-        },
-      },
+  // ✔ ТОНКАЯ дуга
+  const strokeWidth = 8;
 
-      formatter: (params: any[]) => {
-        const main = params.find((p) => p.seriesName === "Main");
-        if (!main) return "";
+  // Сегменты гейджа 0–100
+  const segments = [
+    { from: 180, to: 144, color: "#ef4444" }, // 0–20
+    { from: 144, to: 108, color: "#f97316" }, // 20–40
+    { from: 108, to: 72,  color: "#eab308" }, // 40–60
+    { from: 72,  to: 36,  color: "#84cc16" }, // 60–80
+    { from: 36,  to: 0,   color: "#22c55e" }, // 80–100
+  ];
 
-        const i = main.dataIndex;
+  // Позиция pointer'а
+  const clamped = Math.max(0, Math.min(100, value));
+  const angle = 180 - (clamped / 100) * 180;
+  const pointer = polar(cx, cy, r, angle);
 
-        let html = `
-          <div style="
-            font-weight:700;
-            margin-bottom:6px;
-            color:rgba(226,232,240,0.95)
-          ">
-            Simulation
+  return (
+    <svg width="100%" viewBox={`0 0 ${width} ${height}`}>
+      {/* Цветные сегменты одной полудуги */}
+      {segments.map((seg, i) => (
+        <path
+          key={i}
+          d={buildArcPath(cx, cy, r, seg.from, seg.to)}
+          stroke={seg.color}
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"  // ❗ делает линию реально тоньше
+        />
+      ))}
+
+      {/* Pointer */}
+      <circle
+        cx={pointer.x}
+        cy={pointer.y}
+        r={6}
+        fill="#ffffff"
+        stroke="#020617"
+        strokeWidth={2}
+        vectorEffect="non-scaling-stroke" // ❗ pointer тоже не масштабируется
+      />
+    </svg>
+  );
+}\nfrontend/src/components/assets/MarketCapCard.tsx\nimport { SparklineBase } from "../../charts/SparklineBase";
+
+function formatMarketCap(v: number) {
+  if (v >= 1e12) return `$${(v / 1e12).toFixed(2)}T`;
+  if (v >= 1e9) return `$${(v / 1e9).toFixed(2)}B`;
+  if (v >= 1e6) return `$${(v / 1e6).toFixed(2)}M`;
+  if (v >= 1e3) return `$${(v / 1e3).toFixed(2)}K`;
+  return `$${v}`;
+}
+
+type Props = {
+  capUsd: number;
+  changePct: number;
+  spark: number[];
+};
+
+export function MarketCapCard({ capUsd, changePct, spark }: Props) {
+  const isUp = changePct >= 0;
+  const color = isUp ? "#22c55e" : "#ef4444";
+
+  return (
+    <div
+      className="card card-sm mb-3 h-100"
+      style={{
+        flex: 1, // ⭐ позволяет карточке растянуться по ширине
+      }}
+    >
+      <div className="card-body" style={{ padding: "12px 16px" }}>
+        <div className="d-flex justify-content-between mb-1">
+          <div className="text-muted">Market Cap</div>
+          <div className={isUp ? "text-success" : "text-danger"}>
+            {changePct >= 0 ? "+" : ""}
+            {changePct.toFixed(2)}%
           </div>
-        `;
+        </div>
 
-        if (flags.showRange) {
-          html += tooltipRow("Upper", upper[i], COLOR_UPPER);
-        }
+        <div className="h2 m-0">{formatMarketCap(capUsd)}</div>
 
-        if (flags.showRepresentative) {
-          html += tooltipRow("Main", representative[i], COLOR_MAIN);
-        }
+        <div style={{ marginTop: 6 }}>
+          <SparklineBase
+            values={spark}
+            color={color}
+            width={200}   // можно заменить на 100% если нужно
+            height={30}
+            fullWidth={true} // ⭐ Sparkline тянется на всю ширину
+          />
+        </div>
+      </div>
+    </div>
+  );
+}\nfrontend/src/components/assets/TopGainer7dCard.tsx\ntype Props = {
+  name: string;
+  symbol: string;
+  image?: string | null;
+  pct7d: number;
+};
 
-        if (flags.showMedian) {
-          html += tooltipRow("Median", median[i], "rgba(226,232,240,0.7)");
-        }
+export function TopGainer7dCard({ name, symbol, image, pct7d }: Props) {
+  const isUp = pct7d >= 0;
+  const color = isUp ? "#4ADE80" : "#F87171";
 
-        if (flags.showRange) {
-          html += tooltipRow("Lower", lower[i], COLOR_LOWER);
-        }
+  return (
+    <div
+      className="card card-sm mb-3 h-100"
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        padding: "16px 20px",
+      }}
+    >
+      {/* Заголовок */}
+      <div
+        className="text-muted"
+        style={{
+          fontSize: "0.9rem",
+          marginBottom: 4,
+        }}
+      >
+        Top Gainer (7d)
+      </div>
 
-        return html;
-      },
-    },
+      {/* Центрированный контент */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+          }}
+        >
+          {/* Иконка (ТОЛЬКО если есть image) */}
+          {image ? (
+            <div
+              style={{
+                width: 66,
+                height: 66,
+                borderRadius: "999px",
+                border: "1px solid rgba(148, 163, 184, 0.7)",
+                background: "transparent",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <img
+                src={image}
+                alt={name}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                }}
+              />
+            </div>
+          ) : null}
 
-    grid: { left: 40, right: 48, top: 44, bottom: 40 },
+          {/* Название + процент */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            <span
+              style={{
+                color: "#e5e7eb",
+                fontWeight: 600,
+                fontSize: "1.1rem",
+                letterSpacing: "0.04em",
+              }}
+            >
+              {symbol.toUpperCase()}
+            </span>
 
-    xAxis: {
-      type: "value",
-      min: 0,
-      max: timestamps[timestamps.length - 1],
-      axisLabel: {
-        color: "rgba(148,163,184,0.85)",
-        formatter: (v: number) => `${Math.round(v)}d`,
-      },
-      axisLine: { lineStyle: { color: "rgba(148,163,184,0.25)" } },
-      splitLine: { show: false },
-    },
+            <span
+              style={{
+                color,
+                fontWeight: 700,
+                fontSize: "1.5rem",
+              }}
+            >
+              {isUp ? "+" : ""}
+              {pct7d.toFixed(2)}%
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}\nfrontend/src/components/portfolio/AssetSparklineCard.tsx\nimport { SparklineBase } from "../../charts/SparklineBase";
 
-    yAxis: {
-      type: "value",
-      min: yDomain.min,
-      max: yDomain.max,
-      position: "right",
-      axisLabel: {
-        color: "rgba(148,163,184,0.85)",
-        formatter: (v: number) =>
-          v === yDomain.min || v === yDomain.max ? "" : `${v}%`,
-      },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: {
-        show: true,
-        lineStyle: { color: "rgba(148,163,184,0.18)" },
-      },
-    },
+type Props = {
+  name: string;
+  values: number[];
+  pct: number;
+  label?: string;
+};
 
-    series: [
-      ...cloud.map((p) => ({
-        type: "line",
-        name: "Cloud",
-        data: timestamps.map((t, i) => [t, p[i]]),
-        showSymbol: false,
-        silent: true,
-        tooltip: { show: false },
-        lineStyle: {
-          color: "#64748b",
-          width: 1,
-          opacity: flags.showCloud ? 0.15 : 0,
-        },
-        z: 1,
-      })),
+export function AssetSparklineCard({ name, values, pct, label }: Props) {
+  if (!values.length) return null;
 
-      fan && {
-        type: "custom",
-        name: "FanOuter",
-        silent: true,
-        tooltip: { show: false },
-        data: [0],
-        z: 2,
-        renderItem: (_: unknown, api: any) => ({
-          type: "polygon",
-          shape: {
-            points: [
-              ...timestamps.map((t, i) => api.coord([t, fan.q95[i]])),
-              ...timestamps
-                .slice()
-                .reverse()
-                .map((t, i) =>
-                  api.coord([t, fan.q05[fan.q05.length - 1 - i]])
-                ),
-            ],
-          },
-          style: { fill: FAN_OUTER, opacity: flags.showFan ? 1 : 0 },
-        }),
-      },
+  const isUp = pct >= 0;
+  const color = isUp ? "#22c55e" : "#ef4444";
+  const pctStr = `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
 
-      fan && {
-        type: "custom",
-        name: "FanInner",
-        silent: true,
-        tooltip: { show: false },
-        data: [0],
-        z: 3,
-        renderItem: (_: unknown, api: any) => ({
-          type: "polygon",
-          shape: {
-            points: [
-              ...timestamps.map((t, i) => api.coord([t, fan.q75[i]])),
-              ...timestamps
-                .slice()
-                .reverse()
-                .map((t, i) =>
-                  api.coord([t, fan.q25[fan.q25.length - 1 - i]])
-                ),
-            ],
-          },
-          style: { fill: FAN_INNER, opacity: flags.showFan ? 1 : 0 },
-        }),
-      },
+  return (
+    <div className="card card-sm" style={{ flex: 1, minWidth: 150 }}>
+      <div className="card-body">
+        {/* header */}
+        <div className="d-flex justify-content-between mb-1">
+          <div className="text-muted">{name}</div>
+          <div style={{ color }}>{pctStr}</div>
+        </div>
 
-      {
-        type: "line",
-        name: "Median",
-        data: timestamps.map((t, i) => [t, median[i]]),
-        showSymbol: false,
-        lineStyle: {
-          color: "rgba(226,232,240,0.7)",
-          width: 2,
-          opacity: flags.showMedian ? 1 : 0,
-          type: "dashed",
-        },
-        z: 10,
-      },
+        {/* период */}
+        {label && (
+          <div
+            style={{
+              fontSize: 12,
+              color: "#888",
+              marginTop: -2,
+              marginBottom: 6,
+            }}
+          >
+            {label}
+          </div>
+        )}
 
-      {
-        type: "line",
-        name: "Main",
-        data: timestamps.map((t, i) => [t, representative[i]]),
-        showSymbol: false,
-        lineStyle: {
-          color: COLOR_MAIN,
-          width: 2,
-          opacity: flags.showRepresentative ? 1 : 0,
-        },
-        z: 12,
-      },
-    ].filter(Boolean),
-  };
-}\nfrontend/src/components/simulation/simulationChart.utils.ts\n
+        {/* centered sparkline */}
+        <div
+          style={{
+            width: "100%",
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          <div style={{ width: 140 }}> 
+            <SparklineBase
+              values={values}
+              color={color}
+              width={140}
+              height={40}
+              fullWidth={true}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}\nfrontend/src/components/portfolio/AssetSparklinesSection.tsx\n

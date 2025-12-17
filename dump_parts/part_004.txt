@@ -1,1108 +1,1058 @@
-// simulationChart.utils.ts
+import { useMemo } from "react";
+import type { HistoryPoint } from "../../services/portfolio/portfolioService";
+import { AssetSparklineCard } from "./AssetSparklineCard";
 
-export type FanQuantiles = {
-  q05: number[];
-  q25: number[];
-  q50: number[];
-  q75: number[];
-  q95: number[];
+type Props = {
+  history: HistoryPoint[];
+  symbols?: string[];
 };
 
-export function resample<T>(arr: T[], target: number): T[] {
-  if (arr.length <= target) return arr;
+function downsample(values: number[], target: number) {
+  const n = values.length;
+  if (n <= target) return values;
 
-  const res: T[] = [];
-  const step = (arr.length - 1) / (target - 1);
-
-  for (let i = 0; i < target; i++) {
-    res.push(arr[Math.round(i * step)]);
-  }
-
-  return res;
-}
-
-export function toPercentFromBase(values: number[], base: number): number[] {
-  if (values.length === 0) return values;
-  if (!Number.isFinite(base) || base === 0) return values.map(() => 0);
-  return values.map((v) => ((v - base) / base) * 100);
-}
-
-function quantileSorted(sorted: number[], q: number): number {
-  const n = sorted.length;
-  if (n === 0) return 0;
-  if (n === 1) return sorted[0];
-
-  const qq = Math.max(0, Math.min(1, q));
-  const pos = (n - 1) * qq;
-  const base = Math.floor(pos);
-  const rest = pos - base;
-
-  const left = sorted[base]!;
-  const right = sorted[Math.min(base + 1, n - 1)]!;
-  return left + (right - left) * rest;
-}
-
-function finiteOnly(values: number[]): number[] {
+  const step = Math.ceil(n / target);
   const out: number[] = [];
-  for (let i = 0; i < values.length; i++) {
-    const v = values[i];
-    if (Number.isFinite(v)) out.push(v);
-  }
+
+  for (let i = 0; i < n; i += step) out.push(values[i]);
+
+  if (out[out.length - 1] !== values[n - 1]) out.push(values[n - 1]);
   return out;
 }
 
-/**
- * Builds a quantile "fan" from Monte Carlo paths.
- * Each path is an array of values over time, all paths must have the same length.
- */
-export function buildFanQuantiles(paths: number[][]): FanQuantiles | null {
-  if (!paths || paths.length === 0) return null;
+export function AssetSparklinesSection({ history, symbols }: Props) {
+  const data = useMemo(() => {
+    if (!history.length) return [];
 
-  const T = paths[0]?.length ?? 0;
-  if (T === 0) return null;
+    const lastTs = history[history.length - 1].timestamp;
+    const cutoff = lastTs - 24 * 3600;
 
-  // Ensure consistent lengths
-  for (let p = 0; p < paths.length; p++) {
-    if ((paths[p]?.length ?? 0) !== T) return null;
-  }
+    const last24h = history.filter((p) => p.timestamp >= cutoff);
+    const src = last24h.length > 1 ? last24h : history.slice(-24);
 
-  const q05: number[] = new Array(T);
-  const q25: number[] = new Array(T);
-  const q50: number[] = new Array(T);
-  const q75: number[] = new Array(T);
-  const q95: number[] = new Array(T);
+    const list = (symbols && symbols.length ? symbols : ["ETH", "BTC", "USDC", "SOL", "BNB"])
+      .slice(0, 5);
 
-  for (let t = 0; t < T; t++) {
-    const col: number[] = new Array(paths.length);
-    for (let p = 0; p < paths.length; p++) {
-      col[p] = paths[p]![t]!;
-    }
+    return list.map((asset) => {
+      const rawValues = src.map((p) => p.prices[asset] ?? 0).filter((v) => v > 0);
 
-    const vals = finiteOnly(col);
-    if (vals.length === 0) {
-      q05[t] = 0;
-      q25[t] = 0;
-      q50[t] = 0;
-      q75[t] = 0;
-      q95[t] = 0;
-      continue;
-    }
+      if (rawValues.length < 2) {
+        return {
+          name: asset,
+          values: [],
+          pct: 0,
+        };
+      }
 
-    vals.sort((a, b) => a - b);
+      const first = rawValues[0];
+      const last = rawValues[rawValues.length - 1];
+      const pct = first ? ((last - first) / first) * 100 : 0;
 
-    q05[t] = quantileSorted(vals, 0.05);
-    q25[t] = quantileSorted(vals, 0.25);
-    q50[t] = quantileSorted(vals, 0.5);
-    q75[t] = quantileSorted(vals, 0.75);
-    q95[t] = quantileSorted(vals, 0.95);
-  }
+      const values = downsample(rawValues, 13);
 
-  return { q05, q25, q50, q75, q95 };
-}
+      return {
+        name: asset,
+        values,
+        pct,
+      };
+    });
+  }, [history, symbols]);
 
-export function resampleFan(fan: FanQuantiles, target: number): FanQuantiles {
-  return {
-    q05: resample(fan.q05, target),
-    q25: resample(fan.q25, target),
-    q50: resample(fan.q50, target),
-    q75: resample(fan.q75, target),
-    q95: resample(fan.q95, target),
-  };
-}\nfrontend/src/components/simulation/SimulationControls.tsx\n// SimulationControls.tsx
-import type { ReactNode } from "react";
-import type { Scenario } from "../../services/simulation/monteCarloService";
-
-export type SimulationParams = {
-  horizonDays: 30 | 90 | 180 | 365;
-  scenario: Scenario;
-  simulations: 50 | 100 | 200;
-
-  showCloud: boolean;
-  showMedian: boolean;
-  showRepresentative: boolean;
-  showRange: boolean;
-
-  showFan: boolean;
-};
-
-type Props = {
-  value: SimulationParams;
-  onChange: (next: SimulationParams) => void;
-};
-
-const HORIZONS = [30, 90, 180, 365] as const;
-const SIMULATIONS = [50, 100, 200] as const;
-
-const SCENARIOS = [
-  ["conservative", "Conservative"],
-  ["baseline", "Baseline"],
-  ["stress", "Stress"],
-] as const satisfies readonly (readonly [Scenario, string])[];
-
-/* =========================
-   UI helpers
-========================= */
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div style={{ marginBottom: 12 }}>
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 800,
-          letterSpacing: 0.4,
-          textTransform: "uppercase",
-          color: "rgba(148,163,184,0.75)",
-          marginBottom: 6,
-        }}
-      >
-        {title}
+    <div className="row row-cards mt-3">
+      <div className="col-12">
+        <div
+          style={{
+            display: "flex",
+            gap: "16px",
+            width: "100%",
+            justifyContent: "space-between",
+          }}
+        >
+          {data.map((d) => (
+            <AssetSparklineCard
+              key={d.name}
+              name={d.name}
+              values={d.values}
+              pct={d.pct}
+              label="24H"
+            />
+          ))}
+        </div>
       </div>
-      {children}
     </div>
   );
-}
+}\nfrontend/src/components/portfolio/PortfolioAllocationSection.tsx\nimport type {
+  AssetAmounts,
+  HistoryPoint,
+} from "../../services/portfolio/portfolioService";
 
-function SegButton({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        height: 32,
-        padding: "0 10px",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: 12,
-        fontWeight: 800,
-        lineHeight: "16px",
-        borderRadius: 8,
-        border: active
-          ? "1px solid rgba(56,189,248,0.55)"
-          : "1px solid rgba(255,255,255,0.10)",
-        background: active
-          ? "rgba(14,165,233,0.22)"
-          : "rgba(15,23,42,0.55)",
-        color: active
-          ? "rgba(226,232,240,0.95)"
-          : "rgba(226,232,240,0.75)",
-        cursor: "pointer",
-        transition: "all 120ms ease",
-        userSelect: "none",
-      }}
-    >
-      {label}
-    </button>
-  );
-}
+import { PortfolioAllocation } from "./PortfolioAllocation";
+import { VolatilityArcCard } from "./VolatilityArcCard";
 
-function SegGroup({ children, cols }: { children: ReactNode; cols: number }) {
+type Props = {
+  history: HistoryPoint[];
+  amounts: AssetAmounts;
+};
+
+export function PortfolioAllocationSection({ history, amounts }: Props) {
   return (
     <div
       style={{
-        display: "grid",
-        gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-        gap: 6,
+        display: "flex",
+        gap: "24px",
+        marginTop: "24px",
+        alignItems: "stretch",
+        width: "100%",
       }}
     >
-      {children}
+      <div
+        style={{
+          width: "620px",
+          flexShrink: 0,
+          display: "flex",
+        }}
+      >
+        <PortfolioAllocation history={history} amounts={amounts} />
+      </div>
+
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+        }}
+      >
+        <VolatilityArcCard history={history} amounts={amounts} />
+      </div>
     </div>
   );
+}\nfrontend/src/components/portfolio/PortfolioAllocation.tsx\nimport { useEffect, useRef, useMemo } from "react";
+import * as echarts from "echarts";
+
+import type {
+  AssetAmounts,
+  HistoryPoint,
+} from "../../services/portfolio/portfolioService";
+
+const ASSET_COLORS: Record<string, string> = {
+  ETH: "#8A7FFF",
+  BTC: "#FFB45A",
+  WBTC: "#FFB45A",
+  USDC: "#5DA7FF",
+  USDT: "#2BB673",
+  DAI: "#FFD86B",
+  UNI: "#FF6F9E",
+  SOL: "#66E0FF",
+  BNB: "#F3BA2F",
+  ADA: "#3CC8C8",
+  XRP: "#7C89FF",
+  DOGE: "#C2A633",
+  AVAX: "#E84142",
+  LINK: "#2A5ADA",
+  TON: "#4AA8FF",
+  Others: "#6B7280",
+};
+
+type Props = {
+  history: HistoryPoint[];
+  amounts: AssetAmounts;
+};
+
+export function PortfolioAllocation({ history, amounts }: Props) {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const chart = useRef<echarts.ECharts | null>(null);
+
+  const allocation = useMemo(() => {
+    if (!history.length) return [];
+
+    const last = history[history.length - 1];
+
+    const values = Object.entries(amounts || {})
+      .map(([symbol, amount]) => {
+        const price = last.prices[symbol] ?? 0;
+        const valueUsd = price * amount;
+        return { symbol, valueUsd };
+      })
+      .filter((x) => Number.isFinite(x.valueUsd) && x.valueUsd > 0);
+
+    if (!values.length) return [];
+
+    const sorted = values.sort((a, b) => b.valueUsd - a.valueUsd);
+    const top3 = sorted.slice(0, 3);
+
+    const others = sorted.slice(3);
+    const othersTotal = others.reduce((s, v) => s + v.valueUsd, 0);
+
+    const finalList = [...top3];
+    if (othersTotal > 0) {
+      finalList.push({ symbol: "Others", valueUsd: othersTotal });
+    }
+
+    const total = finalList.reduce((s, v) => s + v.valueUsd, 0);
+
+    return finalList.map((v) => ({
+      ...v,
+      pct: total ? (v.valueUsd / total) * 100 : 0,
+    }));
+  }, [history, amounts]);
+
+  useEffect(() => {
+    if (!chartRef.current) return;
+
+    chart.current = echarts.init(chartRef.current);
+    const inst = chart.current;
+
+    const ro = new ResizeObserver(() => inst.resize());
+    ro.observe(chartRef.current);
+
+    return () => {
+      ro.disconnect();
+      inst.dispose();
+      chart.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!chart.current) return;
+    if (!allocation.length) return;
+
+    const inst = chart.current;
+
+    const option = {
+      backgroundColor: "transparent",
+      series: [
+        {
+          type: "pie",
+          radius: ["55%", "78%"],
+          center: ["50%", "50%"],
+          label: { show: false },
+          labelLine: { show: false },
+          minAngle: 2,
+          data: allocation.map((a) => ({
+            value: a.valueUsd,
+            name: a.symbol,
+            itemStyle: { color: ASSET_COLORS[a.symbol] ?? "#6B7280" },
+          })),
+        },
+      ],
+    };
+
+    inst.setOption(option, {
+      notMerge: true,
+      lazyUpdate: true,
+      silent: true,
+    });
+  }, [allocation]);
+
+  return (
+    <div className="card p-3" style={{ width: "100%" }}>
+      <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+        Portfolio Allocation
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 14 }}>
+        <div style={{ height: 220 }}>
+          <div ref={chartRef} style={{ width: "100%", height: "100%" }} />
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "14px 1fr 1fr 60px",
+              gap: 10,
+              alignItems: "center",
+              fontSize: 13,
+              color: "rgba(255,255,255,0.6)",
+              marginBottom: 4,
+            }}
+          >
+            <div />
+            <div>Asset</div>
+            <div>Value</div>
+            <div style={{ textAlign: "right" }}>%</div>
+          </div>
+
+          {allocation.map((a) => (
+            <div
+              key={a.symbol}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "14px 1fr 1fr 60px",
+                gap: 10,
+                alignItems: "center",
+                padding: "8px 10px",
+                borderRadius: 10,
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.06)",
+              }}
+            >
+              <div
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 999,
+                  background: ASSET_COLORS[a.symbol] ?? "#6B7280",
+                  justifySelf: "center",
+                }}
+              />
+
+              <div style={{ fontWeight: 500 }}>{a.symbol}</div>
+              <div>${a.valueUsd.toFixed(0)}</div>
+
+              <div style={{ textAlign: "right", fontWeight: 500, color: "#EFEFEF" }}>
+                {a.pct.toFixed(1)}%
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}\nfrontend/src/components/portfolio/PortfolioChartCard.tsx\nimport { useEffect, useRef, useState } from "react";
+import * as echarts from "echarts";
+
+import {
+  buildPortfolioSeries,
+  filterHistoryByPeriod,
+  type AssetAmounts,
+} from "../../services/portfolio/portfolioService";
+
+import type { HistoryPoint, Period } from "../../services/portfolio/portfolioService";
+import { buildPortfolioChartOption } from "../../charts/portfolioChartOptions";
+
+type Props = {
+  history: HistoryPoint[];
+  period: Period;
+  onPeriodChange: (p: Period) => void;
+  amounts: AssetAmounts;
+};
+
+export function PortfolioChartCard({
+  history,
+  period,
+  onPeriodChange,
+  amounts,
+}: Props) {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const chartInstance = useRef<echarts.ECharts | null>(null);
+
+  const seriesCounterRef = useRef(0);
+  const seriesIdRef = useRef("portfolio-line-0");
+
+  const [showBTC, setShowBTC] = useState(false);
+
+  // Init chart
+  useEffect(() => {
+    if (!chartRef.current) return;
+
+    chartInstance.current = echarts.init(chartRef.current, "dark");
+    const chart = chartInstance.current;
+
+    const observer = new ResizeObserver(() => chart.resize());
+    observer.observe(chartRef.current);
+
+    return () => {
+      observer.disconnect();
+      chart.dispose();
+      chartInstance.current = null;
+    };
+  }, []);
+
+  // Update chart
+  useEffect(() => {
+    const chart = chartInstance.current;
+    if (!chart) return;
+
+    const filteredHistory = filterHistoryByPeriod(history, period);
+
+    const { timestamps, percentValues } = buildPortfolioSeries(
+      filteredHistory,
+      period,
+      amounts
+    );
+
+    if (!percentValues.length) return;
+
+    const option: any = buildPortfolioChartOption(timestamps, percentValues, {
+      seriesId: seriesIdRef.current,
+      initial: true,
+      opacity: 1,
+    });
+
+    if (showBTC) {
+      // timestamps в графике — ms, а в history — seconds → приводим к ms
+      const btcByTsMs = new Map<number, number>();
+      for (const p of filteredHistory) {
+        const v = p.prices?.BTC ?? p.prices?.WBTC; // fallback, если вдруг BTC отсутствует
+        if (typeof v === "number") btcByTsMs.set(p.timestamp * 1000, v);
+      }
+
+      const btcPrices: Array<number | null> = timestamps.map((tsMs: number) => {
+        const v = btcByTsMs.get(tsMs);
+        return typeof v === "number" ? v : null;
+      });
+
+      const base = btcPrices.find((v) => typeof v === "number") as number | undefined;
+
+      if (typeof base === "number") {
+        const btcPercent: Array<number | null> = btcPrices.map((v) =>
+          v == null ? null : ((v - base) / base) * 100
+        );
+
+        const btcData: Array<[number, number | null]> = timestamps.map(
+          (tsMs: number, i: number) => [tsMs, btcPercent[i]]
+        );
+
+        const baseSeries = Array.isArray(option.series) ? option.series : [option.series];
+
+        baseSeries.push({
+          id: "btc-line",
+          name: "BTC",
+          type: "line",
+          data: btcData,
+          smooth: false,
+          showSymbol: false,
+          lineStyle: {
+            width: 2,
+            type: "dashed",
+            color: "#f7931a",
+          },
+          areaStyle: undefined,
+          emphasis: { disabled: true },
+          animation: false,
+        });
+
+        option.series = baseSeries;
+      }
+    }
+
+    chart.setOption(option, {
+      notMerge: true,
+      lazyUpdate: true,
+      silent: true,
+    });
+  }, [history, period, amounts, showBTC]);
+
+  const switchPeriod = (next: Period) => {
+    if (next === period) return;
+
+    seriesCounterRef.current += 1;
+    seriesIdRef.current = `portfolio-line-${seriesCounterRef.current}`;
+
+    onPeriodChange(next);
+  };
+
+  const tabClass = (key: Period) =>
+    `period-tab ${period === key ? "active" : ""}`;
+
+  return (
+    <div className="card p-3">
+      <style>{`
+        .chart-top-row {
+          display: flex;
+          justify-content: flex-end;
+          align-items: center;
+          margin-bottom: 6px;
+        }
+
+        .btc-toggle {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+          color: #9ca3af;
+          cursor: pointer;
+          user-select: none;
+        }
+
+        .btc-toggle input {
+          accent-color: #f7931a;
+        }
+
+        .period-tabs-wrap {
+          display: flex;
+          justify-content: center;
+          margin-bottom: 12px;
+        }
+
+        .period-tabs {
+          display: flex;
+          gap: 28px;
+          border-bottom: 1px solid rgba(255,255,255,0.08);
+          position: relative;
+          padding-bottom: 4px;
+        }
+
+        .period-tab {
+          background: none;
+          border: none;
+          padding: 8px 2px;
+          color: #9ca3af;
+          font-size: 16px;
+          cursor: pointer;
+          position: relative;
+          transition: color 200ms ease;
+        }
+
+        .period-tab:hover {
+          color: #d1d5db;
+        }
+
+        .period-tab.active {
+          color: #b351f9;
+        }
+
+        .period-underline {
+          position: absolute;
+          bottom: -1px;
+          height: 2px;
+          background: #b351f9;
+          border-radius: 2px;
+          transition: transform 320ms cubic-bezier(0.25, 0.1, 0.25, 1),
+                      width 320ms cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+      `}</style>
+
+      <div className="chart-top-row">
+        <label className="btc-toggle">
+          <input
+            type="checkbox"
+            checked={showBTC}
+            onChange={(e) => setShowBTC(e.currentTarget.checked)}
+          />
+          BTC
+        </label>
+      </div>
+
+      <div className="period-tabs-wrap">
+        <div className="period-tabs">
+          <div
+            className="period-underline"
+            style={{
+              width: period === "year" ? 36 : period === "month" ? 52 : 44,
+              transform:
+                period === "year"
+                  ? "translateX(0px)"
+                  : period === "month"
+                  ? "translateX(64px)"
+                  : "translateX(144px)",
+            }}
+          />
+
+          <button className={tabClass("year")} onClick={() => switchPeriod("year")}>
+            Year
+          </button>
+
+          <button className={tabClass("month")} onClick={() => switchPeriod("month")}>
+            Month
+          </button>
+
+          <button className={tabClass("week")} onClick={() => switchPeriod("week")}>
+            Week
+          </button>
+        </div>
+      </div>
+
+      <div style={{ width: "100%", height: "350px" }}>
+        <div ref={chartRef} style={{ width: "100%", height: "100%" }} />
+      </div>
+    </div>
+  );
+}\nfrontend/src/components/portfolio/PortfolioChart.tsx\nimport { useEffect, useRef } from "react";
+import * as echarts from "echarts";
+
+import { buildPortfolioSeries } from "../../services/portfolio/portfolioService";
+import type {
+  HistoryPoint,
+  Period,
+} from "../../services/portfolio/portfolioService";
+
+import { buildPortfolioChartOption } from "../../charts/portfolioChartOptions";
+
+type Props = {
+  history: HistoryPoint[];
+  period: Period;
+};
+
+export function PortfolioChart({ history, period }: Props) {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const chartInstance = useRef<echarts.ECharts | null>(null);
+
+  useEffect(() => {
+    if (!chartRef.current) return;
+
+    chartInstance.current = echarts.init(chartRef.current, "dark");
+    const chart = chartInstance.current;
+
+    const observer = new ResizeObserver(() => chart.resize());
+    observer.observe(chartRef.current);
+
+    return () => {
+      observer.disconnect();
+      chart.dispose();
+      chartInstance.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const chart = chartInstance.current;
+    if (!chart) return;
+
+    const { timestamps, percentValues } = buildPortfolioSeries(history, period);
+
+    if (!percentValues.length) return;
+
+    const option = buildPortfolioChartOption(timestamps, percentValues, {
+      initial: true,
+      opacity: 1,
+    });
+
+    chart.setOption(option, { notMerge: true, lazyUpdate: false });
+  }, [history, period]);
+
+  return <div ref={chartRef} style={{ width: "100%", height: "350px" }} />;
+}\nfrontend/src/components/portfolio/PortfolioMetricsRow.tsx\nimport type { Period } from "../../services/portfolio/portfolioService";
+
+type Props = {
+  tvl: number;
+  lastTsMs: number;
+  changeUsd: number;
+  changePct: number;
+  vsBtcPp: number;
+  btcPct: number;
+  period: Period;
+};
+
+function fmtUsd(v: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(v);
 }
 
-function ToggleRow({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        height: 34,
-        width: "100%",
-        padding: "0 10px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        borderRadius: 10,
-        border: active
-          ? "1px solid rgba(56,189,248,0.45)"
-          : "1px solid rgba(255,255,255,0.08)",
-        background: active
-          ? "rgba(14,165,233,0.14)"
-          : "rgba(15,23,42,0.45)",
-        color: active
-          ? "rgba(226,232,240,0.95)"
-          : "rgba(226,232,240,0.80)",
-        cursor: "pointer",
-        userSelect: "none",
-      }}
-    >
-      <span style={{ fontSize: 12, fontWeight: 800 }}>{label}</span>
-      <span
-        style={{
-          width: 10,
-          height: 10,
-          borderRadius: 999,
-          background: active
-            ? "rgba(14,165,233,1)"
-            : "rgba(100,116,139,1)",
-        }}
-      />
-    </button>
-  );
+function fmtSignedUsd(v: number) {
+  const sign = v >= 0 ? "+" : "-";
+  return `${sign}${fmtUsd(Math.abs(v))}`;
 }
+
+function fmtSignedPct(v: number, digits = 2) {
+  const sign = v >= 0 ? "+" : "";
+  return `${sign}${v.toFixed(digits)}%`;
+}
+
+export function PortfolioMetricsRow({
+  tvl,
+  lastTsMs,
+  changeUsd,
+  changePct,
+  vsBtcPp,
+  btcPct,
+  period,
+}: Props) {
+  const changeColor = changeUsd >= 0 ? "text-success" : "text-danger";
+  const vsBtcColor = vsBtcPp >= 0 ? "text-success" : "text-danger";
+
+  return (
+    <div className="row row-cards mb-3">
+      <style>{`
+        .fade-number {
+          opacity: 0;
+          animation: fadeIn 220ms ease-out forwards;
+        }
+
+        .fade-sub {
+          opacity: 0;
+          animation: fadeIn 220ms ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+      `}</style>
+
+      {/* TVL — без анимации, не меняется от периода */}
+      <div className="col-12 col-md-4">
+        <div className="card card-sm">
+          <div className="card-body">
+            <div className="text-muted">TVL</div>
+
+            {/* ❗ НЕТ key → нет анимации */}
+            <div className="h2 m-0">{fmtUsd(tvl)}</div>
+
+            <div className="text-muted mt-1 fade-sub" key={`asof`}>
+              {lastTsMs
+                ? `As of ${new Date(lastTsMs).toLocaleDateString("en-GB")}`
+                : "—"}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Net Change */}
+      <div className="col-12 col-md-4">
+        <div className="card card-sm">
+          <div className="card-body">
+            <div className="text-muted">Net Change</div>
+
+            <div
+              key={`net-${period}`}
+              className={`h2 m-0 fade-number ${changeColor}`}
+            >
+              {fmtSignedUsd(changeUsd)}
+            </div>
+
+            <div key={`netpct-${period}`} className="text-muted mt-1 fade-sub">
+              ({fmtSignedPct(changePct)})
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Vs BTC */}
+      <div className="col-12 col-md-4">
+        <div className="card card-sm">
+          <div className="card-body">
+            <div className="text-muted">Vs BTC</div>
+
+            <div
+              key={`vsbtc-${period}`}
+              className={`h2 m-0 fade-number ${vsBtcColor}`}
+            >
+              {fmtSignedPct(vsBtcPp)}
+            </div>
+
+            <div
+              key={`vsbtc-details-${period}`}
+              className="text-muted mt-1 fade-sub"
+            >
+              (Portfolio: {fmtSignedPct(changePct)} · BTC: {fmtSignedPct(btcPct)})
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}\nfrontend/src/components/portfolio/VolatilityArcCard.tsx\nimport { useEffect, useMemo, useRef, useState } from "react";
+import type { HistoryPoint, AssetAmounts } from "../../services/portfolio/portfolioService";
+
+/* =========================
+   Helpers
+========================= */
+
+function calcPortfolioValue(p: HistoryPoint, amounts: AssetAmounts) {
+  let total = 0;
+
+  for (const [symbol, amount] of Object.entries(amounts)) {
+    const price = p.prices[symbol] ?? 0;
+    total += price * amount;
+  }
+
+  return total;
+}
+
+function computeStats(history: HistoryPoint[], amounts: AssetAmounts) {
+  if (history.length < 2) {
+    return { volatility: 0, minVol: 0, maxVol: 0, avgMove: 0, stdDev: 0 };
+  }
+
+  const vals = history
+    .map((p) => calcPortfolioValue(p, amounts))
+    .filter((v) => Number.isFinite(v) && v > 0);
+
+  if (vals.length < 2) {
+    return { volatility: 0, minVol: 0, maxVol: 0, avgMove: 0, stdDev: 0 };
+  }
+
+  const minVal = Math.min(...vals);
+  const maxVal = Math.max(...vals);
+  const avg = vals.reduce((s, x) => s + x, 0) / vals.length || 1;
+
+  const volatilityRange = ((maxVal - minVal) / avg) * 100;
+
+  const minPct = ((minVal - avg) / avg) * 100;
+  const maxPct = ((maxVal - avg) / avg) * 100;
+
+  const avgMoveCalc =
+    vals
+      .slice(1)
+      .reduce((s, v, i) => s + Math.abs(v - vals[i]), 0) /
+    (vals.length - 1);
+
+  const avgMovePct = (avgMoveCalc / avg) * 100;
+
+  const variance = vals.reduce((s, v) => s + (v - avg) ** 2, 0) / vals.length;
+  const std = Math.sqrt(variance);
+  const stdDevPct = (std / avg) * 100;
+
+  return {
+    volatility: volatilityRange,
+    minVol: minPct,
+    maxVol: maxPct,
+    avgMove: avgMovePct,
+    stdDev: stdDevPct,
+  };
+}
+
+/* =========================
+   Types
+========================= */
+
+type Props = {
+  history: HistoryPoint[]; // уже filteredHistory
+  amounts: AssetAmounts;
+};
+
+type Stats = {
+  volatility: number;
+  minVol: number;
+  maxVol: number;
+  avgMove: number;
+  stdDev: number;
+};
 
 /* =========================
    Component
 ========================= */
 
-export function SimulationControls({ value, onChange }: Props) {
-  const patch = (next: Partial<SimulationParams>) =>
-    onChange({ ...value, ...next });
+export function VolatilityArcCard({ history, amounts }: Props) {
+  // "истина" (новые значения при смене периода)
+  const nextStats = useMemo<Stats>(() => computeStats(history, amounts), [history, amounts]);
+
+  // то, что реально отображаем в цифрах (анимируем fade)
+  const [displayStats, setDisplayStats] = useState<Stats>(nextStats);
+
+  // дуга анимируется отдельно: обновляем сразу
+  const [arcVolatility, setArcVolatility] = useState<number>(nextStats.volatility);
+
+  // фаза для fade цифр
+  const [fadePhase, setFadePhase] = useState<"in" | "out">("in");
+
+  // signature, чтобы понимать "переключили период"
+  const signature = useMemo(() => {
+    const first = history[0]?.timestamp ?? 0;
+    const last = history[history.length - 1]?.timestamp ?? 0;
+
+    const amountsKey = Object.entries(amounts)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => `${k}:${v}`)
+      .join("|");
+
+    return `${history.length}:${first}:${last}:${amountsKey}`;
+  }, [history, amounts]);
+
+  const prevSigRef = useRef<string>(signature);
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (prevSigRef.current === signature) return;
+    prevSigRef.current = signature;
+
+    // 1) дуга — сразу, sweep-анимация
+    setArcVolatility(nextStats.volatility);
+
+    // 2) цифры — плавно тухнут → обновляем → плавно появляются
+    setFadePhase("out");
+
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+
+    timerRef.current = window.setTimeout(() => {
+      setDisplayStats(nextStats);
+      setFadePhase("in");
+      timerRef.current = null;
+    }, 180);
+
+    return () => {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    };
+  }, [signature, nextStats]);
+
+  /* =========================
+     Arc math
+  ========================= */
+
+  const pct = Math.min(Math.max(arcVolatility / 120, 0), 1);
+
+  const radius = 100;
+  const circumference = Math.PI * radius;
+  const filled = pct * circumference;
+  const empty = circumference - filled;
+
+  const TEXT_PRIMARY = "#EFEFEF";
+  const TEXT_SECONDARY = "rgba(255,255,255,0.75)";
 
   return (
-    <div className="card" style={{ height: "100%" }}>
+    <div
+      className="card vola-card"
+      style={{
+        borderRadius: "10px",
+        height: "100%",
+        width: "100%",
+      }}
+    >
+      <style>{`
+        .vola-card {
+          will-change: opacity, transform;
+          transition: opacity 220ms ease, transform 220ms ease;
+        }
+
+        .vola-fade {
+          transition: opacity 220ms ease, filter 220ms ease;
+          will-change: opacity, filter;
+        }
+
+        .vola-fade.out {
+          opacity: 0;
+          filter: blur(2px);
+        }
+
+        .vola-fade.in {
+          opacity: 1;
+          filter: blur(0px);
+        }
+
+        /* ДУГА: отдельная анимация (другая длительность/easing) */
+        .vola-arc {
+          transition: stroke-dasharray 900ms cubic-bezier(0.22, 1, 0.36, 1);
+          will-change: stroke-dasharray;
+        }
+      `}</style>
+
       <div
         className="card-body"
         style={{
-          height: "100%",
           display: "flex",
-          flexDirection: "column",
-          padding: 0, // важно: управляем паддингами вручную
+          gap: "28px",
+          alignItems: "center",
+          paddingTop: 20,
+          paddingBottom: 20,
         }}
       >
-        {/* HEADER */}
-        <div style={{ padding: 14, flexShrink: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: 14 }}>
-            Simulation settings
+        {/* ======================= GAUGE ======================= */}
+        <div style={{ flex: "0 0 260px" }}>
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            <svg width="260" height="170" viewBox="0 0 260 170">
+              <defs>
+                <linearGradient id="volaGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#22c55e" />
+                  <stop offset="50%" stopColor="#eab308" />
+                  <stop offset="100%" stopColor="#ef4444" />
+                </linearGradient>
+              </defs>
+
+              {/* Background arc */}
+              <path
+                d="M30 120 A100 100 0 0 1 230 120"
+                stroke="rgba(255,255,255,0.08)"
+                strokeWidth="16"
+                fill="none"
+              />
+
+              {/* Foreground arc (sweep animation) */}
+              <path
+                className="vola-arc"
+                d="M30 120 A100 100 0 0 1 230 120"
+                stroke="url(#volaGradient)"
+                strokeWidth="16"
+                fill="none"
+                strokeDasharray={`${filled} ${empty}`}
+                strokeLinecap="round"
+              />
+
+              {/* Percentage (fade) */}
+              <text
+                x="130"
+                y="108"
+                fill={TEXT_PRIMARY}
+                fontSize="28"
+                fontWeight="700"
+                dominantBaseline="middle"
+                textAnchor="middle"
+                className={`vola-fade ${fadePhase}`}
+              >
+                {displayStats.volatility.toFixed(2)}%
+              </text>
+
+              {/* Low / High */}
+              <text x="12" y="155" fill={TEXT_PRIMARY} fontSize="15" fontWeight="600" textAnchor="start">
+                Low
+              </text>
+
+              <text x="248" y="155" fill={TEXT_PRIMARY} fontSize="15" fontWeight="600" textAnchor="end">
+                High
+              </text>
+            </svg>
           </div>
-          <div style={{ fontSize: 12, color: "rgba(148,163,184,0.8)" }}>
-            Horizon, scenario and runs
-          </div>
-        </div>
 
-        {/* CONTENT */}
-        <div
-          style={{
-            padding: "0 14px 14px",
-            overflowY: "auto",
-            flex: 1,
-          }}
-        >
-          <Section title="Horizon">
-            <SegGroup cols={4}>
-              {HORIZONS.map((d) => (
-                <SegButton
-                  key={d}
-                  label={`${d}d`}
-                  active={value.horizonDays === d}
-                  onClick={() => patch({ horizonDays: d })}
-                />
-              ))}
-            </SegGroup>
-          </Section>
-
-          <Section title="Scenario">
-            <SegGroup cols={3}>
-              {SCENARIOS.map(([key, label]) => (
-                <SegButton
-                  key={key}
-                  label={label}
-                  active={value.scenario === key}
-                  onClick={() => patch({ scenario: key })}
-                />
-              ))}
-            </SegGroup>
-          </Section>
-
-          <Section title="Simulations">
-            <SegGroup cols={3}>
-              {SIMULATIONS.map((n) => (
-                <SegButton
-                  key={n}
-                  label={`${n}`}
-                  active={value.simulations === n}
-                  onClick={() => patch({ simulations: n })}
-                />
-              ))}
-            </SegGroup>
-          </Section>
-
-          <Section title="Overlays">
-            <div style={{ display: "grid", gap: 8 }}>
-              <ToggleRow
-                label="Main"
-                active={value.showRepresentative}
-                onClick={() =>
-                  patch({ showRepresentative: !value.showRepresentative })
-                }
-              />
-              <ToggleRow
-                label="Fan (Quantiles)"
-                active={value.showFan}
-                onClick={() => patch({ showFan: !value.showFan })}
-              />
-              <ToggleRow
-                label="Median"
-                active={value.showMedian}
-                onClick={() => patch({ showMedian: !value.showMedian })}
-              />
-              <ToggleRow
-                label="Cloud"
-                active={value.showCloud}
-                onClick={() => patch({ showCloud: !value.showCloud })}
-              />
-              <ToggleRow
-                label="Range"
-                active={value.showRange}
-                onClick={() => patch({ showRange: !value.showRange })}
-              />
-            </div>
-          </Section>
-        </div>
-      </div>
-    </div>
-  );
-}\nfrontend/src/layout/AppLayout.tsx\nimport { Outlet } from "react-router-dom";
-import { useState } from "react";
-import { Sidebar } from "./Sidebar";
-import { ProfileSwitcher } from "./ProfileSwitcher";
-
-export function AppLayout() {
-  const [profileId, setProfileId] = useState("conservative");
-
-  return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#070B17" }}>
-      <Sidebar />
-
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {/* ================= HEADER (STICKY) ================= */}
-        <header
-          style={{
-            position: "sticky",
-            top: 0,
-            zIndex: 50,
-            height: 56,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "0 20px",
-            background: "#111827",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
-          }}
-        >
-          <div style={{ fontWeight: 600, color: "#fff" }}>Factor Flow</div>
-
-          <ProfileSwitcher
-            selectedId={profileId}
-            onSelect={setProfileId}
-          />
-        </header>
-
-        {/* ================= CONTENT ================= */}
-        <main style={{ padding: 24 }}>
           <div
             style={{
-              maxWidth: 1280,
-              margin: "0 auto",
-              width: "100%",
+              textAlign: "center",
+              marginTop: 8,
+              fontSize: 15,
+              color: TEXT_SECONDARY,
             }}
           >
-            <Outlet context={{ profileId }} />
+            Period Range Volatility
           </div>
-        </main>
-      </div>
-    </div>
-  );
-}\nfrontend/src/layout/Navbar.tsx\nimport { NavLink } from "react-router-dom";
+        </div>
 
-export function Navbar() {
-  return (
-    <header
-      className="navbar navbar-expand-md navbar-dark"
-      style={{
-        background: "#111827",
-        borderBottom: "1px solid rgba(255,255,255,0.08)",
-      }}
-    >
-      <div className="container-xl d-flex justify-content-between">
-        {/* ЛОГО */}
-        <NavLink
-          to="/"
-          className="navbar-brand"
-          style={{
-            fontWeight: 600,
-            fontSize: "20px",
-          }}
-        >
-          Factor Flow
-        </NavLink>
-
-        {/* НАВИГАЦИЯ */}
-        <ul className="navbar-nav flex-row">
-          <NavItem to="/" label="Dashboard" />
-          <NavItem to="/prices" label="Prices" />
-          <NavItem to="/assets" label="Assets" />
-          <NavItem to="/settings" label="Settings" />
-        </ul>
-      </div>
-    </header>
-  );
-}
-
-function NavItem({ to, label }: { to: string; label: string }) {
-  return (
-    <li className="nav-item mx-2">
-      <NavLink
-        to={to}
-        end
-        className={({ isActive }) =>
-          "nav-link px-3" + (isActive ? " active" : "")
-        }
-        style={({ isActive }) => ({
-          color: isActive ? "#b351f9" : "#d1d5db",
-          fontWeight: isActive ? 600 : 400,
-        })}
-      >
-        {label}
-      </NavLink>
-    </li>
-  );
-}\nfrontend/src/layout/ProfileSwitcher.tsx\nimport { useEffect, useMemo, useRef, useState } from "react";
-import portfoliosJson from "../data/mock-portfolios.json";
-import { buildIdenticonDataUri } from "../utils/identicon";
-
-type Profile = {
-  id: string;
-  name: string;
-  owner: { name: string; address: string };
-  assets: Record<string, number>;
-};
-
-type Props = {
-  selectedId: string;
-  onSelect: (id: string) => void;
-};
-
-export function ProfileSwitcher({ selectedId, onSelect }: Props) {
-  const profiles = (portfoliosJson as any).profiles as Profile[];
-  const selected = profiles.find((p) => p.id === selectedId) ?? profiles[0];
-
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const h = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, []);
-
-  const avatar = useMemo(
-    () =>
-      buildIdenticonDataUri(selected.owner.address, {
-        size: 32,
-      }),
-    [selected.owner.address]
-  );
-
-  return (
-    <div ref={ref} style={{ position: "relative" }}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        style={{
-          display: "flex",
-          gap: 10,
-          alignItems: "center",
-          padding: "6px 10px",
-          borderRadius: 10,
-          background: "#0f172a",
-          border: "1px solid rgba(255,255,255,0.08)",
-          color: "#fff",
-          cursor: "pointer",
-        }}
-      >
-        <img
-          src={avatar}
-          width={32}
-          height={32}
-          style={{ borderRadius: 999 }}
-          alt=""
-        />
-        <span style={{ fontWeight: 600 }}>{selected.name}</span>
-        <span style={{ opacity: 0.7 }}>▾</span>
-      </button>
-
-      {open && (
+        {/* ======================= ANALYTICS ======================= */}
         <div
           style={{
-            position: "absolute",
-            right: 0,
-            top: "100%",
-            marginTop: 6,
-            background: "#0b1220",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 10,
-            minWidth: 260,
-            zIndex: 20,
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px",
+            paddingLeft: "32px",
+            flex: 1,
+            color: TEXT_PRIMARY,
+            fontSize: "15px",
           }}
         >
-          {profiles.map((p) => {
-            const icon = buildIdenticonDataUri(p.owner.address, {
-              size: 28,
-            });
+          <div
+            style={{
+              marginBottom: "6px",
+              opacity: 0.9,
+              fontWeight: 600,
+              fontSize: "16px",
+            }}
+          >
+            Analytics
+          </div>
 
-            return (
-              <button
-                key={p.id}
-                onClick={() => {
-                  onSelect(p.id);
-                  setOpen(false);
-                }}
+          {[
+            { label: "Min", value: displayStats.minVol },
+            { label: "Max", value: displayStats.maxVol },
+            { label: "Avg Abs Move", value: displayStats.avgMove },
+            { label: "Std Dev", value: displayStats.stdDev },
+          ].map((m, i) => (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                borderBottom: i < 3 ? "1px solid rgba(255,255,255,0.06)" : "none",
+                paddingBottom: "6px",
+                paddingTop: "4px",
+              }}
+            >
+              <span style={{ opacity: 0.75 }}>{m.label}</span>
+
+              <span
+                className={`vola-fade ${fadePhase}`}
                 style={{
-                  display: "flex",
-                  gap: 10,
-                  alignItems: "center",
-                  padding: "10px",
-                  width: "100%",
-                  background:
-                    p.id === selectedId
-                      ? "rgba(179,81,249,0.15)"
-                      : "transparent",
-                  border: "none",
-                  color: "#fff",
-                  cursor: "pointer",
-                  textAlign: "left",
+                  fontFamily: "monospace",
+                  opacity: 0.95,
                 }}
               >
-                <img
-                  src={icon}
-                  width={28}
-                  height={28}
-                  style={{ borderRadius: 999 }}
-                  alt=""
-                />
-                <span>{p.name}</span>
-              </button>
-            );
-          })}
+                {m.value.toFixed(2)}%
+              </span>
+            </div>
+          ))}
         </div>
-      )}
-    </div>
-  );
-}\nfrontend/src/layout/SidebarItem.tsx\nimport { NavLink } from "react-router-dom";
-import type { ReactNode } from "react";
-
-type Props = {
-  to: string;
-  icon: ReactNode;
-  label: string;
-  expanded: boolean;
-};
-
-export function SidebarItem({ to, icon, label, expanded }: Props) {
-  return (
-    <NavLink
-      to={to}
-      end
-      className={({ isActive }) =>
-        `nav-link d-flex align-items-center ${isActive ? "active" : ""}`
-      }
-      style={({ isActive }) => ({
-        padding: "10px 12px",
-        gap: "14px",
-        color: isActive ? "#b351f9" : "#9ca3af",
-        transition: "color 0.2s ease-in-out",
-        whiteSpace: "nowrap",
-      })}
-      title={!expanded ? label : undefined}
-    >
-      {/* ICON — теперь тоже двигается чуть-чуть */}
-      <div
-        style={{
-          width: 32,
-          minWidth: 32,
-          display: "flex",
-          justifyContent: "center",
-          transition: "transform 0.35s ease-in-out",
-          transform: expanded ? "translateX(6px)" : "translateX(0px)",
-        }}
-      >
-        {icon}
-      </div>
-
-      {/* LABEL — фирменная mask-анимация */}
-      <span
-        style={{
-          fontSize: "15px",
-          fontWeight: 500,
-          opacity: expanded ? 1 : 0,
-          transition:
-            "opacity 0.25s ease-in-out, mask-image 0.35s ease-in-out, -webkit-mask-image 0.35s ease-in-out",
-
-          maskImage: expanded
-            ? "linear-gradient(90deg, black 100%, transparent 100%)"
-            : "linear-gradient(90deg, black 0%, transparent 0%)",
-
-          WebkitMaskImage: expanded
-            ? "linear-gradient(90deg, black 100%, transparent 100%)"
-            : "linear-gradient(90deg, black 0%, transparent 0%)",
-
-          maskSize: "200% 100%",
-          WebkitMaskSize: "200% 100%",
-
-          overflow: "hidden",
-          display: "inline-block",
-
-          marginLeft: expanded ? "2px" : "-4px", // лёгкое движение текста
-          transitionProperty: "opacity, margin-left, mask-image, -webkit-mask-image",
-        }}
-      >
-        {label}
-      </span>
-    </NavLink>
-  );
-}\nfrontend/src/layout/SidebarToggle.tsx\nimport { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
-
-type Props = {
-  expanded: boolean;
-  onToggle: () => void;
-};
-
-export function SidebarToggle({ expanded, onToggle }: Props) {
-  return (
-    <button
-      onClick={onToggle}
-      style={{
-        width: "100%",
-        height: 38,
-        border: "none",
-        background: "transparent",
-        color: "#9ca3af",
-        cursor: "pointer",
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        paddingLeft: expanded ? 16 : 0,
-      }}
-      title="Toggle sidebar"
-    >
-      <div style={{ width: 28, textAlign: "center" }}>
-        {expanded ? <IconChevronLeft size={20} /> : <IconChevronRight size={20} />}
-      </div>
-
-      {expanded && (
-        <span style={{ fontSize: "14px", color: "#e5e7eb" }}>Collapse</span>
-      )}
-    </button>
-  );
-}\nfrontend/src/layout/Sidebar.tsx\n// src/layout/Sidebar.tsx
-
-import { useState } from "react";
-import { SidebarItem } from "./SidebarItem";
-import {
-  IconLayoutDashboard,
-  IconTable,
-  IconChartDots,
-} from "@tabler/icons-react";
-
-export function Sidebar() {
-  const [expanded, setExpanded] = useState(false);
-
-  const WIDTH_COLLAPSED = 70;
-  const WIDTH_EXPANDED = 220;
-
-  return (
-    <aside
-      onMouseEnter={() => setExpanded(true)}
-      onMouseLeave={() => setExpanded(false)}
-      style={{
-        width: expanded ? WIDTH_EXPANDED : WIDTH_COLLAPSED,
-        transition: "width 0.35s ease-in-out",
-        background: "#111827",
-        borderRight: "1px solid rgba(255,255,255,0.05)",
-        paddingTop: "20px",
-        height: "calc(100vh - 55px)",
-        position: "fixed",
-        top: 55,
-        left: 0,
-        overflow: "hidden",
-        zIndex: 20,
-      }}
-    >
-      <div style={{ display: "flex", flexDirection: "column", marginTop: 10 }}>
-        <SidebarItem
-          to="/"
-          label="Dashboard"
-          icon={<IconLayoutDashboard size={22} />}
-          expanded={expanded}
-        />
-        <SidebarItem
-          to="/assets"
-          label="Assets"
-          icon={<IconTable size={22} />}
-          expanded={expanded}
-        />
-
-        {/* ➜ Новый пункт меню Simulation */}
-        <SidebarItem
-          to="/simulation"
-          label="Simulation"
-          icon={<IconChartDots size={22} />}
-          expanded={expanded}
-        />
-
-       
-      </div>
-    </aside>
-  );
-}\nfrontend/src/main.tsx\nimport { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
-
-import "@tabler/core/dist/css/tabler.min.css";
-import "@tabler/core/dist/js/tabler.min.js";
-
-// Включаем тёмную тему Tabler
-document.documentElement.setAttribute("data-bs-theme", "dark");
-
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-);\nfrontend/src/pages/AssetsPage.tsx\nimport { useEffect, useMemo, useState } from "react";
-
-import {
-  fetchMarkets,
-  fetchGlobal,
-  fetchFearGreed,
-} from "../services//assets/assetsApi";
-
-import {
-  saveMarkets,
-  readMarkets,
-  isMarketsFresh,
-  saveGlobal,
-  readGlobal,
-  saveFearGreed,
-  readFearGreed,
-} from "../services/assets/assetsCache";
-
-import {
-  buildAssetsTable,
-  getDominance,
-  getGlobalMarketCapSnapshot,
-  getTopGainer7d,
-  type AssetRow,
-} from "../services/assets/assetsSelectors";
-
-import { fetchBinancePrices } from "../services/assets/binanceService";
-
-import { AssetsTable } from "../components/assets/AssetsTable";
-import { MarketCapCard } from "../components/assets/MarketCapCard";
-import { FearGreedCard } from "../components/assets/FearGreedCard";
-import { BtcEthAltCard } from "../components/assets/BtcEthAltCard";
-import { TopGainer7dCard } from "../components/assets/TopGainer7dCard";
-
-const PAGE_SIZE = 20;
-
-export function AssetsPage() {
-  const [assets, setAssets] = useState<AssetRow[]>([]);
-  const [livePrices, setLivePrices] = useState<Record<string, number>>({});
-  const [page, setPage] = useState(1);
-
-  const [fearGreed, setFearGreed] = useState<number | null>(null);
-  const [marketCap, setMarketCap] = useState<{
-    capUsd: number;
-    changePct24h: number;
-    sparkline: number[];
-  } | null>(null);
-
-  const [dominance, setDominance] = useState<{
-    btc: number;
-    eth: number;
-    alt: number;
-  } | null>(null);
-
-  const [topGainer, setTopGainer] = useState<{
-    name: string;
-    symbol: string;
-    image?: string;
-    pct7d: number;
-  } | null>(null);
-
-  /* ===== BASE DATA ===== */
-  useEffect(() => {
-    async function load() {
-      if (!isMarketsFresh()) {
-        const [markets, global, fear] = await Promise.all([
-          fetchMarkets(),
-          fetchGlobal(),
-          fetchFearGreed(),
-        ]);
-
-        saveMarkets(markets);
-        saveGlobal(global);
-        if (fear !== null) saveFearGreed(fear);
-      }
-
-      const markets = readMarkets() ?? [];
-      const global = readGlobal();
-      const fear = readFearGreed();
-
-      setAssets(buildAssetsTable(markets));
-      setFearGreed(fear);
-
-      if (global) {
-        const snap = getGlobalMarketCapSnapshot(global);
-        setMarketCap({
-          capUsd: snap.capUsd,
-          changePct24h: snap.changePct24h,
-          sparkline: markets[0]?.sparkline_in_7d?.price ?? [],
-        });
-
-        setDominance(getDominance(global));
-      }
-
-      setTopGainer(getTopGainer7d(markets));
-    }
-
-    load().catch(console.error);
-  }, []);
-
-  /* ===== PAGINATION ===== */
-  const totalPages = Math.max(1, Math.ceil(assets.length / PAGE_SIZE));
-
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
-
-  const pagedAssets = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return assets.slice(start, start + PAGE_SIZE);
-  }, [assets, page]);
-
-  /* ===== LIVE PRICES ===== */
-  const visibleSymbols = useMemo(
-    () => pagedAssets.map((a) => a.symbol),
-    [pagedAssets]
-  );
-
-  useEffect(() => {
-    if (!visibleSymbols.length) return;
-
-    let active = true;
-
-    async function tick() {
-      try {
-        const prices = await fetchBinancePrices();
-        if (active) setLivePrices(prices);
-      } catch {}
-    }
-
-    tick();
-    const id = setInterval(tick, 4_000);
-
-    return () => {
-      active = false;
-      clearInterval(id);
-    };
-  }, [visibleSymbols]);
-
-  return (
-    <div>
-      <div className="row row-cards mb-2">
-        <div className="col-12 col-md-6 col-lg-3 d-flex">
-          {marketCap && (
-            <MarketCapCard
-              capUsd={marketCap.capUsd}
-              changePct={marketCap.changePct24h}
-              spark={marketCap.sparkline}
-            />
-          )}
-        </div>
-
-        <div className="col-12 col-md-6 col-lg-3 d-flex">
-          {fearGreed !== null && <FearGreedCard value={fearGreed} />}
-        </div>
-
-        <div className="col-12 col-md-6 col-lg-3 d-flex">
-          {dominance && (
-            <BtcEthAltCard
-              btc={dominance.btc}
-              eth={dominance.eth}
-              alt={dominance.alt}
-            />
-          )}
-        </div>
-
-        <div className="col-12 col-md-6 col-lg-3 d-flex">
-          {topGainer && (
-            <TopGainer7dCard
-              name={topGainer.name}
-              symbol={topGainer.symbol}
-              image={topGainer.image}
-              pct7d={topGainer.pct7d}
-            />
-          )}
-        </div>
-      </div>
-
-      <div style={{ marginTop: 15 }}>
-        <AssetsTable assets={pagedAssets} livePrices={livePrices} />
-      </div>
-
-      {/* Pagination */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          marginTop: 16,
-          gap: 8,
-        }}
-      >
-        <button
-          className="btn btn-sm"
-          disabled={page === 1}
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-        >
-          Prev
-        </button>
-
-        {Array.from({ length: totalPages }).map((_, i) => {
-          const p = i + 1;
-          const active = p === page;
-
-          return (
-            <button
-              key={p}
-              className={`btn btn-sm ${active ? "btn-primary" : ""}`}
-              onClick={() => setPage(p)}
-            >
-              {p}
-            </button>
-          );
-        })}
-
-        <button
-          className="btn btn-sm"
-          disabled={page === totalPages}
-          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-        >
-          Next
-        </button>
       </div>
     </div>
   );
-}\nfrontend/src/pages/PortfolioPage.tsx\n// frontend/src/pages/PortfolioPage.tsx
-
-import { useMemo, useState } from "react";
-import { useOutletContext } from "react-router-dom";
-
-import historyJson from "../data/mock-history.json";
-import portfoliosJson from "../data/mock-portfolios.json";
-
-import {
-  buildTopMetrics,
-  filterHistoryByPeriod,
-} from "../services/portfolio/portfolioService";
-
-import type {
-  HistoryPoint,
-  Period,
-  AssetAmounts,
-} from "../services/portfolio/portfolioService";
-
-// portfolio components
-import { PortfolioMetricsRow } from "../components/portfolio/PortfolioMetricsRow";
-import { PortfolioChartCard } from "../components/portfolio/PortfolioChartCard";
-import { PortfolioAllocationSection } from "../components/portfolio/PortfolioAllocationSection";
-
-type OutletCtx = {
-  profileId: string;
-};
-
-type Profile = {
-  id: string;
-  assets: AssetAmounts;
-};
-
-// локальный fallback (если profileId не найден)
-const FALLBACK_AMOUNTS: AssetAmounts = {
-  ETH: 2,
-  WBTC: 0.03,
-  USDC: 80,
-  DAI: 40,
-  UNI: 400,
-};
-
-const PROFILES = ((portfoliosJson as any).profiles ?? []) as Profile[];
-
-export function PortfolioPage() {
-  const { profileId } = useOutletContext<OutletCtx>();
-
-  const history = historyJson as unknown as HistoryPoint[];
-
-  const amounts: AssetAmounts = useMemo(() => {
-    const p = PROFILES.find((x) => x.id === profileId);
-    return p?.assets ?? FALLBACK_AMOUNTS;
-  }, [profileId]);
-
-  const [period, setPeriod] = useState<Period>("year");
-
-  const filteredHistory = useMemo(
-    () => filterHistoryByPeriod(history, period),
-    [history, period]
-  );
-
-  const metrics = useMemo(
-    () => buildTopMetrics(filteredHistory, amounts, "BTC"),
-    [filteredHistory, amounts]
-  );
-
-  return (
-    <div>
-      <PortfolioMetricsRow
-        tvl={metrics.tvl}
-        lastTsMs={metrics.lastTsMs}
-        changeUsd={metrics.changeUsd}
-        changePct={metrics.changePct}
-        vsBtcPp={metrics.vsBtcPp}
-        btcPct={metrics.btcPct}
-        period={period}
-      />
-
-      <PortfolioChartCard
-        history={filteredHistory}
-        period={period}
-        onPeriodChange={setPeriod}
-        amounts={amounts}
-      />
-
-      <PortfolioAllocationSection history={filteredHistory} amounts={amounts} />
-    </div>
-  );
-}\nfrontend/src/pages/PricesPage.tsx\nexport function PricesPage() {
-  return <div>Prices Page</div>;
-}\nfrontend/src/pages/SettingsPage.tsx\nexport function SettingsPage() {
-  return <div>Settings</div>;
-}\nfrontend/src/pages/SimulationPage.tsx\n
+}\nfrontend/src/components/simulation/FinalOutcomeCard.tsx\n

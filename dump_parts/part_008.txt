@@ -1,0 +1,493 @@
+// frontend/src/utils/identicon.ts
+
+function fnv1a32(input: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    // h *= 16777619 (через сдвиги, чтобы стабильно в JS)
+    h = (h + (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24)) >>> 0;
+  }
+  return h >>> 0;
+}
+
+function xorshift32(seed: number): () => number {
+  let x = seed >>> 0;
+  return () => {
+    x ^= x << 13;
+    x ^= x >>> 17;
+    x ^= x << 5;
+    return (x >>> 0) / 0xffffffff;
+  };
+}
+
+function clamp(n: number, a: number, b: number) {
+  return Math.max(a, Math.min(b, n));
+}
+
+function colorFromSeed(seed: number): string {
+  // приятная "tabler-like" палитра через HSL
+  const hue = seed % 360;
+  const sat = 65;
+  const light = 52;
+  return `hsl(${hue} ${sat}% ${light}%)`;
+}
+
+export type IdenticonOptions = {
+  size?: number; // px
+  cells?: number; // grid size, default 5
+  padding?: number; // px
+  bg?: string; // background
+};
+
+export function buildIdenticonSvg(
+  address: string,
+  opts: IdenticonOptions = {}
+): string {
+  const size = opts.size ?? 40;
+  const cells = opts.cells ?? 5;
+  const padding = opts.padding ?? 4;
+  const bg = opts.bg ?? "rgba(255,255,255,0.06)";
+
+  const normalized = (address || "").trim().toLowerCase();
+  const seed = fnv1a32(normalized || "0x0");
+  const rnd = xorshift32(seed);
+
+  const color = colorFromSeed(seed);
+  const cellSize = (size - padding * 2) / cells;
+
+  // зеркалим по вертикали: рисуем только половину + центр
+  const half = Math.ceil(cells / 2);
+
+  const on: boolean[][] = Array.from({ length: cells }, () =>
+    Array.from({ length: cells }, () => false)
+  );
+
+  for (let y = 0; y < cells; y++) {
+    for (let x = 0; x < half; x++) {
+      const v = rnd();
+      const filled = v > 0.5; // плотность
+      on[y][x] = filled;
+      on[y][cells - 1 - x] = filled;
+    }
+  }
+
+  // слегка скруглим
+  const r = clamp(cellSize * 0.22, 1.5, 4);
+
+  const rects: string[] = [];
+  for (let y = 0; y < cells; y++) {
+    for (let x = 0; x < cells; x++) {
+      if (!on[y][x]) continue;
+      const rx = padding + x * cellSize;
+      const ry = padding + y * cellSize;
+      rects.push(
+        `<rect x="${rx.toFixed(2)}" y="${ry.toFixed(2)}" width="${cellSize.toFixed(
+          2
+        )}" height="${cellSize.toFixed(2)}" rx="${r.toFixed(
+          2
+        )}" fill="${color}"/>`
+      );
+    }
+  }
+
+  // круглая маска под "аватар"
+  const maskId = `m_${seed.toString(16)}`;
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+  <defs>
+    <mask id="${maskId}">
+      <rect x="0" y="0" width="${size}" height="${size}" rx="${(size / 2).toFixed(
+    2
+  )}" fill="white"/>
+    </mask>
+  </defs>
+
+  <g mask="url(#${maskId})">
+    <rect x="0" y="0" width="${size}" height="${size}" fill="${bg}"/>
+    ${rects.join("\n    ")}
+  </g>
+</svg>`;
+}
+
+export function buildIdenticonDataUri(
+  address: string,
+  opts: IdenticonOptions = {}
+): string {
+  const svg = buildIdenticonSvg(address, opts)
+    // чуть чистим для data-uri
+    .replace(/\n+/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  // безопасная encode
+  const encoded = encodeURIComponent(svg)
+    .replace(/%20/g, " ")
+    .replace(/%3D/g, "=")
+    .replace(/%3A/g, ":")
+    .replace(/%2F/g, "/");
+
+  return `data:image/svg+xml;charset=utf-8,${encoded}`;
+}\nfrontend/tests/portfolioMetrics.test.ts\nimport historyJson from "../src/data/mock-history.json";
+import portfoliosJson from "../src/data/mock-portfolios.json";
+
+import {
+  buildTopMetrics,
+} from "../src/services/portfolio/portfolioService";
+
+import type { HistoryPoint } from "../src/services/portfolio/portfolioService";
+
+describe("Portfolio metrics", () => {
+  const history = historyJson as unknown as HistoryPoint[];
+  const profiles = (portfoliosJson as any).profiles;
+
+  it("builds metrics without NaN or Infinity", () => {
+    const profile = profiles[0];
+    const metrics = buildTopMetrics(history, profile.assets, "BTC");
+
+    expect(Number.isFinite(metrics.tvl)).toBe(true);
+    expect(Number.isFinite(metrics.changeUsd)).toBe(true);
+    expect(Number.isFinite(metrics.changePct)).toBe(true);
+  });
+
+  it("metrics change when profile changes", () => {
+    const p1 = profiles.find((p: any) => p.id === "conservative");
+    const p2 = profiles.find((p: any) => p.id === "aggressive");
+
+    const m1 = buildTopMetrics(history, p1.assets, "BTC");
+    const m2 = buildTopMetrics(history, p2.assets, "BTC");
+
+    expect(m1.tvl).not.toBe(m2.tvl);
+  });
+
+  it("vs BTC metric is finite", () => {
+    const profile = profiles[1];
+    const metrics = buildTopMetrics(history, profile.assets, "BTC");
+
+    expect(Number.isFinite(metrics.vsBtcPp)).toBe(true);
+  });
+});\nfrontend/tests/portfolioValue.test.ts\nimport historyJson from "../src/data/mock-history.json";
+import portfoliosJson from "../src/data/mock-portfolios.json";
+
+import type { HistoryPoint } from "../src/services/portfolio/portfolioService";
+
+function calcPortfolioValue(
+  p: HistoryPoint,
+  amounts: Record<string, number>
+) {
+  let total = 0;
+  for (const [symbol, amount] of Object.entries(amounts)) {
+    total += (p.prices[symbol] ?? 0) * amount;
+  }
+  return total;
+}
+
+describe("Portfolio value calculation", () => {
+  const history = historyJson as unknown as HistoryPoint[];
+  const profiles = (portfoliosJson as any).profiles;
+
+  it("calculates portfolio value for conservative profile", () => {
+    const profile = profiles.find((p: any) => p.id === "conservative");
+    const last = history[history.length - 1];
+
+    const value = calcPortfolioValue(last, profile.assets);
+
+    expect(value).toBeGreaterThan(0);
+    expect(Number.isFinite(value)).toBe(true);
+  });
+
+  it("different profiles produce different portfolio values", () => {
+    const last = history[history.length - 1];
+
+    const conservative = profiles.find(
+      (p: any) => p.id === "conservative"
+    );
+    const aggressive = profiles.find(
+      (p: any) => p.id === "aggressive"
+    );
+
+    const v1 = calcPortfolioValue(last, conservative.assets);
+    const v2 = calcPortfolioValue(last, aggressive.assets);
+
+    expect(v1).not.toBe(v2);
+  });
+
+  it("portfolio value reacts to history changes over time", () => {
+    const profile = profiles.find((p: any) => p.id === "balanced");
+
+    const first = history[0];
+    const last = history[history.length - 1];
+
+    const vStart = calcPortfolioValue(first, profile.assets);
+    const vEnd = calcPortfolioValue(last, profile.assets);
+
+    expect(vStart).not.toBe(vEnd);
+  });
+});\nfrontend/tests/simulationParams.test.ts\nimport historyJson from "../src/data/mock-history.json";
+import portfoliosJson from "../src/data/mock-portfolios.json";
+
+import {
+  filterHistoryByPeriod,
+} from "../src/services/portfolio/portfolioService";
+
+import {
+  estimatePortfolioParams,
+} from "../src/services/portfolio/portfolioStatsService";
+
+import type { HistoryPoint } from "../src/services/portfolio/portfolioService";
+
+describe("Simulation parameter estimation", () => {
+  const history = historyJson as unknown as HistoryPoint[];
+  const profiles = (portfoliosJson as any).profiles;
+
+  it("estimates drift and volatility for portfolio", () => {
+    const profile = profiles[0];
+    const filtered = filterHistoryByPeriod(history, "year");
+
+    const { drift, volatility } = estimatePortfolioParams(
+      filtered,
+      profile.assets
+    );
+
+    expect(Number.isFinite(drift)).toBe(true);
+    expect(Number.isFinite(volatility)).toBe(true);
+    expect(volatility).toBeGreaterThan(0);
+  });
+
+  it("different profiles give different parameters", () => {
+    const filtered = filterHistoryByPeriod(history, "year");
+
+    const a = estimatePortfolioParams(
+      filtered,
+      profiles[0].assets
+    );
+    const b = estimatePortfolioParams(
+      filtered,
+      profiles[2].assets
+    );
+
+    expect(a.volatility).not.toBe(b.volatility);
+  });
+});\nfrontend/vite.config.ts\nimport { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+})\ngenerate_prices\n#!/bin/bash
+
+echo "⏳ Генерация годовой часовой истории цен (портфель + рынок)..."
+
+OUTPUT="mock-history-hourly.json"
+
+node << 'EOF'
+const fs = require("fs");
+
+// =======================================
+// 🔹 КОНФИГ: ВСЕ АКТИВЫ (портфель + рынок)
+// =======================================
+
+const assets = [
+  // портфельные
+  "ETH",
+  "WBTC",
+  "USDC",
+  "DAI",
+  "UNI",
+
+  // рыночные дополнительные
+  "BTC",
+  "SOL",
+  "BNB",
+  "TON",
+  "XRP",
+  "ADA",
+  "DOGE",
+  "AVAX",
+  "LINK",
+  "ATOM",
+];
+
+// Реалистичные базовые цены + волатильности
+const cfg = {
+  // ==== портфельные ====
+  WBTC: { base: 30000, noise: 0.002,  shockP: 1 / (24 * 3.5), shockMin: -0.04, shockMax: 0.04 },
+  ETH:  { base: 1800,  noise: 0.004,  shockP: 1 / (24 * 3),   shockMin: -0.06, shockMax: 0.06 },
+  UNI:  { base: 6.5,   noise: 0.012,  shockP: 1 / (24 * 2),   shockMin: -0.12, shockMax: 0.14 },
+  USDC: { base: 1.0,   noise: 0.0003, shockP: 1 / (24 * 20),  shockMin: -0.003,shockMax: 0.003 },
+  DAI:  { base: 1.0,   noise: 0.00035,shockP: 1 / (24 * 18),  shockMin: -0.004,shockMax: 0.004 },
+
+  // ==== рыночные (новые) ====
+  // BTC — низкая волатильность
+  BTC: {
+    base: 68000,
+    noise: 0.0018,
+    shockP: 1 / (24 * 4.5),  // примерно раз в 4–5 дней
+    shockMin: -0.03,
+    shockMax: 0.03,
+  },
+
+  // SOL — высокая волатильность
+  SOL: {
+    base: 120,
+    noise: 0.009,
+    shockP: 1 / (24 * 2.5),
+    shockMin: -0.10,
+    shockMax: 0.12,
+  },
+
+  // BNB — умеренная волатильность
+  BNB: {
+    base: 300,
+    noise: 0.004,
+    shockP: 1 / (24 * 3.5),
+    shockMin: -0.06,
+    shockMax: 0.07,
+  },
+
+  // TON — высокая волатильность
+  TON: {
+    base: 2.8,
+    noise: 0.012,
+    shockP: 1 / (24 * 2),
+    shockMin: -0.14,
+    shockMax: 0.16,
+  },
+
+  // XRP — резкие скачки, средняя волатильность
+  XRP: {
+    base: 0.52,
+    noise: 0.007,
+    shockP: 1 / (24 * 3),
+    shockMin: -0.12,
+    shockMax: 0.12,
+  },
+
+  // ADA — умеренная волатильность
+  ADA: {
+    base: 0.42,
+    noise: 0.006,
+    shockP: 1 / (24 * 3.5),
+    shockMin: -0.08,
+    shockMax: 0.09,
+  },
+
+  // DOGE — очень высокая волатильность
+  DOGE: {
+    base: 0.09,
+    noise: 0.015,
+    shockP: 1 / (24 * 2),
+    shockMin: -0.18,
+    shockMax: 0.20,
+  },
+
+  // AVAX — высокая волатильность
+  AVAX: {
+    base: 28,
+    noise: 0.010,
+    shockP: 1 / (24 * 2.5),
+    shockMin: -0.12,
+    shockMax: 0.14,
+  },
+
+  // LINK — умеренно высокая
+  LINK: {
+    base: 15,
+    noise: 0.008,
+    shockP: 1 / (24 * 2.7),
+    shockMin: -0.09,
+    shockMax: 0.11,
+  },
+
+  // ATOM — умеренная волатильность
+  ATOM: {
+    base: 10,
+    noise: 0.007,
+    shockP: 1 / (24 * 3),
+    shockMin: -0.08,
+    shockMax: 0.10,
+  },
+};
+
+// ===============================
+// ⚙️ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ===============================
+const HOURS = 24 * 365;
+const now = Math.floor(Date.now() / 1000);
+const startTs = now - HOURS * 3600;
+
+// нормальное распределение (Box–Muller)
+function normal(std) {
+  return (
+    std *
+    Math.sqrt(-2 * Math.log(Math.random())) *
+    Math.cos(2 * Math.PI * Math.random())
+  );
+}
+function rand(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+// ===============================
+// 🧮 ИНИЦИАЛИЗАЦИЯ
+// ===============================
+const prices = Object.fromEntries(
+  assets.map((a) => [a, cfg[a].base])
+);
+
+const history = [];
+
+// ===============================
+// 🔄 ГЕНЕРАЦИЯ ИСТОРИИ
+// ===============================
+for (let i = 0; i < HOURS; i++) {
+  const ts = startTs + i * 3600;
+  const row = { timestamp: ts, prices: {} };
+
+  for (const a of assets) {
+    const c = cfg[a];
+
+    // базовый шум
+    const noise = normal(c.noise);
+
+    // редкие рыночные "шоки"
+    const shock =
+      Math.random() < c.shockP ? rand(c.shockMin, c.shockMax) : 0;
+
+    // результирующая доходность
+    let ret = noise + shock;
+
+    // новый расчёт цены
+    let newPrice = prices[a] * (1 + ret);
+
+    // защита от NaN / Infinity / отрицательных значений
+    if (!Number.isFinite(newPrice) || newPrice <= 0) {
+      // fallback: откат к базовой цене ± случайный диапазон
+      newPrice = c.base * (0.5 + Math.random() * 0.5);
+    }
+
+    prices[a] = newPrice;
+
+    // округление
+    const rounded = Number(newPrice.toFixed(4));
+
+    // дополнительная защита JSON
+    row.prices[a] = Number.isFinite(rounded) ? rounded : c.base;
+  }
+
+  history.push(row);
+}
+
+// ===============================
+// 💾 СОХРАНЕНИЕ В ФАЙЛ
+// ===============================
+fs.writeFileSync(
+  "mock-history-hourly.json",
+  JSON.stringify(history, null, 2)
+);
+
+console.log("✅ Сгенерировано точек:", history.length);
+console.log("✅ Активов:", assets.length);
+EOF
+
+echo "✅ Файл mock-history-hourly.json успешно создан!"\n
