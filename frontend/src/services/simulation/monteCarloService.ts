@@ -1,9 +1,11 @@
+// frontend/src/services/monteCarloService.ts
+
 export type Scenario = "conservative" | "baseline" | "stress";
 
 export type MonteCarloInput = {
   startValue: number;
-  drift: number;
-  volatility: number;
+  drift: number; // daily log-return (historical)
+  volatility: number; // daily vol of log-returns (historical)
   horizonDays: number;
   simulations: number;
   scenario: Scenario;
@@ -32,6 +34,20 @@ const START_RANGE_PCT: Record<Scenario, number> = {
 
 const FIXED_SEED = 42;
 const END_PENALTY_LAMBDA = 12;
+
+/**
+ * Регулировка долгосрочного роста рынка:
+ * 1.0 = +100% в год (удвоение)
+ * 0.5 = +50% в год
+ * 0.0 = без добавочного тренда (чисто по истории)
+ */
+const LONG_TERM_ANNUAL_GROWTH = 0.3;
+
+function annualGrowthToDailyLogDrift(annualGrowth: number): number {
+  // annualGrowth = 1.0 => log(2)/365
+  if (!Number.isFinite(annualGrowth) || annualGrowth <= -1) return 0;
+  return Math.log(1 + annualGrowth) / 365;
+}
 
 function mulberry32(seed: number) {
   let t = seed >>> 0;
@@ -66,6 +82,12 @@ export function runMonteCarloAdvanced(
   const sigma = volatility * SCENARIO_VOL_MULTIPLIER[scenario];
   const rng = mulberry32(FIXED_SEED);
 
+  // ✅ добавляем структурный тренд вверх (регулируется одной константой)
+  const longTermDailyDrift = annualGrowthToDailyLogDrift(
+    LONG_TERM_ANNUAL_GROWTH
+  );
+  const effectiveDrift = drift + longTermDailyDrift;
+
   const timestamps = Array.from({ length: horizonDays + 1 }, (_, i) => i);
   const paths: number[][] = [];
 
@@ -76,7 +98,7 @@ export function runMonteCarloAdvanced(
     for (let t = 1; t <= horizonDays; t++) {
       const prev = path[t - 1];
       const z = randomNormal(rng);
-      path.push(prev * Math.exp(drift + sigma * z));
+      path.push(prev * Math.exp(effectiveDrift + sigma * z));
     }
 
     paths.push(path);
@@ -86,17 +108,14 @@ export function runMonteCarloAdvanced(
   const median = timestamps.map((i) => {
     const values = paths.map((p) => p[i]).sort((a, b) => a - b);
     const m = Math.floor(values.length / 2);
-    return values.length % 2
-      ? values[m]
-      : (values[m - 1] + values[m]) / 2;
+    return values.length % 2 ? values[m] : (values[m - 1] + values[m]) / 2;
   });
 
   // 3) bounds
   const endValues = paths.map((p) => p[horizonDays]).sort((a, b) => a - b);
   const k = Math.max(1, Math.floor(simulations * 0.2));
 
-  const avg = (xs: number[]) =>
-    xs.reduce((s, v) => s + v, 0) / xs.length;
+  const avg = (xs: number[]) => xs.reduce((s, v) => s + v, 0) / xs.length;
 
   const lowerEnd = avg(endValues.slice(0, k));
   const upperEnd = avg(endValues.slice(endValues.length - k));
@@ -129,9 +148,7 @@ export function runMonteCarloAdvanced(
   }
 
   const candidates =
-    validIndices.length > 0
-      ? validIndices
-      : paths.map((_, i) => i); // fallback
+    validIndices.length > 0 ? validIndices : paths.map((_, i) => i); // fallback
 
   // 5) representative selection
   let bestIdx = candidates[0];

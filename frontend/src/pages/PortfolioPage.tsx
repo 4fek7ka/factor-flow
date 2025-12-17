@@ -18,7 +18,7 @@ import type {
 // components
 import { PortfolioMetricsRow } from "../components/portfolio/PortfolioMetricsRow";
 import { PortfolioChartCard } from "../components/portfolio/PortfolioChartCard";
-import { AssetSparklinesSection } from "../components/portfolio/AssetSparklinesSection";
+//import { AssetSparklinesSection } from "../components/portfolio/AssetSparklinesSection";
 import { PortfolioAllocationSection } from "../components/portfolio/PortfolioAllocationSection";
 
 type OutletCtx = {
@@ -53,11 +53,11 @@ export function PortfolioPage() {
     [filteredHistory, amounts]
   );
 
-  const profileSymbols = useMemo(() => {
+  /*const profileSymbols = useMemo(() => {
     return Object.keys(amounts)
       .sort((a, b) => (amounts[b] ?? 0) - (amounts[a] ?? 0))
       .slice(0, 5);
-  }, [amounts]);
+  }, [amounts]);*/
 
   return (
     <div>
