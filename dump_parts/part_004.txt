@@ -1,263 +1,4 @@
-// simulationChart.option.ts
-import type { EChartsCoreOption } from "echarts/core";
-
-const FAN_OUTER = "rgba(148,163,184,0.12)";
-const FAN_INNER = "rgba(148,163,184,0.20)";
-
-const COLOR_MAIN = "#0ea5e9";
-const COLOR_UPPER = "#22c55e";
-const COLOR_LOWER = "#ef4444";
-
-type FanQuantiles = {
-  q05: number[];
-  q25: number[];
-  q50: number[];
-  q75: number[];
-  q95: number[];
-};
-
-type BuildOptionParams = {
-  timestamps: number[];
-  median: number[];
-  representative: number[];
-  upper: number[];
-  lower: number[];
-  cloud: number[][];
-  fan?: FanQuantiles;
-  yDomain: { min: number; max: number };
-  flags: {
-    showCloud: boolean;
-    showMedian: boolean;
-    showRepresentative: boolean;
-    showRange: boolean;
-    showFan: boolean;
-  };
-};
-
-function tooltipRow(label: string, value: number, color: string) {
-  const sign = value >= 0 ? "+" : "";
-  return `
-    <div style="
-      display:flex;
-      justify-content:space-between;
-      gap:12px;
-      margin-top:4px;
-      font-weight:600;
-    ">
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="
-          width:8px;
-          height:8px;
-          border-radius:50%;
-          background:${color};
-        "></span>
-        <span style="color:rgba(226,232,240,0.85)">${label}</span>
-      </div>
-      <span style="color:rgba(226,232,240,0.95)">
-        ${sign}${value.toFixed(2)}%
-      </span>
-    </div>
-  `;
-}
-
-export function buildSimulationChartOption({
-  timestamps,
-  median,
-  representative,
-  upper,
-  lower,
-  cloud,
-  fan,
-  yDomain,
-  flags,
-}: BuildOptionParams): EChartsCoreOption {
-  return {
-    backgroundColor: "transparent",
-
-    tooltip: {
-      trigger: "axis",
-      appendToBody: true,
-
-      /* ✅ Tabler card colors */
-      backgroundColor: "var(--tblr-card-bg)",
-      borderColor: "var(--tblr-border-color)",
-      borderWidth: 1,
-
-      textStyle: {
-        color: "rgba(226,232,240,0.95)",
-        fontSize: 12,
-      },
-
-      axisPointer: {
-        type: "line",
-        lineStyle: {
-          color: "rgba(148,163,184,0.45)",
-          width: 1,
-          type: "dashed",
-        },
-      },
-
-      formatter: (params: any[]) => {
-        const main = params.find((p) => p.seriesName === "Main");
-        if (!main) return "";
-
-        const i = main.dataIndex;
-
-        let html = `
-          <div style="
-            font-weight:700;
-            margin-bottom:6px;
-            color:rgba(226,232,240,0.95)
-          ">
-            Simulation
-          </div>
-        `;
-
-        if (flags.showRange) {
-          html += tooltipRow("Upper", upper[i], COLOR_UPPER);
-        }
-
-        if (flags.showRepresentative) {
-          html += tooltipRow("Main", representative[i], COLOR_MAIN);
-        }
-
-        if (flags.showMedian) {
-          html += tooltipRow("Median", median[i], "rgba(226,232,240,0.7)");
-        }
-
-        if (flags.showRange) {
-          html += tooltipRow("Lower", lower[i], COLOR_LOWER);
-        }
-
-        return html;
-      },
-    },
-
-    grid: { left: 40, right: 48, top: 44, bottom: 40 },
-
-    xAxis: {
-      type: "value",
-      min: 0,
-      max: timestamps[timestamps.length - 1],
-      axisLabel: {
-        color: "rgba(148,163,184,0.85)",
-        formatter: (v: number) => `${Math.round(v)}d`,
-      },
-      axisLine: { lineStyle: { color: "rgba(148,163,184,0.25)" } },
-      splitLine: { show: false },
-    },
-
-    yAxis: {
-      type: "value",
-      min: yDomain.min,
-      max: yDomain.max,
-      position: "right",
-      axisLabel: {
-        color: "rgba(148,163,184,0.85)",
-        formatter: (v: number) =>
-          v === yDomain.min || v === yDomain.max ? "" : `${v}%`,
-      },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: {
-        show: true,
-        lineStyle: { color: "rgba(148,163,184,0.18)" },
-      },
-    },
-
-    series: [
-      ...cloud.map((p) => ({
-        type: "line",
-        name: "Cloud",
-        data: timestamps.map((t, i) => [t, p[i]]),
-        showSymbol: false,
-        silent: true,
-        tooltip: { show: false },
-        lineStyle: {
-          color: "#64748b",
-          width: 1,
-          opacity: flags.showCloud ? 0.15 : 0,
-        },
-        z: 1,
-      })),
-
-      fan && {
-        type: "custom",
-        name: "FanOuter",
-        silent: true,
-        tooltip: { show: false },
-        data: [0],
-        z: 2,
-        renderItem: (_: unknown, api: any) => ({
-          type: "polygon",
-          shape: {
-            points: [
-              ...timestamps.map((t, i) => api.coord([t, fan.q95[i]])),
-              ...timestamps
-                .slice()
-                .reverse()
-                .map((t, i) =>
-                  api.coord([t, fan.q05[fan.q05.length - 1 - i]])
-                ),
-            ],
-          },
-          style: { fill: FAN_OUTER, opacity: flags.showFan ? 1 : 0 },
-        }),
-      },
-
-      fan && {
-        type: "custom",
-        name: "FanInner",
-        silent: true,
-        tooltip: { show: false },
-        data: [0],
-        z: 3,
-        renderItem: (_: unknown, api: any) => ({
-          type: "polygon",
-          shape: {
-            points: [
-              ...timestamps.map((t, i) => api.coord([t, fan.q75[i]])),
-              ...timestamps
-                .slice()
-                .reverse()
-                .map((t, i) =>
-                  api.coord([t, fan.q25[fan.q25.length - 1 - i]])
-                ),
-            ],
-          },
-          style: { fill: FAN_INNER, opacity: flags.showFan ? 1 : 0 },
-        }),
-      },
-
-      {
-        type: "line",
-        name: "Median",
-        data: timestamps.map((t, i) => [t, median[i]]),
-        showSymbol: false,
-        lineStyle: {
-          color: "rgba(226,232,240,0.7)",
-          width: 2,
-          opacity: flags.showMedian ? 1 : 0,
-          type: "dashed",
-        },
-        z: 10,
-      },
-
-      {
-        type: "line",
-        name: "Main",
-        data: timestamps.map((t, i) => [t, representative[i]]),
-        showSymbol: false,
-        lineStyle: {
-          color: COLOR_MAIN,
-          width: 2,
-          opacity: flags.showRepresentative ? 1 : 0,
-        },
-        z: 12,
-      },
-    ].filter(Boolean),
-  };
-}\nfrontend/src/components/simulation/simulationChart.utils.ts\n// simulationChart.utils.ts
+// simulationChart.utils.ts
 
 export type FanQuantiles = {
   q05: number[];
@@ -398,6 +139,10 @@ const SCENARIOS = [
   ["stress", "Stress"],
 ] as const satisfies readonly (readonly [Scenario, string])[];
 
+/* =========================
+   UI helpers
+========================= */
+
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div style={{ marginBottom: 12 }}>
@@ -437,24 +182,19 @@ function SegButton({
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-
         fontSize: 12,
         fontWeight: 800,
         lineHeight: "16px",
         borderRadius: 8,
-
         border: active
           ? "1px solid rgba(56,189,248,0.55)"
           : "1px solid rgba(255,255,255,0.10)",
-
         background: active
           ? "rgba(14,165,233,0.22)"
-          : "rgba(15,23,42,0.45)",
-
+          : "rgba(15,23,42,0.55)",
         color: active
           ? "rgba(226,232,240,0.95)"
           : "rgba(226,232,240,0.75)",
-
         cursor: "pointer",
         transition: "all 120ms ease",
         userSelect: "none",
@@ -500,19 +240,15 @@ function ToggleRow({
         alignItems: "center",
         justifyContent: "space-between",
         borderRadius: 10,
-
         border: active
           ? "1px solid rgba(56,189,248,0.45)"
           : "1px solid rgba(255,255,255,0.08)",
-
         background: active
           ? "rgba(14,165,233,0.14)"
-          : "rgba(15,23,42,0.28)",
-
+          : "rgba(15,23,42,0.45)",
         color: active
           ? "rgba(226,232,240,0.95)"
           : "rgba(226,232,240,0.80)",
-
         cursor: "pointer",
         userSelect: "none",
       }}
@@ -523,117 +259,123 @@ function ToggleRow({
           width: 10,
           height: 10,
           borderRadius: 999,
-          background: active ? "rgba(14,165,233,1)" : "rgba(100,116,139,1)",
+          background: active
+            ? "rgba(14,165,233,1)"
+            : "rgba(100,116,139,1)",
         }}
       />
     </button>
   );
 }
 
+/* =========================
+   Component
+========================= */
+
 export function SimulationControls({ value, onChange }: Props) {
   const patch = (next: Partial<SimulationParams>) =>
     onChange({ ...value, ...next });
 
   return (
-    <div
-      style={{
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        borderRadius: 12,
-        background: "rgba(15,23,42,0.34)",
-        backdropFilter: "blur(12px)",
-        border: "1px solid rgba(255,255,255,0.05)",
-      }}
-    >
-      <div style={{ padding: 14, flexShrink: 0 }}>
-        <div style={{ fontWeight: 800, fontSize: 14 }}>Simulation settings</div>
-        <div style={{ fontSize: 12, color: "rgba(148,163,184,0.8)" }}>
-          Horizon, scenario and runs
-        </div>
-      </div>
-
+    <div className="card" style={{ height: "100%" }}>
       <div
+        className="card-body"
         style={{
-          padding: "0 14px 14px",
-          overflowY: "auto",
-          flex: 1,
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          padding: 0, // важно: управляем паддингами вручную
         }}
       >
-        <Section title="Horizon">
-          <SegGroup cols={4}>
-            {HORIZONS.map((d) => (
-              <SegButton
-                key={d}
-                label={`${d}d`}
-                active={value.horizonDays === d}
-                onClick={() => patch({ horizonDays: d })}
-              />
-            ))}
-          </SegGroup>
-        </Section>
-
-        <Section title="Scenario">
-          <SegGroup cols={3}>
-            {SCENARIOS.map(([key, label]) => (
-              <SegButton
-                key={key}
-                label={label}
-                active={value.scenario === key}
-                onClick={() => patch({ scenario: key })}
-              />
-            ))}
-          </SegGroup>
-        </Section>
-
-        <Section title="Simulations">
-          <SegGroup cols={3}>
-            {SIMULATIONS.map((n) => (
-              <SegButton
-                key={n}
-                label={`${n}`}
-                active={value.simulations === n}
-                onClick={() => patch({ simulations: n })}
-              />
-            ))}
-          </SegGroup>
-        </Section>
-
-        <Section title="Overlays">
-          <div style={{ display: "grid", gap: 8 }}>
-            <ToggleRow
-              label="Main"
-              active={value.showRepresentative}
-              onClick={() =>
-                patch({ showRepresentative: !value.showRepresentative })
-              }
-            />
-
-            <ToggleRow
-              label="Fan (Quantiles)"
-              active={value.showFan}
-              onClick={() => patch({ showFan: !value.showFan })}
-            />
-
-            <ToggleRow
-              label="Median"
-              active={value.showMedian}
-              onClick={() => patch({ showMedian: !value.showMedian })}
-            />
-
-            <ToggleRow
-              label="Cloud"
-              active={value.showCloud}
-              onClick={() => patch({ showCloud: !value.showCloud })}
-            />
-
-            <ToggleRow
-              label="Range"
-              active={value.showRange}
-              onClick={() => patch({ showRange: !value.showRange })}
-            />
+        {/* HEADER */}
+        <div style={{ padding: 14, flexShrink: 0 }}>
+          <div style={{ fontWeight: 800, fontSize: 14 }}>
+            Simulation settings
           </div>
-        </Section>
+          <div style={{ fontSize: 12, color: "rgba(148,163,184,0.8)" }}>
+            Horizon, scenario and runs
+          </div>
+        </div>
+
+        {/* CONTENT */}
+        <div
+          style={{
+            padding: "0 14px 14px",
+            overflowY: "auto",
+            flex: 1,
+          }}
+        >
+          <Section title="Horizon">
+            <SegGroup cols={4}>
+              {HORIZONS.map((d) => (
+                <SegButton
+                  key={d}
+                  label={`${d}d`}
+                  active={value.horizonDays === d}
+                  onClick={() => patch({ horizonDays: d })}
+                />
+              ))}
+            </SegGroup>
+          </Section>
+
+          <Section title="Scenario">
+            <SegGroup cols={3}>
+              {SCENARIOS.map(([key, label]) => (
+                <SegButton
+                  key={key}
+                  label={label}
+                  active={value.scenario === key}
+                  onClick={() => patch({ scenario: key })}
+                />
+              ))}
+            </SegGroup>
+          </Section>
+
+          <Section title="Simulations">
+            <SegGroup cols={3}>
+              {SIMULATIONS.map((n) => (
+                <SegButton
+                  key={n}
+                  label={`${n}`}
+                  active={value.simulations === n}
+                  onClick={() => patch({ simulations: n })}
+                />
+              ))}
+            </SegGroup>
+          </Section>
+
+          <Section title="Overlays">
+            <div style={{ display: "grid", gap: 8 }}>
+              <ToggleRow
+                label="Main"
+                active={value.showRepresentative}
+                onClick={() =>
+                  patch({ showRepresentative: !value.showRepresentative })
+                }
+              />
+              <ToggleRow
+                label="Fan (Quantiles)"
+                active={value.showFan}
+                onClick={() => patch({ showFan: !value.showFan })}
+              />
+              <ToggleRow
+                label="Median"
+                active={value.showMedian}
+                onClick={() => patch({ showMedian: !value.showMedian })}
+              />
+              <ToggleRow
+                label="Cloud"
+                active={value.showCloud}
+                onClick={() => patch({ showCloud: !value.showCloud })}
+              />
+              <ToggleRow
+                label="Range"
+                active={value.showRange}
+                onClick={() => patch({ showRange: !value.showRange })}
+              />
+            </div>
+          </Section>
+        </div>
       </div>
     </div>
   );
@@ -1047,4 +789,299 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
   </StrictMode>
-);\nfrontend/src/pages/AssetsPage.tsx\n
+);\nfrontend/src/pages/AssetsPage.tsx\nimport { useEffect, useMemo, useState } from "react";
+
+import {
+  fetchMarkets,
+  fetchGlobal,
+  fetchFearGreed,
+} from "../services//assets/assetsApi";
+
+import {
+  saveMarkets,
+  readMarkets,
+  isMarketsFresh,
+  saveGlobal,
+  readGlobal,
+  saveFearGreed,
+  readFearGreed,
+} from "../services/assets/assetsCache";
+
+import {
+  buildAssetsTable,
+  getDominance,
+  getGlobalMarketCapSnapshot,
+  getTopGainer7d,
+  type AssetRow,
+} from "../services/assets/assetsSelectors";
+
+import { fetchBinancePrices } from "../services/assets/binanceService";
+
+import { AssetsTable } from "../components/assets/AssetsTable";
+import { MarketCapCard } from "../components/assets/MarketCapCard";
+import { FearGreedCard } from "../components/assets/FearGreedCard";
+import { BtcEthAltCard } from "../components/assets/BtcEthAltCard";
+import { TopGainer7dCard } from "../components/assets/TopGainer7dCard";
+
+const PAGE_SIZE = 20;
+
+export function AssetsPage() {
+  const [assets, setAssets] = useState<AssetRow[]>([]);
+  const [livePrices, setLivePrices] = useState<Record<string, number>>({});
+  const [page, setPage] = useState(1);
+
+  const [fearGreed, setFearGreed] = useState<number | null>(null);
+  const [marketCap, setMarketCap] = useState<{
+    capUsd: number;
+    changePct24h: number;
+    sparkline: number[];
+  } | null>(null);
+
+  const [dominance, setDominance] = useState<{
+    btc: number;
+    eth: number;
+    alt: number;
+  } | null>(null);
+
+  const [topGainer, setTopGainer] = useState<{
+    name: string;
+    symbol: string;
+    image?: string;
+    pct7d: number;
+  } | null>(null);
+
+  /* ===== BASE DATA ===== */
+  useEffect(() => {
+    async function load() {
+      if (!isMarketsFresh()) {
+        const [markets, global, fear] = await Promise.all([
+          fetchMarkets(),
+          fetchGlobal(),
+          fetchFearGreed(),
+        ]);
+
+        saveMarkets(markets);
+        saveGlobal(global);
+        if (fear !== null) saveFearGreed(fear);
+      }
+
+      const markets = readMarkets() ?? [];
+      const global = readGlobal();
+      const fear = readFearGreed();
+
+      setAssets(buildAssetsTable(markets));
+      setFearGreed(fear);
+
+      if (global) {
+        const snap = getGlobalMarketCapSnapshot(global);
+        setMarketCap({
+          capUsd: snap.capUsd,
+          changePct24h: snap.changePct24h,
+          sparkline: markets[0]?.sparkline_in_7d?.price ?? [],
+        });
+
+        setDominance(getDominance(global));
+      }
+
+      setTopGainer(getTopGainer7d(markets));
+    }
+
+    load().catch(console.error);
+  }, []);
+
+  /* ===== PAGINATION ===== */
+  const totalPages = Math.max(1, Math.ceil(assets.length / PAGE_SIZE));
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const pagedAssets = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return assets.slice(start, start + PAGE_SIZE);
+  }, [assets, page]);
+
+  /* ===== LIVE PRICES ===== */
+  const visibleSymbols = useMemo(
+    () => pagedAssets.map((a) => a.symbol),
+    [pagedAssets]
+  );
+
+  useEffect(() => {
+    if (!visibleSymbols.length) return;
+
+    let active = true;
+
+    async function tick() {
+      try {
+        const prices = await fetchBinancePrices();
+        if (active) setLivePrices(prices);
+      } catch {}
+    }
+
+    tick();
+    const id = setInterval(tick, 4_000);
+
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, [visibleSymbols]);
+
+  return (
+    <div>
+      <div className="row row-cards mb-2">
+        <div className="col-12 col-md-6 col-lg-3 d-flex">
+          {marketCap && (
+            <MarketCapCard
+              capUsd={marketCap.capUsd}
+              changePct={marketCap.changePct24h}
+              spark={marketCap.sparkline}
+            />
+          )}
+        </div>
+
+        <div className="col-12 col-md-6 col-lg-3 d-flex">
+          {fearGreed !== null && <FearGreedCard value={fearGreed} />}
+        </div>
+
+        <div className="col-12 col-md-6 col-lg-3 d-flex">
+          {dominance && (
+            <BtcEthAltCard
+              btc={dominance.btc}
+              eth={dominance.eth}
+              alt={dominance.alt}
+            />
+          )}
+        </div>
+
+        <div className="col-12 col-md-6 col-lg-3 d-flex">
+          {topGainer && (
+            <TopGainer7dCard
+              name={topGainer.name}
+              symbol={topGainer.symbol}
+              image={topGainer.image}
+              pct7d={topGainer.pct7d}
+            />
+          )}
+        </div>
+      </div>
+
+      <div style={{ marginTop: 15 }}>
+        <AssetsTable assets={pagedAssets} livePrices={livePrices} />
+      </div>
+
+      {/* Pagination */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          marginTop: 16,
+          gap: 8,
+        }}
+      >
+        <button
+          className="btn btn-sm"
+          disabled={page === 1}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+        >
+          Prev
+        </button>
+
+        {Array.from({ length: totalPages }).map((_, i) => {
+          const p = i + 1;
+          const active = p === page;
+
+          return (
+            <button
+              key={p}
+              className={`btn btn-sm ${active ? "btn-primary" : ""}`}
+              onClick={() => setPage(p)}
+            >
+              {p}
+            </button>
+          );
+        })}
+
+        <button
+          className="btn btn-sm"
+          disabled={page === totalPages}
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}\nfrontend/src/pages/PortfolioPage.tsx\nimport { useMemo, useState } from "react";
+import historyJson from "../data/mock-history.json";
+
+import {
+  buildTopMetrics,
+  filterHistoryByPeriod,
+} from "../services/portfolio/portfolioService";
+
+import type {
+  HistoryPoint,
+  Period,
+  AssetAmounts,
+} from "../services/portfolio/portfolioService";
+
+// portfolio components
+import { PortfolioMetricsRow } from "../components/portfolio/PortfolioMetricsRow";
+import { PortfolioChartCard } from "../components/portfolio/PortfolioChartCard";
+import { PortfolioAllocationSection } from "../components/portfolio/PortfolioAllocationSection";
+
+// локальный fallback (чтобы не зависеть от экспорта DEFAULT_AMOUNTS)
+const DEFAULT_AMOUNTS: AssetAmounts = {
+  ETH: 2,
+  WBTC: 0.03,
+  USDC: 80,
+  DAI: 40,
+  UNI: 400,
+};
+
+export function PortfolioPage() {
+  const history = historyJson as unknown as HistoryPoint[];
+
+  const [period, setPeriod] = useState<Period>("year");
+
+  const filteredHistory = useMemo(
+    () => filterHistoryByPeriod(history, period),
+    [history, period]
+  );
+
+  const metrics = useMemo(
+    () => buildTopMetrics(filteredHistory, DEFAULT_AMOUNTS, "BTC"),
+    [filteredHistory]
+  );
+
+  return (
+    <div>
+      <PortfolioMetricsRow
+        tvl={metrics.tvl}
+        lastTsMs={metrics.lastTsMs}
+        changeUsd={metrics.changeUsd}
+        changePct={metrics.changePct}
+        vsBtcPp={metrics.vsBtcPp}
+        btcPct={metrics.btcPct}
+        period={period}
+      />
+
+      <PortfolioChartCard
+        history={filteredHistory}
+        period={period}
+        onPeriodChange={setPeriod}
+        amounts={DEFAULT_AMOUNTS}
+      />
+
+      <PortfolioAllocationSection history={filteredHistory} amounts={DEFAULT_AMOUNTS} />
+
+      {/* amounts сюда НЕ передаём (компонент его не принимает) */}
+    </div>
+  );
+}\nfrontend/src/pages/PricesPage.tsx\nexport function PricesPage() {
+  return <div>Prices Page</div>;
+}\nfrontend/src/pages/SettingsPage.tsx\nexport function SettingsPage() {
+  return <div>Settings</div>;
+}\nfrontend/src/pages/SimulationPage.tsx\n

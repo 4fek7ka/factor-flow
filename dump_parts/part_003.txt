@@ -355,60 +355,23 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
   const fillWidth = Math.abs(model.posPct - centerPct);
 
   return (
-    <div
-      className="card card-sm w-100"
-      style={{
-        background: "#0f172a",
-        border: "1px solid rgba(255,255,255,0.06)",
-      }}
-    >
+    <div className="card card-sm w-100">
       <div className="card-body">
-        <div
-          style={{
-            fontWeight: 700,
-            color: "rgba(226,232,240,0.95)",
-            marginBottom: 10,
-          }}
-        >
+        <div style={{ fontWeight: 700, marginBottom: 10 }}>
           Final outcome
         </div>
 
-        {/* PRICE + PERCENT */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            marginBottom: 14,
-            whiteSpace: "nowrap",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 28,
-              fontWeight: 800,
-              color: "rgba(226,232,240,0.95)",
-            }}
-          >
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+          <div style={{ fontSize: 28, fontWeight: 800 }}>
             {formatMoney(median)}
           </div>
-
-          <div
-            style={{
-              fontSize: 16,
-              fontWeight: 800,
-              color: ACCENT_COLOR,
-              transform: "translateY(2px)", // ← на пару пикселей ниже
-            }}
-          >
+          <div style={{ fontSize: 16, fontWeight: 800, color: ACCENT_COLOR }}>
             {sign}
             {Math.abs(model.deltaPct).toFixed(1)}%
           </div>
         </div>
 
-        {/* === DELTA SCALE === */}
         <div style={{ position: "relative", height: 20 }}>
-          {/* base line */}
           <div
             style={{
               position: "absolute",
@@ -422,7 +385,6 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
             }}
           />
 
-          {/* filled progress from center */}
           <div
             style={{
               position: "absolute",
@@ -438,7 +400,6 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
             }}
           />
 
-          {/* zero marker (СТРОГО ПО ЦЕНТРУ) */}
           <div
             style={{
               position: "absolute",
@@ -451,7 +412,6 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
             }}
           />
 
-          {/* marker */}
           <div
             style={{
               position: "absolute",
@@ -462,43 +422,14 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
               height: 16,
               borderRadius: "50%",
               background: ACCENT_COLOR,
-              border: "1px solid rgba(148,163,184,0.65)",
-              boxShadow:
-                model.isPositive
-                  ? "0 0 8px rgba(34,197,94,0.25)"
-                  : "0 0 8px rgba(239,68,68,0.25)",
             }}
           />
         </div>
 
-        {/* scale labels */}
-        <div
-          style={{
-            position: "relative",
-            height: 16,
-            marginTop: 6,
-            fontSize: 12,
-            fontWeight: 700,
-            color: "rgba(148,163,184,0.95)",
-          }}
-        >
-          <div style={{ position: "absolute", left: 0 }}>
-            -{model.RANGE}%
-          </div>
-
-          <div
-            style={{
-              position: "absolute",
-              left: "50%",
-              transform: "translateX(-50%)",
-            }}
-          >
-            0%
-          </div>
-
-          <div style={{ position: "absolute", right: 0 }}>
-            +{model.RANGE}%
-          </div>
+        <div style={{ position: "relative", height: 16, marginTop: 6, fontSize: 12 }}>
+          <div style={{ position: "absolute", left: 0 }}>-{model.RANGE}%</div>
+          <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}>0%</div>
+          <div style={{ position: "absolute", right: 0 }}>+{model.RANGE}%</div>
         </div>
       </div>
     </div>
@@ -558,14 +489,7 @@ export function OutcomeDistributionCard({
     const medianPos = ((median - min) / (max - min || 1)) * 100;
     const isPositive = median >= start;
 
-    return {
-      bins,
-      min,
-      max,
-      median,
-      medianPos,
-      isPositive,
-    };
+    return { bins, min, max, median, medianPos, isPositive };
   }, [paths]);
 
   if (!model) return null;
@@ -579,59 +503,24 @@ export function OutcomeDistributionCard({
   )`;
 
   return (
-    <div
-      className="card card-sm w-100"
-      style={{
-        background: "#0f172a",
-        border: "1px solid rgba(255,255,255,0.06)",
-      }}
-    >
+    <div className="card card-sm w-100">
       <div className="card-body">
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginBottom: 10,
-          }}
-        >
-          <div
-            style={{
-              fontWeight: 700,
-              color: "rgba(226,232,240,0.95)",
-            }}
-          >
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+          <div style={{ fontWeight: 700, color: "rgba(226,232,240,0.95)" }}>
             {title}
           </div>
 
           <div style={{ textAlign: "right" }}>
-            <div
-              style={{
-                fontSize: 12,
-                color: "rgba(148,163,184,0.9)",
-              }}
-            >
+            <div style={{ fontSize: 12, color: "rgba(148,163,184,0.9)" }}>
               median
             </div>
-            <div
-              style={{
-                fontWeight: 800,
-                color: MEDIAN_COLOR,
-              }}
-            >
+            <div style={{ fontWeight: 800, color: MEDIAN_COLOR }}>
               {formatMoney(model.median)}
             </div>
           </div>
         </div>
 
-        <div
-          style={{
-            position: "relative",
-            height: 72,
-            display: "flex",
-            alignItems: "flex-end",
-            gap: 5,
-          }}
-        >
+        <div style={{ position: "relative", height: 72, display: "flex", alignItems: "flex-end", gap: 5 }}>
           {model.bins.map((v, i) => (
             <div
               key={i}
@@ -646,7 +535,6 @@ export function OutcomeDistributionCard({
             />
           ))}
 
-          {/* median marker: чуть толще + rounded ends */}
           <div
             style={{
               position: "absolute",
@@ -654,23 +542,14 @@ export function OutcomeDistributionCard({
               top: -6,
               bottom: -6,
               transform: "translateX(-50%)",
-              width: 3, // ← чуть толще (было 2)
+              width: 3,
               background: MEDIAN_COLOR,
               borderRadius: 999,
-              boxShadow: "0 0 10px rgba(226,232,240,0.07)",
             }}
           />
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginTop: 8,
-            fontSize: 12,
-            color: "rgba(226,232,240,0.95)",
-          }}
-        >
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 12 }}>
           <div>min {formatMoney(model.min)}</div>
           <div>max {formatMoney(model.max)}</div>
         </div>
@@ -949,4 +828,263 @@ export function SimulationChartCard({
       <div ref={ref} style={{ width: "100%", height: "100%" }} />
     </div>
   );
-}\nfrontend/src/components/simulation/simulationChart.option.ts\n
+}\nfrontend/src/components/simulation/simulationChart.option.ts\n// simulationChart.option.ts
+import type { EChartsCoreOption } from "echarts/core";
+
+const FAN_OUTER = "rgba(148,163,184,0.12)";
+const FAN_INNER = "rgba(148,163,184,0.20)";
+
+const COLOR_MAIN = "#0ea5e9";
+const COLOR_UPPER = "#22c55e";
+const COLOR_LOWER = "#ef4444";
+
+type FanQuantiles = {
+  q05: number[];
+  q25: number[];
+  q50: number[];
+  q75: number[];
+  q95: number[];
+};
+
+type BuildOptionParams = {
+  timestamps: number[];
+  median: number[];
+  representative: number[];
+  upper: number[];
+  lower: number[];
+  cloud: number[][];
+  fan?: FanQuantiles;
+  yDomain: { min: number; max: number };
+  flags: {
+    showCloud: boolean;
+    showMedian: boolean;
+    showRepresentative: boolean;
+    showRange: boolean;
+    showFan: boolean;
+  };
+};
+
+function tooltipRow(label: string, value: number, color: string) {
+  const sign = value >= 0 ? "+" : "";
+  return `
+    <div style="
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      margin-top:4px;
+      font-weight:600;
+    ">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="
+          width:8px;
+          height:8px;
+          border-radius:50%;
+          background:${color};
+        "></span>
+        <span style="color:rgba(226,232,240,0.85)">${label}</span>
+      </div>
+      <span style="color:rgba(226,232,240,0.95)">
+        ${sign}${value.toFixed(2)}%
+      </span>
+    </div>
+  `;
+}
+
+export function buildSimulationChartOption({
+  timestamps,
+  median,
+  representative,
+  upper,
+  lower,
+  cloud,
+  fan,
+  yDomain,
+  flags,
+}: BuildOptionParams): EChartsCoreOption {
+  return {
+    backgroundColor: "transparent",
+
+    tooltip: {
+      trigger: "axis",
+      appendToBody: true,
+
+      /* ✅ Tabler card colors */
+      backgroundColor: "var(--tblr-card-bg)",
+      borderColor: "var(--tblr-border-color)",
+      borderWidth: 1,
+
+      textStyle: {
+        color: "rgba(226,232,240,0.95)",
+        fontSize: 12,
+      },
+
+      axisPointer: {
+        type: "line",
+        lineStyle: {
+          color: "rgba(148,163,184,0.45)",
+          width: 1,
+          type: "dashed",
+        },
+      },
+
+      formatter: (params: any[]) => {
+        const main = params.find((p) => p.seriesName === "Main");
+        if (!main) return "";
+
+        const i = main.dataIndex;
+
+        let html = `
+          <div style="
+            font-weight:700;
+            margin-bottom:6px;
+            color:rgba(226,232,240,0.95)
+          ">
+            Simulation
+          </div>
+        `;
+
+        if (flags.showRange) {
+          html += tooltipRow("Upper", upper[i], COLOR_UPPER);
+        }
+
+        if (flags.showRepresentative) {
+          html += tooltipRow("Main", representative[i], COLOR_MAIN);
+        }
+
+        if (flags.showMedian) {
+          html += tooltipRow("Median", median[i], "rgba(226,232,240,0.7)");
+        }
+
+        if (flags.showRange) {
+          html += tooltipRow("Lower", lower[i], COLOR_LOWER);
+        }
+
+        return html;
+      },
+    },
+
+    grid: { left: 40, right: 48, top: 44, bottom: 40 },
+
+    xAxis: {
+      type: "value",
+      min: 0,
+      max: timestamps[timestamps.length - 1],
+      axisLabel: {
+        color: "rgba(148,163,184,0.85)",
+        formatter: (v: number) => `${Math.round(v)}d`,
+      },
+      axisLine: { lineStyle: { color: "rgba(148,163,184,0.25)" } },
+      splitLine: { show: false },
+    },
+
+    yAxis: {
+      type: "value",
+      min: yDomain.min,
+      max: yDomain.max,
+      position: "right",
+      axisLabel: {
+        color: "rgba(148,163,184,0.85)",
+        formatter: (v: number) =>
+          v === yDomain.min || v === yDomain.max ? "" : `${v}%`,
+      },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: {
+        show: true,
+        lineStyle: { color: "rgba(148,163,184,0.18)" },
+      },
+    },
+
+    series: [
+      ...cloud.map((p) => ({
+        type: "line",
+        name: "Cloud",
+        data: timestamps.map((t, i) => [t, p[i]]),
+        showSymbol: false,
+        silent: true,
+        tooltip: { show: false },
+        lineStyle: {
+          color: "#64748b",
+          width: 1,
+          opacity: flags.showCloud ? 0.15 : 0,
+        },
+        z: 1,
+      })),
+
+      fan && {
+        type: "custom",
+        name: "FanOuter",
+        silent: true,
+        tooltip: { show: false },
+        data: [0],
+        z: 2,
+        renderItem: (_: unknown, api: any) => ({
+          type: "polygon",
+          shape: {
+            points: [
+              ...timestamps.map((t, i) => api.coord([t, fan.q95[i]])),
+              ...timestamps
+                .slice()
+                .reverse()
+                .map((t, i) =>
+                  api.coord([t, fan.q05[fan.q05.length - 1 - i]])
+                ),
+            ],
+          },
+          style: { fill: FAN_OUTER, opacity: flags.showFan ? 1 : 0 },
+        }),
+      },
+
+      fan && {
+        type: "custom",
+        name: "FanInner",
+        silent: true,
+        tooltip: { show: false },
+        data: [0],
+        z: 3,
+        renderItem: (_: unknown, api: any) => ({
+          type: "polygon",
+          shape: {
+            points: [
+              ...timestamps.map((t, i) => api.coord([t, fan.q75[i]])),
+              ...timestamps
+                .slice()
+                .reverse()
+                .map((t, i) =>
+                  api.coord([t, fan.q25[fan.q25.length - 1 - i]])
+                ),
+            ],
+          },
+          style: { fill: FAN_INNER, opacity: flags.showFan ? 1 : 0 },
+        }),
+      },
+
+      {
+        type: "line",
+        name: "Median",
+        data: timestamps.map((t, i) => [t, median[i]]),
+        showSymbol: false,
+        lineStyle: {
+          color: "rgba(226,232,240,0.7)",
+          width: 2,
+          opacity: flags.showMedian ? 1 : 0,
+          type: "dashed",
+        },
+        z: 10,
+      },
+
+      {
+        type: "line",
+        name: "Main",
+        data: timestamps.map((t, i) => [t, representative[i]]),
+        showSymbol: false,
+        lineStyle: {
+          color: COLOR_MAIN,
+          width: 2,
+          opacity: flags.showRepresentative ? 1 : 0,
+        },
+        z: 12,
+      },
+    ].filter(Boolean),
+  };
+}\nfrontend/src/components/simulation/simulationChart.utils.ts\n
