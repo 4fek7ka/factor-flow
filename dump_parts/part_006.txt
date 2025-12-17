@@ -1,4 +1,275 @@
-import { Outlet } from "react-router-dom";
+// SimulationControls.tsx
+import type { ReactNode } from "react";
+import type { Scenario } from "../../services/simulation/monteCarloService";
+
+export type SimulationParams = {
+  horizonDays: 30 | 90 | 180 | 365;
+  scenario: Scenario;
+  simulations: 50 | 100 | 200;
+
+  showCloud: boolean;
+  showMedian: boolean;
+  showRepresentative: boolean;
+  showRange: boolean;
+
+  showFan: boolean;
+};
+
+type Props = {
+  value: SimulationParams;
+  onChange: (next: SimulationParams) => void;
+};
+
+const HORIZONS = [30, 90, 180, 365] as const;
+const SIMULATIONS = [50, 100, 200] as const;
+
+const SCENARIOS = [
+  ["conservative", "Conservative"],
+  ["baseline", "Baseline"],
+  ["stress", "Stress"],
+] as const satisfies readonly (readonly [Scenario, string])[];
+
+/* =========================
+   UI helpers
+========================= */
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 800,
+          letterSpacing: 0.4,
+          textTransform: "uppercase",
+          color: "rgba(148,163,184,0.75)",
+          marginBottom: 6,
+        }}
+      >
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function SegButton({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        height: 32,
+        padding: "0 10px",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 12,
+        fontWeight: 800,
+        lineHeight: "16px",
+        borderRadius: 8,
+        border: active
+          ? "1px solid rgba(56,189,248,0.55)"
+          : "1px solid rgba(255,255,255,0.10)",
+        background: active
+          ? "rgba(14,165,233,0.22)"
+          : "rgba(15,23,42,0.55)",
+        color: active
+          ? "rgba(226,232,240,0.95)"
+          : "rgba(226,232,240,0.75)",
+        cursor: "pointer",
+        transition: "all 120ms ease",
+        userSelect: "none",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function SegGroup({ children, cols }: { children: ReactNode; cols: number }) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+        gap: 6,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function ToggleRow({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        height: 34,
+        width: "100%",
+        padding: "0 10px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        borderRadius: 10,
+        border: active
+          ? "1px solid rgba(56,189,248,0.45)"
+          : "1px solid rgba(255,255,255,0.08)",
+        background: active
+          ? "rgba(14,165,233,0.14)"
+          : "rgba(15,23,42,0.45)",
+        color: active
+          ? "rgba(226,232,240,0.95)"
+          : "rgba(226,232,240,0.80)",
+        cursor: "pointer",
+        userSelect: "none",
+      }}
+    >
+      <span style={{ fontSize: 12, fontWeight: 800 }}>{label}</span>
+      <span
+        style={{
+          width: 10,
+          height: 10,
+          borderRadius: 999,
+          background: active
+            ? "rgba(14,165,233,1)"
+            : "rgba(100,116,139,1)",
+        }}
+      />
+    </button>
+  );
+}
+
+/* =========================
+   Component
+========================= */
+
+export function SimulationControls({ value, onChange }: Props) {
+  const patch = (next: Partial<SimulationParams>) =>
+    onChange({ ...value, ...next });
+
+  return (
+    <div className="card" style={{ height: "100%" }}>
+      <div
+        className="card-body"
+        style={{
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          padding: 0, // важно: управляем паддингами вручную
+        }}
+      >
+        {/* HEADER */}
+        <div style={{ padding: 14, flexShrink: 0 }}>
+          <div style={{ fontWeight: 800, fontSize: 14 }}>
+            Simulation settings
+          </div>
+          <div style={{ fontSize: 12, color: "rgba(148,163,184,0.8)" }}>
+            Horizon, scenario and runs
+          </div>
+        </div>
+
+        {/* CONTENT */}
+        <div
+          style={{
+            padding: "0 14px 14px",
+            overflowY: "auto",
+            flex: 1,
+          }}
+        >
+          <Section title="Horizon">
+            <SegGroup cols={4}>
+              {HORIZONS.map((d) => (
+                <SegButton
+                  key={d}
+                  label={`${d}d`}
+                  active={value.horizonDays === d}
+                  onClick={() => patch({ horizonDays: d })}
+                />
+              ))}
+            </SegGroup>
+          </Section>
+
+          <Section title="Scenario">
+            <SegGroup cols={3}>
+              {SCENARIOS.map(([key, label]) => (
+                <SegButton
+                  key={key}
+                  label={label}
+                  active={value.scenario === key}
+                  onClick={() => patch({ scenario: key })}
+                />
+              ))}
+            </SegGroup>
+          </Section>
+
+          <Section title="Simulations">
+            <SegGroup cols={3}>
+              {SIMULATIONS.map((n) => (
+                <SegButton
+                  key={n}
+                  label={`${n}`}
+                  active={value.simulations === n}
+                  onClick={() => patch({ simulations: n })}
+                />
+              ))}
+            </SegGroup>
+          </Section>
+
+          <Section title="Overlays">
+            <div style={{ display: "grid", gap: 8 }}>
+              <ToggleRow
+                label="Main"
+                active={value.showRepresentative}
+                onClick={() =>
+                  patch({ showRepresentative: !value.showRepresentative })
+                }
+              />
+              <ToggleRow
+                label="Fan (Quantiles)"
+                active={value.showFan}
+                onClick={() => patch({ showFan: !value.showFan })}
+              />
+              <ToggleRow
+                label="Median"
+                active={value.showMedian}
+                onClick={() => patch({ showMedian: !value.showMedian })}
+              />
+              <ToggleRow
+                label="Cloud"
+                active={value.showCloud}
+                onClick={() => patch({ showCloud: !value.showCloud })}
+              />
+              <ToggleRow
+                label="Range"
+                active={value.showRange}
+                onClick={() => patch({ showRange: !value.showRange })}
+              />
+            </div>
+          </Section>
+        </div>
+      </div>
+    </div>
+  );
+}\nfrontend/src/layout/AppLayout.tsx\nimport { Outlet } from "react-router-dom";
 import { useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { ProfileSwitcher } from "./ProfileSwitcher";
@@ -34,7 +305,7 @@ export function AppLayout() {
             alignItems: "center",
             background: "#111827",
             borderBottom: "1px solid rgba(255,255,255,0.06)",
-            padding: "0 130px",
+            padding: "0 125px",
           }}
         >
           {/* LEFT: LOGO + TITLE */}
@@ -151,7 +422,8 @@ function NavItem({ to, label }: { to: string; label: string }) {
       </NavLink>
     </li>
   );
-}\nfrontend/src/layout/ProfileSwitcher.tsx\nimport { useEffect, useMemo, useRef, useState } from "react";
+}\nfrontend/src/layout/ProfileSwitcher.tsx\n// frontend/src/layout/ProfileSwitcher.tsx
+import { useEffect, useMemo, useRef, useState } from "react";
 import portfoliosJson from "../data/mock-portfolios.json";
 import { buildIdenticonDataUri } from "../utils/identicon";
 
@@ -166,6 +438,9 @@ type Props = {
   selectedId: string;
   onSelect: (id: string) => void;
 };
+
+const FONT_FAMILY =
+  'system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif';
 
 export function ProfileSwitcher({ selectedId, onSelect }: Props) {
   const profiles = (portfoliosJson as any).profiles as Profile[];
@@ -192,6 +467,32 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
     [selected.owner.address]
   );
 
+  // ✅ фиксируем ширину имени по максимальному имени среди профилей (в пикселях)
+  const nameWidthPx = useMemo(() => {
+    const names = (profiles ?? []).map((p) => (p?.name ?? "").trim());
+    if (!names.length) return 120;
+
+    // fallback (если canvas недоступен)
+    const maxLen = Math.max(...names.map((n) => n.length), 8);
+    const fallback = Math.ceil(maxLen * 8.2) + 2;
+
+    if (typeof document === "undefined") return fallback;
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return fallback;
+
+    // должно совпадать со стилем текста в кнопке
+    ctx.font = `600 14px ${FONT_FAMILY}`;
+
+    let max = 0;
+    for (const n of names) {
+      max = Math.max(max, ctx.measureText(n).width);
+    }
+
+    return Math.ceil(max) + 2;
+  }, [profiles]);
+
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <button
@@ -206,17 +507,37 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
           border: "1px solid rgba(255,255,255,0.08)",
           color: "#fff",
           cursor: "pointer",
+
+          // фиксируем параметры шрифта (и для измерения, и для консистентности)
+          fontFamily: FONT_FAMILY,
+          fontSize: 14,
+          fontWeight: 600,
+          lineHeight: "20px",
         }}
       >
         <img
           src={avatar}
           width={32}
           height={32}
-          style={{ borderRadius: 999 }}
+          style={{ borderRadius: 999, flex: "0 0 auto" }}
           alt=""
         />
-        <span style={{ fontWeight: 600 }}>{selected.name}</span>
-        <span style={{ opacity: 0.7 }}>▾</span>
+
+        {/* ✅ фиксированная ширина под самое длинное имя */}
+        <span
+          style={{
+            display: "inline-block",
+            width: nameWidthPx,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+          title={selected.name}
+        >
+          {selected.name}
+        </span>
+
+        <span style={{ opacity: 0.7, flex: "0 0 auto" }}>▾</span>
       </button>
 
       {open && (
@@ -259,16 +580,19 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
                   color: "#fff",
                   cursor: "pointer",
                   textAlign: "left",
+                  fontFamily: FONT_FAMILY,
+                  fontSize: 14,
+                  fontWeight: 600,
                 }}
               >
                 <img
                   src={icon}
                   width={28}
                   height={28}
-                  style={{ borderRadius: 999 }}
+                  style={{ borderRadius: 999, flex: "0 0 auto" }}
                   alt=""
                 />
-                <span>{p.name}</span>
+                <span style={{ whiteSpace: "nowrap" }}>{p.name}</span>
               </button>
             );
           })}
@@ -457,6 +781,7 @@ createRoot(document.getElementById("root")!).render(
     <App />
   </StrictMode>
 );\nfrontend/src/pages/AssetsPage.tsx\nimport { useEffect, useMemo, useState } from "react";
+import { Reveal } from "../components/Reveal";
 
 import {
   fetchMarkets,
@@ -517,8 +842,12 @@ export function AssetsPage() {
     pct7d: number;
   } | null>(null);
 
-  /* ===== BASE DATA ===== */
+  /* =========================
+     BASE DATA
+  ========================= */
   useEffect(() => {
+    let active = true;
+
     async function load() {
       if (!isMarketsFresh()) {
         const [markets, global, fear] = await Promise.all([
@@ -526,6 +855,8 @@ export function AssetsPage() {
           fetchGlobal(),
           fetchFearGreed(),
         ]);
+
+        if (!active) return;
 
         saveMarkets(markets);
         saveGlobal(global);
@@ -535,6 +866,8 @@ export function AssetsPage() {
       const markets = readMarkets() ?? [];
       const global = readGlobal();
       const fear = readFearGreed();
+
+      if (!active) return;
 
       setAssets(buildAssetsTable(markets));
       setFearGreed(fear);
@@ -554,9 +887,24 @@ export function AssetsPage() {
     }
 
     load().catch(console.error);
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  /* ===== PAGINATION ===== */
+  /* =========================
+     READY FLAG (ключевое)
+  ========================= */
+  const ready =
+    assets.length > 0 &&
+    marketCap !== null &&
+    fearGreed !== null &&
+    dominance !== null;
+
+  /* =========================
+     PAGINATION
+  ========================= */
   const totalPages = Math.max(1, Math.ceil(assets.length / PAGE_SIZE));
 
   useEffect(() => {
@@ -568,7 +916,9 @@ export function AssetsPage() {
     return assets.slice(start, start + PAGE_SIZE);
   }, [assets, page]);
 
-  /* ===== LIVE PRICES ===== */
+  /* =========================
+     LIVE PRICES
+  ========================= */
   const visibleSymbols = useMemo(
     () => pagedAssets.map((a) => a.symbol),
     [pagedAssets]
@@ -595,530 +945,98 @@ export function AssetsPage() {
     };
   }, [visibleSymbols]);
 
+  /* =========================
+     RENDER
+  ========================= */
   return (
-    <div>
-      <div className="row row-cards mb-2">
-        <div className="col-12 col-md-6 col-lg-3 d-flex">
-          {marketCap && (
-            <MarketCapCard
-              capUsd={marketCap.capUsd}
-              changePct={marketCap.changePct24h}
-              spark={marketCap.sparkline}
-            />
-          )}
-        </div>
+    <div key={ready ? "ready" : "loading"}>
+      {ready && (
+        <>
+          {/* 🟣 Карточки — первая волна */}
+          <Reveal delayMs={0}>
+            <div className="row row-cards mb-2">
+              <div className="col-12 col-md-6 col-lg-3 d-flex">
+                <MarketCapCard
+                  capUsd={marketCap!.capUsd}
+                  changePct={marketCap!.changePct24h}
+                  spark={marketCap!.sparkline}
+                />
+              </div>
 
-        <div className="col-12 col-md-6 col-lg-3 d-flex">
-          {fearGreed !== null && <FearGreedCard value={fearGreed} />}
-        </div>
+              <div className="col-12 col-md-6 col-lg-3 d-flex">
+                <FearGreedCard value={fearGreed!} />
+              </div>
 
-        <div className="col-12 col-md-6 col-lg-3 d-flex">
-          {dominance && (
-            <BtcEthAltCard
-              btc={dominance.btc}
-              eth={dominance.eth}
-              alt={dominance.alt}
-            />
-          )}
-        </div>
+              <div className="col-12 col-md-6 col-lg-3 d-flex">
+                <BtcEthAltCard
+                  btc={dominance!.btc}
+                  eth={dominance!.eth}
+                  alt={dominance!.alt}
+                />
+              </div>
 
-        <div className="col-12 col-md-6 col-lg-3 d-flex">
-          {topGainer && (
-            <TopGainer7dCard
-              name={topGainer.name}
-              symbol={topGainer.symbol}
-              image={topGainer.image}
-              pct7d={topGainer.pct7d}
-            />
-          )}
-        </div>
-      </div>
+              <div className="col-12 col-md-6 col-lg-3 d-flex">
+                <TopGainer7dCard
+                  name={topGainer!.name}
+                  symbol={topGainer!.symbol}
+                  image={topGainer!.image}
+                  pct7d={topGainer!.pct7d}
+                />
+              </div>
+            </div>
+          </Reveal>
 
-      <div style={{ marginTop: 15 }}>
-        <AssetsTable assets={pagedAssets} livePrices={livePrices} />
-      </div>
+          {/* 🟣 Таблица — вторая волна */}
+          <Reveal delayMs={100}>
+            <div style={{ marginTop: 15 }}>
+              <AssetsTable assets={pagedAssets} livePrices={livePrices} />
+            </div>
+          </Reveal>
 
-      {/* Pagination */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          marginTop: 16,
-          gap: 8,
-        }}
-      >
-        <button
-          className="btn btn-sm"
-          disabled={page === 1}
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-        >
-          Prev
-        </button>
-
-        {Array.from({ length: totalPages }).map((_, i) => {
-          const p = i + 1;
-          const active = p === page;
-
-          return (
-            <button
-              key={p}
-              className={`btn btn-sm ${active ? "btn-primary" : ""}`}
-              onClick={() => setPage(p)}
+          {/* 🟣 Пагинация — последняя */}
+          <Reveal delayMs={160}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                marginTop: 16,
+                gap: 8,
+              }}
             >
-              {p}
-            </button>
-          );
-        })}
+              <button
+                className="btn btn-sm"
+                disabled={page === 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Prev
+              </button>
 
-        <button
-          className="btn btn-sm"
-          disabled={page === totalPages}
-          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-        >
-          Next
-        </button>
-      </div>
+              {Array.from({ length: totalPages }).map((_, i) => {
+                const p = i + 1;
+                const active = p === page;
+
+                return (
+                  <button
+                    key={p}
+                    className={`btn btn-sm ${active ? "btn-primary" : ""}`}
+                    onClick={() => setPage(p)}
+                  >
+                    {p}
+                  </button>
+                );
+              })}
+
+              <button
+                className="btn btn-sm"
+                disabled={page === totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Next
+              </button>
+            </div>
+          </Reveal>
+        </>
+      )}
     </div>
   );
-}\nfrontend/src/pages/PortfolioPage.tsx\n// frontend/src/pages/PortfolioPage.tsx
-
-import { useMemo, useState } from "react";
-import { useOutletContext } from "react-router-dom";
-
-import historyJson from "../data/mock-history.json";
-import portfoliosJson from "../data/mock-portfolios.json";
-
-import {
-  buildTopMetrics,
-  filterHistoryByPeriod,
-} from "../services/portfolio/portfolioService";
-
-import type {
-  HistoryPoint,
-  Period,
-  AssetAmounts,
-} from "../services/portfolio/portfolioService";
-
-// portfolio components
-import { PortfolioMetricsRow } from "../components/portfolio/PortfolioMetricsRow";
-import { PortfolioChartCard } from "../components/portfolio/PortfolioChartCard";
-import { PortfolioAllocationSection } from "../components/portfolio/PortfolioAllocationSection";
-
-type OutletCtx = {
-  profileId: string;
-};
-
-type Profile = {
-  id: string;
-  assets: AssetAmounts;
-};
-
-// локальный fallback (если profileId не найден)
-const FALLBACK_AMOUNTS: AssetAmounts = {
-  ETH: 2,
-  WBTC: 0.03,
-  USDC: 80,
-  DAI: 40,
-  UNI: 400,
-};
-
-const PROFILES = ((portfoliosJson as any).profiles ?? []) as Profile[];
-
-export function PortfolioPage() {
-  const { profileId } = useOutletContext<OutletCtx>();
-
-  const history = historyJson as unknown as HistoryPoint[];
-
-  const amounts: AssetAmounts = useMemo(() => {
-    const p = PROFILES.find((x) => x.id === profileId);
-    return p?.assets ?? FALLBACK_AMOUNTS;
-  }, [profileId]);
-
-  const [period, setPeriod] = useState<Period>("year");
-
-  const filteredHistory = useMemo(
-    () => filterHistoryByPeriod(history, period),
-    [history, period]
-  );
-
-  const metrics = useMemo(
-    () => buildTopMetrics(filteredHistory, amounts, "BTC"),
-    [filteredHistory, amounts]
-  );
-
-  return (
-    <div>
-      <PortfolioMetricsRow
-        tvl={metrics.tvl}
-        lastTsMs={metrics.lastTsMs}
-        changeUsd={metrics.changeUsd}
-        changePct={metrics.changePct}
-        vsBtcPp={metrics.vsBtcPp}
-        btcPct={metrics.btcPct}
-        period={period}
-      />
-
-      <PortfolioChartCard
-        history={filteredHistory}
-        period={period}
-        onPeriodChange={setPeriod}
-        amounts={amounts}
-      />
-
-      <PortfolioAllocationSection history={filteredHistory} amounts={amounts} />
-    </div>
-  );
-}\nfrontend/src/pages/PricesPage.tsx\nexport function PricesPage() {
-  return <div>Prices Page</div>;
-}\nfrontend/src/pages/SettingsPage.tsx\nexport function SettingsPage() {
-  return <div>Settings</div>;
-}\nfrontend/src/pages/SimulationPage.tsx\nimport { useMemo, useState } from "react";
-import { useOutletContext } from "react-router-dom";
-
-import historyJson from "../data/mock-history.json";
-import portfoliosJson from "../data/mock-portfolios.json";
-
-import type {
-  AssetAmounts,
-  HistoryPoint,
-} from "../services/portfolio/portfolioService";
-
-import {
-  filterHistoryByPeriod,
-} from "../services/portfolio/portfolioService";
-
-import {
-  estimatePortfolioParams,
-} from "../services/portfolio/portfolioStatsService";
-
-import {
-  runMonteCarloAdvanced,
-} from "../services/simulation/monteCarloService";
-
-import { SimulationChartCard } from "../components/simulation/SimulationChartCard";
-import {
-  SimulationControls,
-  type SimulationParams,
-} from "../components/simulation/SimulationControls";
-import { FinalOutcomeCard } from "../components/simulation/FinalOutcomeCard";
-import { OutcomeDistributionCard } from "../components/simulation/OutcomeDistributionCard";
-
-type OutletCtx = {
-  profileId: string;
-};
-
-type Profile = {
-  id: string;
-  assets: AssetAmounts;
-};
-
-function periodFromHorizon(h: number) {
-  if (h <= 30) return "month";
-  if (h <= 90) return "month";
-  return "year";
-}
-
-export function SimulationPage() {
-  const { profileId } = useOutletContext<OutletCtx>();
-
-  const history = historyJson as unknown as HistoryPoint[];
-  const profiles = (portfoliosJson as any).profiles as Profile[];
-
-  const profile =
-    profiles.find((p) => p.id === profileId) ?? profiles[0];
-
-  const amounts = profile.assets;
-
-  const [params, setParams] = useState<SimulationParams>({
-    horizonDays: 90,
-    scenario: "baseline",
-    simulations: 50,
-    showCloud: false,
-    showMedian: false,
-    showRepresentative: true,
-    showRange: false,
-    showFan: true,
-  });
-
-  const filteredHistory = useMemo(() => {
-    const period = periodFromHorizon(params.horizonDays) as any;
-    return filterHistoryByPeriod(history, period);
-  }, [history, params.horizonDays]);
-
-  const { drift, volatility } = useMemo(() => {
-    return estimatePortfolioParams(filteredHistory, amounts);
-  }, [filteredHistory, amounts]);
-
-  const startValue = useMemo(() => {
-    if (!filteredHistory.length) return 100;
-    const last = filteredHistory[filteredHistory.length - 1];
-    let v = 0;
-    for (const [sym, amt] of Object.entries(amounts)) {
-      v += (last.prices[sym] ?? 0) * amt;
-    }
-    return v || 100;
-  }, [filteredHistory, amounts]);
-
-  const sim = useMemo(() => {
-    return runMonteCarloAdvanced({
-      startValue,
-      drift,
-      volatility,
-      horizonDays: params.horizonDays,
-      simulations: params.simulations,
-      scenario: params.scenario,
-    });
-  }, [
-    startValue,
-    drift,
-    volatility,
-    params.horizonDays,
-    params.simulations,
-    params.scenario,
-  ]);
-
-  const finalMedian = sim.median.at(-1) ?? startValue;
-
-  return (
-    <div style={{ marginTop: 10 }}>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr) 320px",
-          gap: 14,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 14,
-            minWidth: 0,
-          }}
-        >
-          <SimulationChartCard
-            timestamps={sim.timestamps}
-            median={sim.median}
-            representative={sim.representative}
-            upper={sim.upper}
-            lower={sim.lower}
-            cloud={sim.paths}
-            showCloud={params.showCloud}
-            showMedian={params.showMedian}
-            showRepresentative={params.showRepresentative}
-            showRange={params.showRange}
-            showFan={params.showFan}
-            onToggleCloud={() =>
-              setParams((p) => ({ ...p, showCloud: !p.showCloud }))
-            }
-            onToggleMedian={() =>
-              setParams((p) => ({ ...p, showMedian: !p.showMedian }))
-            }
-            onToggleRepresentative={() =>
-              setParams((p) => ({
-                ...p,
-                showRepresentative: !p.showRepresentative,
-              }))
-            }
-            onToggleFan={() =>
-              setParams((p) => ({ ...p, showFan: !p.showFan }))
-            }
-            onToggleRange={() =>
-              setParams((p) => ({ ...p, showRange: !p.showRange }))
-            }
-          />
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-              gap: 14,
-            }}
-          >
-            <FinalOutcomeCard
-              startValue={startValue}
-              median={finalMedian}
-            />
-            <OutcomeDistributionCard paths={sim.paths} />
-          </div>
-        </div>
-
-        <SimulationControls value={params} onChange={setParams} />
-      </div>
-    </div>
-  );
-}\nfrontend/src/router.tsx\n// src/router.tsx
-
-import { createBrowserRouter } from "react-router-dom";
-import { AppLayout } from "./layout/AppLayout";
-
-import { PortfolioPage } from "./pages/PortfolioPage";
-import { PricesPage } from "./pages/PricesPage";
-import { AssetsPage } from "./pages/AssetsPage";
-import { SettingsPage } from "./pages/SettingsPage";
-import { SimulationPage } from "./pages/SimulationPage";
-
-export const router = createBrowserRouter([
-  {
-    path: "/",
-    element: <AppLayout />,
-    children: [
-      { index: true, element: <PortfolioPage /> },
-      { path: "prices", element: <PricesPage /> },
-      { path: "assets", element: <AssetsPage /> },
-      { path: "settings", element: <SettingsPage /> },
-      { path: "simulation", element: <SimulationPage /> },
-    ],
-  },
-]);\nfrontend/src/services/assets/assetsApi.ts\n/* =========================
-   CoinGecko API
-========================= */
-
-const COINGECKO_BASE = "https://api.coingecko.com/api/v3";
-
-export type CoinGeckoMarket = {
-  id: string;
-  symbol: string;
-  name: string;
-  image?: string;
-  current_price: number;
-  market_cap: number;
-  total_volume: number;
-  price_change_percentage_1h_in_currency?: number;
-  price_change_percentage_24h_in_currency?: number;
-  price_change_percentage_7d_in_currency?: number;
-  sparkline_in_7d?: { price: number[] };
-};
-
-export type CoinGeckoGlobal = {
-  data: {
-    total_market_cap: { usd: number };
-    market_cap_change_percentage_24h_usd: number;
-    market_cap_percentage: {
-      btc: number;
-      eth: number;
-    };
-  };
-};
-
-export async function fetchMarkets(): Promise<CoinGeckoMarket[]> {
-  const url =
-    `${COINGECKO_BASE}/coins/markets` +
-    `?vs_currency=usd` +
-    `&order=market_cap_desc` +
-    `&per_page=100` +
-    `&page=1` +
-    `&sparkline=true` +
-    `&price_change_percentage=1h,24h,7d`;
-
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("CoinGecko markets failed");
-
-  return res.json();
-}
-
-export async function fetchGlobal(): Promise<CoinGeckoGlobal> {
-  const res = await fetch(`${COINGECKO_BASE}/global`);
-  if (!res.ok) throw new Error("CoinGecko global failed");
-
-  return res.json();
-}
-
-/* =========================
-   Fear & Greed
-========================= */
-
-type FearGreedApiResponse = {
-  data: Array<{
-    value: string;
-    value_classification: string;
-    timestamp: string;
-  }>;
-};
-
-export async function fetchFearGreed(): Promise<number | null> {
-  const res = await fetch("https://api.alternative.me/fng/");
-  if (!res.ok) return null;
-
-  const json = (await res.json()) as FearGreedApiResponse;
-  const value = Number(json.data[0]?.value);
-
-  return Number.isNaN(value) ? null : value;
-}\nfrontend/src/services/assets/assetsCache.ts\nimport type { CoinGeckoMarket, CoinGeckoGlobal } from "./assetsApi";
-
-/* =========================
-   Cache keys
-========================= */
-
-const MARKETS_KEY = "assets.cache.markets";
-const GLOBAL_KEY = "assets.cache.global";
-
-const FEAR_GREED_KEY = "assets.cache.fearGreed";
-const FEAR_GREED_TS_KEY = "assets.cache.fearGreed.fetchedAt";
-
-const FETCHED_AT_KEY = "assets.cache.fetchedAt";
-
-const ONE_HOUR = 60 * 60 * 1000;
-
-/* =========================
-   Helpers
-========================= */
-
-function readJSON<T>(key: string): T | null {
-  const raw = localStorage.getItem(key);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-/* =========================
-   Markets
-========================= */
-
-export function saveMarkets(markets: CoinGeckoMarket[]) {
-  localStorage.setItem(MARKETS_KEY, JSON.stringify(markets));
-  localStorage.setItem(FETCHED_AT_KEY, String(Date.now()));
-}
-
-export function readMarkets(): CoinGeckoMarket[] | null {
-  return readJSON<CoinGeckoMarket[]>(MARKETS_KEY);
-}
-
-export function isMarketsFresh(): boolean {
-  const ts = Number(localStorage.getItem(FETCHED_AT_KEY) || 0);
-  return Date.now() - ts < ONE_HOUR;
-}
-
-/* =========================
-   Global
-========================= */
-
-export function saveGlobal(global: CoinGeckoGlobal) {
-  localStorage.setItem(GLOBAL_KEY, JSON.stringify(global));
-}
-
-export function readGlobal(): CoinGeckoGlobal | null {
-  return readJSON<CoinGeckoGlobal>(GLOBAL_KEY);
-}
-
-/* =========================
-   Fear & Greed
-========================= */
-
-export function saveFearGreed(value: number) {
-  localStorage.setItem(FEAR_GREED_KEY, String(value));
-  localStorage.setItem(FEAR_GREED_TS_KEY, String(Date.now()));
-}
-
-export function readFearGreed(): number | null {
-  const ts = Number(localStorage.getItem(FEAR_GREED_TS_KEY) || 0);
-  const fresh = Date.now() - ts < ONE_HOUR;
-
-  const v = Number(localStorage.getItem(FEAR_GREED_KEY));
-  if (Number.isNaN(v)) return null;
-
-  return fresh ? v : null;
-}\nfrontend/src/services/assets/assetsSelectors.ts\n
+}\nfrontend/src/pages/PortfolioPage.tsx\n

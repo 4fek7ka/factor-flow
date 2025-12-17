@@ -1055,4 +1055,4 @@ export function VolatilityArcCard({ history, amounts }: Props) {
       </div>
     </div>
   );
-}\nfrontend/src/components/simulation/FinalOutcomeCard.tsx\n
+}\nfrontend/src/components/Reveal.tsx\n

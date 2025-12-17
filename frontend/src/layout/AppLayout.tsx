@@ -34,7 +34,7 @@ export function AppLayout() {
             alignItems: "center",
             background: "#111827",
             borderBottom: "1px solid rgba(255,255,255,0.06)",
-            padding: "0 130px",
+            padding: "0 125px",
           }}
         >
           {/* LEFT: LOGO + TITLE */}

@@ -1,3 +1,4 @@
+// frontend/src/pages/PortfolioPage.tsx
 import { useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { Reveal } from "../components/Reveal";
@@ -64,7 +65,7 @@ export function PortfolioPage() {
   );
 
   return (
-    <div key={profileId}>
+    <div>
       <Reveal delayMs={0}>
         <PortfolioMetricsRow
           tvl={metrics.tvl}
