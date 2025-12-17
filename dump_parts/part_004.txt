@@ -1013,8 +1013,13 @@ export function AssetsPage() {
       </div>
     </div>
   );
-}\nfrontend/src/pages/PortfolioPage.tsx\nimport { useMemo, useState } from "react";
+}\nfrontend/src/pages/PortfolioPage.tsx\n// frontend/src/pages/PortfolioPage.tsx
+
+import { useMemo, useState } from "react";
+import { useOutletContext } from "react-router-dom";
+
 import historyJson from "../data/mock-history.json";
+import portfoliosJson from "../data/mock-portfolios.json";
 
 import {
   buildTopMetrics,
@@ -1032,8 +1037,17 @@ import { PortfolioMetricsRow } from "../components/portfolio/PortfolioMetricsRow
 import { PortfolioChartCard } from "../components/portfolio/PortfolioChartCard";
 import { PortfolioAllocationSection } from "../components/portfolio/PortfolioAllocationSection";
 
-// локальный fallback (чтобы не зависеть от экспорта DEFAULT_AMOUNTS)
-const DEFAULT_AMOUNTS: AssetAmounts = {
+type OutletCtx = {
+  profileId: string;
+};
+
+type Profile = {
+  id: string;
+  assets: AssetAmounts;
+};
+
+// локальный fallback (если profileId не найден)
+const FALLBACK_AMOUNTS: AssetAmounts = {
   ETH: 2,
   WBTC: 0.03,
   USDC: 80,
@@ -1041,8 +1055,17 @@ const DEFAULT_AMOUNTS: AssetAmounts = {
   UNI: 400,
 };
 
+const PROFILES = ((portfoliosJson as any).profiles ?? []) as Profile[];
+
 export function PortfolioPage() {
+  const { profileId } = useOutletContext<OutletCtx>();
+
   const history = historyJson as unknown as HistoryPoint[];
+
+  const amounts: AssetAmounts = useMemo(() => {
+    const p = PROFILES.find((x) => x.id === profileId);
+    return p?.assets ?? FALLBACK_AMOUNTS;
+  }, [profileId]);
 
   const [period, setPeriod] = useState<Period>("year");
 
@@ -1052,8 +1075,8 @@ export function PortfolioPage() {
   );
 
   const metrics = useMemo(
-    () => buildTopMetrics(filteredHistory, DEFAULT_AMOUNTS, "BTC"),
-    [filteredHistory]
+    () => buildTopMetrics(filteredHistory, amounts, "BTC"),
+    [filteredHistory, amounts]
   );
 
   return (
@@ -1072,12 +1095,10 @@ export function PortfolioPage() {
         history={filteredHistory}
         period={period}
         onPeriodChange={setPeriod}
-        amounts={DEFAULT_AMOUNTS}
+        amounts={amounts}
       />
 
-      <PortfolioAllocationSection history={filteredHistory} amounts={DEFAULT_AMOUNTS} />
-
-      {/* amounts сюда НЕ передаём (компонент его не принимает) */}
+      <PortfolioAllocationSection history={filteredHistory} amounts={amounts} />
     </div>
   );
 }\nfrontend/src/pages/PricesPage.tsx\nexport function PricesPage() {

@@ -7,11 +7,17 @@ export function AppLayout() {
   const [profileId, setProfileId] = useState("conservative");
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#070B17" }}>
+    <div
+      style={{
+        display: "flex",
+        minHeight: "100vh",
+        background: "#070B17",
+      }}
+    >
       <Sidebar />
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        {/* ================= HEADER (STICKY) ================= */}
+        {/* ================= HEADER ================= */}
         <header
           style={{
             position: "sticky",
@@ -20,18 +26,55 @@ export function AppLayout() {
             height: 56,
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
-            padding: "0 20px",
+            padding: "0 24px",
             background: "#111827",
             borderBottom: "1px solid rgba(255,255,255,0.06)",
           }}
         >
-          <div style={{ fontWeight: 600, color: "#fff" }}>Factor Flow</div>
+          {/* LOGO + TITLE (из public) */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginLeft: 43,
+            }}
+          >
+            <img
+              src="/favicon.png"
+              alt="Factor Flow"
+              style={{
+                width: 40,
+                height: 40,
+                objectFit: "contain",
+              }}
+            />
 
-          <ProfileSwitcher
-            selectedId={profileId}
-            onSelect={setProfileId}
-          />
+            <span
+              style={{
+                fontWeight: 600,
+                fontSize: 16,
+                color: "#ffffff",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Factor Flow
+            </span>
+          </div>
+
+          {/* RIGHT */}
+          <div
+            style={{
+              marginLeft: "auto",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            <ProfileSwitcher
+              selectedId={profileId}
+              onSelect={setProfileId}
+            />
+          </div>
         </header>
 
         {/* ================= CONTENT ================= */}
