@@ -1,4 +1,373 @@
-// SimulationControls.tsx
+// simulationChart.option.ts
+import type { EChartsCoreOption } from "echarts/core";
+
+const FAN_OUTER = "rgba(148,163,184,0.12)";
+const FAN_INNER = "rgba(148,163,184,0.20)";
+
+const COLOR_MAIN = "#0ea5e9";
+const COLOR_UPPER = "#22c55e";
+const COLOR_LOWER = "#ef4444";
+
+type FanQuantiles = {
+  q05: number[];
+  q25: number[];
+  q50: number[];
+  q75: number[];
+  q95: number[];
+};
+
+type BuildOptionParams = {
+  timestamps: number[];
+  median: number[];
+  representative: number[];
+  upper: number[];
+  lower: number[];
+  cloud: number[][];
+  fan?: FanQuantiles;
+  yDomain: { min: number; max: number };
+  flags: {
+    showCloud: boolean;
+    showMedian: boolean;
+    showRepresentative: boolean;
+    showRange: boolean;
+    showFan: boolean;
+  };
+};
+
+function tooltipRow(label: string, value: number, color: string) {
+  const sign = value >= 0 ? "+" : "";
+  return `
+    <div style="
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      margin-top:4px;
+      font-weight:600;
+    ">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="
+          width:8px;
+          height:8px;
+          border-radius:50%;
+          background:${color};
+        "></span>
+        <span style="color:rgba(226,232,240,0.85)">${label}</span>
+      </div>
+      <span style="color:rgba(226,232,240,0.95)">
+        ${sign}${value.toFixed(2)}%
+      </span>
+    </div>
+  `;
+}
+
+export function buildSimulationChartOption({
+  timestamps,
+  median,
+  representative,
+  upper,
+  lower,
+  cloud,
+  fan,
+  yDomain,
+  flags,
+}: BuildOptionParams): EChartsCoreOption {
+  return {
+    backgroundColor: "transparent",
+
+    tooltip: {
+      trigger: "axis",
+      appendToBody: true,
+
+      /* ✅ Tabler card colors */
+      backgroundColor: "var(--tblr-card-bg)",
+      borderColor: "var(--tblr-border-color)",
+      borderWidth: 1,
+
+      textStyle: {
+        color: "rgba(226,232,240,0.95)",
+        fontSize: 12,
+      },
+
+      axisPointer: {
+        type: "line",
+        lineStyle: {
+          color: "rgba(148,163,184,0.45)",
+          width: 1,
+          type: "dashed",
+        },
+      },
+
+      formatter: (params: any[]) => {
+        const main = params.find((p) => p.seriesName === "Main");
+        if (!main) return "";
+
+        const i = main.dataIndex;
+
+        let html = `
+          <div style="
+            font-weight:700;
+            margin-bottom:6px;
+            color:rgba(226,232,240,0.95)
+          ">
+            Simulation
+          </div>
+        `;
+
+        if (flags.showRange) {
+          html += tooltipRow("Upper", upper[i], COLOR_UPPER);
+        }
+
+        if (flags.showRepresentative) {
+          html += tooltipRow("Main", representative[i], COLOR_MAIN);
+        }
+
+        if (flags.showMedian) {
+          html += tooltipRow("Median", median[i], "rgba(226,232,240,0.7)");
+        }
+
+        if (flags.showRange) {
+          html += tooltipRow("Lower", lower[i], COLOR_LOWER);
+        }
+
+        return html;
+      },
+    },
+
+    grid: { left: 40, right: 48, top: 44, bottom: 40 },
+
+    xAxis: {
+      type: "value",
+      min: 0,
+      max: timestamps[timestamps.length - 1],
+      axisLabel: {
+        color: "rgba(148,163,184,0.85)",
+        formatter: (v: number) => `${Math.round(v)}d`,
+      },
+      axisLine: { lineStyle: { color: "rgba(148,163,184,0.25)" } },
+      splitLine: { show: false },
+    },
+
+    yAxis: {
+      type: "value",
+      min: yDomain.min,
+      max: yDomain.max,
+      position: "right",
+      axisLabel: {
+        color: "rgba(148,163,184,0.85)",
+        formatter: (v: number) =>
+          v === yDomain.min || v === yDomain.max ? "" : `${v}%`,
+      },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: {
+        show: true,
+        lineStyle: { color: "rgba(148,163,184,0.18)" },
+      },
+    },
+
+    series: [
+      ...cloud.map((p) => ({
+        type: "line",
+        name: "Cloud",
+        data: timestamps.map((t, i) => [t, p[i]]),
+        showSymbol: false,
+        silent: true,
+        tooltip: { show: false },
+        lineStyle: {
+          color: "#64748b",
+          width: 1,
+          opacity: flags.showCloud ? 0.15 : 0,
+        },
+        z: 1,
+      })),
+
+      fan && {
+        type: "custom",
+        name: "FanOuter",
+        silent: true,
+        tooltip: { show: false },
+        data: [0],
+        z: 2,
+        renderItem: (_: unknown, api: any) => ({
+          type: "polygon",
+          shape: {
+            points: [
+              ...timestamps.map((t, i) => api.coord([t, fan.q95[i]])),
+              ...timestamps
+                .slice()
+                .reverse()
+                .map((t, i) =>
+                  api.coord([t, fan.q05[fan.q05.length - 1 - i]])
+                ),
+            ],
+          },
+          style: { fill: FAN_OUTER, opacity: flags.showFan ? 1 : 0 },
+        }),
+      },
+
+      fan && {
+        type: "custom",
+        name: "FanInner",
+        silent: true,
+        tooltip: { show: false },
+        data: [0],
+        z: 3,
+        renderItem: (_: unknown, api: any) => ({
+          type: "polygon",
+          shape: {
+            points: [
+              ...timestamps.map((t, i) => api.coord([t, fan.q75[i]])),
+              ...timestamps
+                .slice()
+                .reverse()
+                .map((t, i) =>
+                  api.coord([t, fan.q25[fan.q25.length - 1 - i]])
+                ),
+            ],
+          },
+          style: { fill: FAN_INNER, opacity: flags.showFan ? 1 : 0 },
+        }),
+      },
+
+      {
+        type: "line",
+        name: "Median",
+        data: timestamps.map((t, i) => [t, median[i]]),
+        showSymbol: false,
+        lineStyle: {
+          color: "rgba(226,232,240,0.7)",
+          width: 2,
+          opacity: flags.showMedian ? 1 : 0,
+          type: "dashed",
+        },
+        z: 10,
+      },
+
+      {
+        type: "line",
+        name: "Main",
+        data: timestamps.map((t, i) => [t, representative[i]]),
+        showSymbol: false,
+        lineStyle: {
+          color: COLOR_MAIN,
+          width: 2,
+          opacity: flags.showRepresentative ? 1 : 0,
+        },
+        z: 12,
+      },
+    ].filter(Boolean),
+  };
+}\nfrontend/src/components/simulation/simulationChart.utils.ts\n// simulationChart.utils.ts
+
+export type FanQuantiles = {
+  q05: number[];
+  q25: number[];
+  q50: number[];
+  q75: number[];
+  q95: number[];
+};
+
+export function resample<T>(arr: T[], target: number): T[] {
+  if (arr.length <= target) return arr;
+
+  const res: T[] = [];
+  const step = (arr.length - 1) / (target - 1);
+
+  for (let i = 0; i < target; i++) {
+    res.push(arr[Math.round(i * step)]);
+  }
+
+  return res;
+}
+
+export function toPercentFromBase(values: number[], base: number): number[] {
+  if (values.length === 0) return values;
+  if (!Number.isFinite(base) || base === 0) return values.map(() => 0);
+  return values.map((v) => ((v - base) / base) * 100);
+}
+
+function quantileSorted(sorted: number[], q: number): number {
+  const n = sorted.length;
+  if (n === 0) return 0;
+  if (n === 1) return sorted[0];
+
+  const qq = Math.max(0, Math.min(1, q));
+  const pos = (n - 1) * qq;
+  const base = Math.floor(pos);
+  const rest = pos - base;
+
+  const left = sorted[base]!;
+  const right = sorted[Math.min(base + 1, n - 1)]!;
+  return left + (right - left) * rest;
+}
+
+function finiteOnly(values: number[]): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    if (Number.isFinite(v)) out.push(v);
+  }
+  return out;
+}
+
+/**
+ * Builds a quantile "fan" from Monte Carlo paths.
+ * Each path is an array of values over time, all paths must have the same length.
+ */
+export function buildFanQuantiles(paths: number[][]): FanQuantiles | null {
+  if (!paths || paths.length === 0) return null;
+
+  const T = paths[0]?.length ?? 0;
+  if (T === 0) return null;
+
+  // Ensure consistent lengths
+  for (let p = 0; p < paths.length; p++) {
+    if ((paths[p]?.length ?? 0) !== T) return null;
+  }
+
+  const q05: number[] = new Array(T);
+  const q25: number[] = new Array(T);
+  const q50: number[] = new Array(T);
+  const q75: number[] = new Array(T);
+  const q95: number[] = new Array(T);
+
+  for (let t = 0; t < T; t++) {
+    const col: number[] = new Array(paths.length);
+    for (let p = 0; p < paths.length; p++) {
+      col[p] = paths[p]![t]!;
+    }
+
+    const vals = finiteOnly(col);
+    if (vals.length === 0) {
+      q05[t] = 0;
+      q25[t] = 0;
+      q50[t] = 0;
+      q75[t] = 0;
+      q95[t] = 0;
+      continue;
+    }
+
+    vals.sort((a, b) => a - b);
+
+    q05[t] = quantileSorted(vals, 0.05);
+    q25[t] = quantileSorted(vals, 0.25);
+    q50[t] = quantileSorted(vals, 0.5);
+    q75[t] = quantileSorted(vals, 0.75);
+    q95[t] = quantileSorted(vals, 0.95);
+  }
+
+  return { q05, q25, q50, q75, q95 };
+}
+
+export function resampleFan(fan: FanQuantiles, target: number): FanQuantiles {
+  return {
+    q05: resample(fan.q05, target),
+    q25: resample(fan.q25, target),
+    q50: resample(fan.q50, target),
+    q75: resample(fan.q75, target),
+    q95: resample(fan.q95, target),
+  };
+}\nfrontend/src/components/simulation/SimulationControls.tsx\n// SimulationControls.tsx
 import type { ReactNode } from "react";
 import type { Scenario } from "../../services/simulation/monteCarloService";
 
@@ -678,324 +1047,4 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
   </StrictMode>
-);\nfrontend/src/pages/AssetsPage.tsx\nimport { useEffect, useMemo, useState } from "react";
-
-import {
-  fetchMarkets,
-  fetchGlobal,
-  fetchFearGreed,
-} from "../services//assets/assetsApi";
-
-import {
-  saveMarkets,
-  readMarkets,
-  isMarketsFresh,
-  saveGlobal,
-  readGlobal,
-  saveFearGreed,
-  readFearGreed,
-} from "../services/assets/assetsCache";
-
-import {
-  buildAssetsTable,
-  getDominance,
-  getGlobalMarketCapSnapshot,
-  getTopGainer7d,
-  type AssetRow,
-} from "../services/assets/assetsSelectors";
-
-import { fetchBinancePrices } from "../services/assets/binanceService";
-
-import { AssetsTable } from "../components/assets/AssetsTable";
-import { MarketCapCard } from "../components/assets/MarketCapCard";
-import { FearGreedCard } from "../components/assets/FearGreedCard";
-import { BtcEthAltCard } from "../components/assets/BtcEthAltCard";
-import { TopGainer7dCard } from "../components/assets/TopGainer7dCard";
-
-const PAGE_SIZE = 20;
-
-export function AssetsPage() {
-  const [assets, setAssets] = useState<AssetRow[]>([]);
-  const [livePrices, setLivePrices] = useState<Record<string, number>>({});
-  const [page, setPage] = useState(1);
-
-  const [fearGreed, setFearGreed] = useState<number | null>(null);
-  const [marketCap, setMarketCap] = useState<{
-    capUsd: number;
-    changePct24h: number;
-    sparkline: number[];
-  } | null>(null);
-
-  const [dominance, setDominance] = useState<{
-    btc: number;
-    eth: number;
-    alt: number;
-  } | null>(null);
-
-  const [topGainer, setTopGainer] = useState<{
-    name: string;
-    symbol: string;
-    image?: string;
-    pct7d: number;
-  } | null>(null);
-
-  /* ===== BASE DATA ===== */
-  useEffect(() => {
-    async function load() {
-      if (!isMarketsFresh()) {
-        const [markets, global, fear] = await Promise.all([
-          fetchMarkets(),
-          fetchGlobal(),
-          fetchFearGreed(),
-        ]);
-
-        saveMarkets(markets);
-        saveGlobal(global);
-        if (fear !== null) saveFearGreed(fear);
-      }
-
-      const markets = readMarkets() ?? [];
-      const global = readGlobal();
-      const fear = readFearGreed();
-
-      setAssets(buildAssetsTable(markets));
-      setFearGreed(fear);
-
-      if (global) {
-        const snap = getGlobalMarketCapSnapshot(global);
-        setMarketCap({
-          capUsd: snap.capUsd,
-          changePct24h: snap.changePct24h,
-          sparkline: markets[0]?.sparkline_in_7d?.price ?? [],
-        });
-
-        setDominance(getDominance(global));
-      }
-
-      setTopGainer(getTopGainer7d(markets));
-    }
-
-    load().catch(console.error);
-  }, []);
-
-  /* ===== PAGINATION ===== */
-  const totalPages = Math.max(1, Math.ceil(assets.length / PAGE_SIZE));
-
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
-
-  const pagedAssets = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return assets.slice(start, start + PAGE_SIZE);
-  }, [assets, page]);
-
-  /* ===== LIVE PRICES ===== */
-  const visibleSymbols = useMemo(
-    () => pagedAssets.map((a) => a.symbol),
-    [pagedAssets]
-  );
-
-  useEffect(() => {
-    if (!visibleSymbols.length) return;
-
-    let active = true;
-
-    async function tick() {
-      try {
-        const prices = await fetchBinancePrices();
-        if (active) setLivePrices(prices);
-      } catch {}
-    }
-
-    tick();
-    const id = setInterval(tick, 4_000);
-
-    return () => {
-      active = false;
-      clearInterval(id);
-    };
-  }, [visibleSymbols]);
-
-  return (
-    <div>
-      <div className="row row-cards mb-2">
-        <div className="col-12 col-md-6 col-lg-3 d-flex">
-          {marketCap && (
-            <MarketCapCard
-              capUsd={marketCap.capUsd}
-              changePct={marketCap.changePct24h}
-              spark={marketCap.sparkline}
-            />
-          )}
-        </div>
-
-        <div className="col-12 col-md-6 col-lg-3 d-flex">
-          {fearGreed !== null && <FearGreedCard value={fearGreed} />}
-        </div>
-
-        <div className="col-12 col-md-6 col-lg-3 d-flex">
-          {dominance && (
-            <BtcEthAltCard
-              btc={dominance.btc}
-              eth={dominance.eth}
-              alt={dominance.alt}
-            />
-          )}
-        </div>
-
-        <div className="col-12 col-md-6 col-lg-3 d-flex">
-          {topGainer && (
-            <TopGainer7dCard
-              name={topGainer.name}
-              symbol={topGainer.symbol}
-              image={topGainer.image}
-              pct7d={topGainer.pct7d}
-            />
-          )}
-        </div>
-      </div>
-
-      <div style={{ marginTop: 15 }}>
-        <AssetsTable assets={pagedAssets} livePrices={livePrices} />
-      </div>
-
-      {/* Pagination */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          marginTop: 16,
-          gap: 8,
-        }}
-      >
-        <button
-          className="btn btn-sm"
-          disabled={page === 1}
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-        >
-          Prev
-        </button>
-
-        {Array.from({ length: totalPages }).map((_, i) => {
-          const p = i + 1;
-          const active = p === page;
-
-          return (
-            <button
-              key={p}
-              className={`btn btn-sm ${active ? "btn-primary" : ""}`}
-              onClick={() => setPage(p)}
-            >
-              {p}
-            </button>
-          );
-        })}
-
-        <button
-          className="btn btn-sm"
-          disabled={page === totalPages}
-          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-        >
-          Next
-        </button>
-      </div>
-    </div>
-  );
-}\nfrontend/src/pages/PortfolioPage.tsx\nimport { useMemo, useState } from "react";
-import { useOutletContext } from "react-router-dom";
-
-import historyJson from "../data/mock-history.json";
-import portfoliosJson from "../data/mock-portfolios.json";
-
-import {
-  buildTopMetrics,
-  filterHistoryByPeriod,
-} from "../services/portfolio/portfolioService";
-
-import type {
-  AssetAmounts,
-  HistoryPoint,
-  Period,
-} from "../services/portfolio/portfolioService";
-
-// components
-import { PortfolioMetricsRow } from "../components/portfolio/PortfolioMetricsRow";
-import { PortfolioChartCard } from "../components/portfolio/PortfolioChartCard";
-import { AssetSparklinesSection } from "../components/portfolio/AssetSparklinesSection";
-import { PortfolioAllocationSection } from "../components/portfolio/PortfolioAllocationSection";
-
-type OutletCtx = {
-  profileId: string;
-};
-
-type Profile = {
-  id: string;
-  name: string;
-  assets: AssetAmounts;
-};
-
-export function PortfolioPage() {
-  const { profileId } = useOutletContext<OutletCtx>();
-
-  const history = historyJson as unknown as HistoryPoint[];
-  const profiles = (portfoliosJson as any).profiles as Profile[];
-
-  const profile =
-    profiles.find((p) => p.id === profileId) ?? profiles[0];
-
-  const amounts = profile.assets;
-
-  const [period, setPeriod] = useState<Period>("year");
-
-  const filteredHistory = useMemo(
-    () => filterHistoryByPeriod(history, period),
-    [history, period]
-  );
-
-  const metrics = useMemo(
-    () => buildTopMetrics(filteredHistory, amounts, "BTC"),
-    [filteredHistory, amounts]
-  );
-
-  const profileSymbols = useMemo(() => {
-    return Object.keys(amounts)
-      .sort((a, b) => (amounts[b] ?? 0) - (amounts[a] ?? 0))
-      .slice(0, 5);
-  }, [amounts]);
-
-  return (
-    <div>
-      <PortfolioMetricsRow
-        tvl={metrics.tvl}
-        lastTsMs={metrics.lastTsMs}
-        changeUsd={metrics.changeUsd}
-        changePct={metrics.changePct}
-        vsBtcPp={metrics.vsBtcPp}
-        btcPct={metrics.btcPct}
-        period={period}
-      />
-
-      <PortfolioChartCard
-        history={history}
-        period={period}
-        onPeriodChange={setPeriod}
-        amounts={amounts}
-      />
-
-      <PortfolioAllocationSection
-        history={filteredHistory}
-        amounts={amounts}
-      />
-
-      <AssetSparklinesSection
-        history={filteredHistory}
-        symbols={profileSymbols}
-      />
-    </div>
-  );
-}\nfrontend/src/pages/PricesPage.tsx\nexport function PricesPage() {
-  return <div>Prices Page</div>;
-}\nfrontend/src/pages/SettingsPage.tsx\nexport function SettingsPage() {
-  return <div>Settings</div>;
-}\nfrontend/src/pages/SimulationPage.tsx\n
+);\nfrontend/src/pages/AssetsPage.tsx\n

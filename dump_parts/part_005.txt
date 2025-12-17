@@ -1,4 +1,311 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import {
+  fetchMarkets,
+  fetchGlobal,
+  fetchFearGreed,
+} from "../services//assets/assetsApi";
+
+import {
+  saveMarkets,
+  readMarkets,
+  isMarketsFresh,
+  saveGlobal,
+  readGlobal,
+  saveFearGreed,
+  readFearGreed,
+} from "../services/assets/assetsCache";
+
+import {
+  buildAssetsTable,
+  getDominance,
+  getGlobalMarketCapSnapshot,
+  getTopGainer7d,
+  type AssetRow,
+} from "../services/assets/assetsSelectors";
+
+import { fetchBinancePrices } from "../services/assets/binanceService";
+
+import { AssetsTable } from "../components/assets/AssetsTable";
+import { MarketCapCard } from "../components/assets/MarketCapCard";
+import { FearGreedCard } from "../components/assets/FearGreedCard";
+import { BtcEthAltCard } from "../components/assets/BtcEthAltCard";
+import { TopGainer7dCard } from "../components/assets/TopGainer7dCard";
+
+const PAGE_SIZE = 20;
+
+export function AssetsPage() {
+  const [assets, setAssets] = useState<AssetRow[]>([]);
+  const [livePrices, setLivePrices] = useState<Record<string, number>>({});
+  const [page, setPage] = useState(1);
+
+  const [fearGreed, setFearGreed] = useState<number | null>(null);
+  const [marketCap, setMarketCap] = useState<{
+    capUsd: number;
+    changePct24h: number;
+    sparkline: number[];
+  } | null>(null);
+
+  const [dominance, setDominance] = useState<{
+    btc: number;
+    eth: number;
+    alt: number;
+  } | null>(null);
+
+  const [topGainer, setTopGainer] = useState<{
+    name: string;
+    symbol: string;
+    image?: string;
+    pct7d: number;
+  } | null>(null);
+
+  /* ===== BASE DATA ===== */
+  useEffect(() => {
+    async function load() {
+      if (!isMarketsFresh()) {
+        const [markets, global, fear] = await Promise.all([
+          fetchMarkets(),
+          fetchGlobal(),
+          fetchFearGreed(),
+        ]);
+
+        saveMarkets(markets);
+        saveGlobal(global);
+        if (fear !== null) saveFearGreed(fear);
+      }
+
+      const markets = readMarkets() ?? [];
+      const global = readGlobal();
+      const fear = readFearGreed();
+
+      setAssets(buildAssetsTable(markets));
+      setFearGreed(fear);
+
+      if (global) {
+        const snap = getGlobalMarketCapSnapshot(global);
+        setMarketCap({
+          capUsd: snap.capUsd,
+          changePct24h: snap.changePct24h,
+          sparkline: markets[0]?.sparkline_in_7d?.price ?? [],
+        });
+
+        setDominance(getDominance(global));
+      }
+
+      setTopGainer(getTopGainer7d(markets));
+    }
+
+    load().catch(console.error);
+  }, []);
+
+  /* ===== PAGINATION ===== */
+  const totalPages = Math.max(1, Math.ceil(assets.length / PAGE_SIZE));
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const pagedAssets = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return assets.slice(start, start + PAGE_SIZE);
+  }, [assets, page]);
+
+  /* ===== LIVE PRICES ===== */
+  const visibleSymbols = useMemo(
+    () => pagedAssets.map((a) => a.symbol),
+    [pagedAssets]
+  );
+
+  useEffect(() => {
+    if (!visibleSymbols.length) return;
+
+    let active = true;
+
+    async function tick() {
+      try {
+        const prices = await fetchBinancePrices();
+        if (active) setLivePrices(prices);
+      } catch {}
+    }
+
+    tick();
+    const id = setInterval(tick, 4_000);
+
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, [visibleSymbols]);
+
+  return (
+    <div>
+      <div className="row row-cards mb-2">
+        <div className="col-12 col-md-6 col-lg-3 d-flex">
+          {marketCap && (
+            <MarketCapCard
+              capUsd={marketCap.capUsd}
+              changePct={marketCap.changePct24h}
+              spark={marketCap.sparkline}
+            />
+          )}
+        </div>
+
+        <div className="col-12 col-md-6 col-lg-3 d-flex">
+          {fearGreed !== null && <FearGreedCard value={fearGreed} />}
+        </div>
+
+        <div className="col-12 col-md-6 col-lg-3 d-flex">
+          {dominance && (
+            <BtcEthAltCard
+              btc={dominance.btc}
+              eth={dominance.eth}
+              alt={dominance.alt}
+            />
+          )}
+        </div>
+
+        <div className="col-12 col-md-6 col-lg-3 d-flex">
+          {topGainer && (
+            <TopGainer7dCard
+              name={topGainer.name}
+              symbol={topGainer.symbol}
+              image={topGainer.image}
+              pct7d={topGainer.pct7d}
+            />
+          )}
+        </div>
+      </div>
+
+      <div style={{ marginTop: 15 }}>
+        <AssetsTable assets={pagedAssets} livePrices={livePrices} />
+      </div>
+
+      {/* Pagination */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          marginTop: 16,
+          gap: 8,
+        }}
+      >
+        <button
+          className="btn btn-sm"
+          disabled={page === 1}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+        >
+          Prev
+        </button>
+
+        {Array.from({ length: totalPages }).map((_, i) => {
+          const p = i + 1;
+          const active = p === page;
+
+          return (
+            <button
+              key={p}
+              className={`btn btn-sm ${active ? "btn-primary" : ""}`}
+              onClick={() => setPage(p)}
+            >
+              {p}
+            </button>
+          );
+        })}
+
+        <button
+          className="btn btn-sm"
+          disabled={page === totalPages}
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}\nfrontend/src/pages/PortfolioPage.tsx\nimport { useMemo, useState } from "react";
+import historyJson from "../data/mock-history.json";
+
+import {
+  buildTopMetrics,
+  filterHistoryByPeriod,
+  DEFAULT_AMOUNTS,
+} from "../services/portfolio/portfolioService";
+
+import type {
+  HistoryPoint,
+  Period,
+} from "../services/portfolio/portfolioService";
+
+// portfolio components
+import { PortfolioMetricsRow } from "../components/portfolio/PortfolioMetricsRow";
+import { PortfolioChartCard } from "../components/portfolio/PortfolioChartCard";
+import { AssetSparklinesSection } from "../components/portfolio/AssetSparklinesSection";
+import { PortfolioAllocationSection } from "../components/portfolio/PortfolioAllocationSection";
+
+export function PortfolioPage() {
+  const history = historyJson as unknown as HistoryPoint[];
+
+  const [period, setPeriod] = useState<Period>("year");
+
+  // фильтрация под период
+  const filteredHistory = useMemo(
+    () => filterHistoryByPeriod(history, period),
+    [history, period]
+  );
+
+  // метрики сверху (❗️ТОЛЬКО history)
+  const metrics = useMemo(
+    () => buildTopMetrics(filteredHistory),
+    [filteredHistory]
+  );
+
+  return (
+    <div>
+      {/* ============================== */}
+      {/* METRICS ABOVE CHART */}
+      {/* ============================== */}
+      <PortfolioMetricsRow
+        tvl={metrics.tvl}
+        lastTsMs={metrics.lastTsMs}
+        changeUsd={metrics.changeUsd}
+        changePct={metrics.changePct}
+        vsBtcPp={metrics.vsBtcPp}
+        btcPct={metrics.btcPct}
+        period={period}
+      />
+
+      {/* ============================== */}
+      {/* MAIN PORTFOLIO CHART */}
+      {/* ============================== */}
+      <PortfolioChartCard
+        history={filteredHistory}
+        period={period}
+        onPeriodChange={setPeriod}
+        amounts={DEFAULT_AMOUNTS}   {/* ✅ */}
+      />
+
+      {/* ============================== */}
+      {/* ALLOCATION + MARKET MOOD */}
+      {/* ============================== */}
+      <PortfolioAllocationSection
+        history={filteredHistory}
+        amounts={DEFAULT_AMOUNTS}   {/* ✅ */}
+      />
+
+      {/* ============================== */}
+      {/* TOP ASSETS SPARKLINES */}
+      {/* ============================== */}
+      <AssetSparklinesSection
+        history={filteredHistory}
+        amounts={DEFAULT_AMOUNTS}   {/* ✅ если требует */}
+      />
+    </div>
+  );
+}\nfrontend/src/pages/PricesPage.tsx\nexport function PricesPage() {
+  return <div>Prices Page</div>;
+}\nfrontend/src/pages/SettingsPage.tsx\nexport function SettingsPage() {
+  return <div>Settings</div>;
+}\nfrontend/src/pages/SimulationPage.tsx\nimport { useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 
 import historyJson from "../data/mock-history.json";
@@ -766,276 +1073,4 @@ export async function getBalancesEth(wallet: string) {
   const assets = await fetchBalancesEth(wallet);
   saveBalancesEth(wallet, assets);
   return assets;
-}\nfrontend/src/services/balances/moralisClient.ts\nconst MORALIS_BASE = "https://deep-index.moralis.io/api/v2";
-
-/**
- * ⚠️ TEMP HARDCODE
- * Только для MVP / локальной разработки
- * Потом убрать в .env или backend
- */
-const MORALIS_API_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjM1ZDc2OTRmLTBmOWUtNDM4Yy1iNTBmLTRmNmE4YTEyZGY0YiIsIm9yZ0lkIjoiNDg2Mjg2IiwidXNlcklkIjoiNTAwMjkxIiwidHlwZUlkIjoiYzM3MzRjOGMtMzUzNC00MDI4LTlmNzEtOGRlOGRiM2Q4MmYwIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NjU4NTM5MzMsImV4cCI6NDkyMTYxMzkzM30.wQ9VlqQKyg6v5f7wU85HEozh1el1pUwnvSXkf3FS-Gk";
-
-type FetchOptions = {
-  path: string;
-  params?: Record<string, string | number | boolean | undefined>;
-};
-
-async function moralisFetch<T>({ path, params }: FetchOptions): Promise<T> {
-  const url = new URL(`${MORALIS_BASE}${path}`);
-
-  if (params) {
-    Object.entries(params).forEach(([k, v]) => {
-      if (v !== undefined) url.searchParams.set(k, String(v));
-    });
-  }
-
-  const res = await fetch(url.toString(), {
-    headers: {
-      "X-API-Key": MORALIS_API_KEY,
-    },
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`[Moralis] ${res.status}: ${text}`);
-  }
-
-  return res.json();
-}
-
-/* =========================
-   ETH MAINNET
-========================= */
-
-export function fetchEthNativeBalance(address: string) {
-  return moralisFetch<{
-    balance: string;
-  }>({
-    path: `/${address}/balance`,
-    params: { chain: "eth" },
-  });
-}
-
-export function fetchEthTokenBalances(address: string) {
-  return moralisFetch<
-    Array<{
-      token_address: string;
-      symbol: string;
-      name: string;
-      decimals: number;
-      balance: string;
-    }>
-  >({
-    path: `/${address}/erc20`,
-    params: { chain: "eth" },
-  });
-}\nfrontend/src/services/balances/types.ts\nexport type BalanceAsset = {
-  source: "moralis";
-
-  symbol: string;
-  name: string;
-  decimals: number;
-
-  balanceRaw: string;
-  balance: number;
-
-  tokenAddress?: string;
-  isNative: boolean;
-};\nfrontend/src/services/portfolio/portfolioService.ts\nexport type Period = "year" | "month" | "week";
-
-export type AssetAmounts = Record<string, number>;
-
-export type HistoryPoint = {
-  timestamp: number; // unix seconds
-  prices: Record<string, number>;
-};
-
-// fallback (если где-то не передали amounts)
-export const DEFAULT_AMOUNTS: AssetAmounts = {
-  ETH: 2,
-  WBTC: 0.03,
-  USDC: 80,
-  DAI: 40,
-  UNI: 400,
-};
-
-export function calcPortfolioValue(
-  p: HistoryPoint,
-  amounts: AssetAmounts = DEFAULT_AMOUNTS
-): number {
-  const pr = p.prices;
-  let total = 0;
-
-  for (const [sym, amount] of Object.entries(amounts)) {
-    const price = pr[sym] ?? 0;
-    total += price * amount;
-  }
-
-  return total;
-}
-
-export function filterHistoryByPeriod(history: HistoryPoint[], period: Period) {
-  if (!history.length) return [];
-
-  const last = history[history.length - 1].timestamp;
-  const seconds =
-    period === "week"
-      ? 7 * 24 * 3600
-      : period === "month"
-      ? 30 * 24 * 3600
-      : 365 * 24 * 3600;
-
-  const cutoff = last - seconds;
-  return history.filter((p) => p.timestamp >= cutoff);
-}
-
-/* ================================
-   📌 Downsampling (visual)
-================================ */
-
-function downsample(xs: number[], ys: number[], target: number) {
-  const n = xs.length;
-  if (n <= target) return { xs, ys };
-
-  const step = Math.ceil(n / target);
-  const outX: number[] = [];
-  const outY: number[] = [];
-
-  for (let i = 0; i < n; i += step) {
-    outX.push(xs[i]);
-    outY.push(ys[i]);
-  }
-
-  // гарантируем последнюю точку
-  if (outX[outX.length - 1] !== xs[n - 1]) {
-    outX.push(xs[n - 1]);
-    outY.push(ys[n - 1]);
-  }
-
-  return { xs: outX, ys: outY };
-}
-
-/* ================================
-   ✅ Series
-================================ */
-
-export function buildPortfolioSeries(
-  history: HistoryPoint[],
-  period: Period,
-  amounts: AssetAmounts = DEFAULT_AMOUNTS
-) {
-  const rawTimestamps = history.map((p) => p.timestamp * 1000);
-  const values = history.map((p) => calcPortfolioValue(p, amounts));
-
-  if (!values.length) {
-    return { timestamps: [], percentValues: [] };
-  }
-
-  const base = values[0];
-  const rawPercentValues = values.map((v) =>
-    base === 0 ? 0 : ((v - base) / base) * 100
-  );
-
-  const target = period === "week" ? 50 : period === "month" ? 70 : 150;
-  const { xs, ys } = downsample(rawTimestamps, rawPercentValues, target);
-
-  return { timestamps: xs, percentValues: ys };
-}
-
-export function buildTopMetrics(
-  history: HistoryPoint[],
-  amounts: AssetAmounts = DEFAULT_AMOUNTS,
-  btcSymbol: string = "BTC"
-) {
-  if (history.length < 2) {
-    return {
-      tvl: 0,
-      lastTsMs: 0,
-      changeUsd: 0,
-      changePct: 0,
-      btcPct: 0,
-      vsBtcPp: 0,
-    };
-  }
-
-  const first = history[0];
-  const last = history[history.length - 1];
-
-  const startValue = calcPortfolioValue(first, amounts);
-  const endValue = calcPortfolioValue(last, amounts);
-
-  const changeUsd = endValue - startValue;
-  const changePct = startValue === 0 ? 0 : (changeUsd / startValue) * 100;
-
-  // BTC benchmark (если BTC нет — fallback на WBTC)
-  const btcStart =
-    first.prices[btcSymbol] ?? first.prices["WBTC"] ?? first.prices["BTC"] ?? 0;
-  const btcEnd =
-    last.prices[btcSymbol] ?? last.prices["WBTC"] ?? last.prices["BTC"] ?? 0;
-
-  const btcPct = btcStart === 0 ? 0 : ((btcEnd - btcStart) / btcStart) * 100;
-
-  const vsBtcPp = changePct - btcPct;
-
-  return {
-    tvl: endValue,
-    lastTsMs: last.timestamp * 1000,
-    changeUsd,
-    changePct,
-    btcPct,
-    vsBtcPp,
-  };
-}\nfrontend/src/services/portfolio/portfolioStatsService.ts\nimport type {
-  AssetAmounts,
-  HistoryPoint,
-} from "./portfolioService";
-import { calcPortfolioValue, DEFAULT_AMOUNTS } from "./portfolioService";
-
-export type EstimatedParams = {
-  drift: number; // μ — mean log-return per day
-  volatility: number; // σ — std of log-returns per day
-};
-
-export function estimatePortfolioParams(
-  history: HistoryPoint[],
-  amounts: AssetAmounts = DEFAULT_AMOUNTS
-): EstimatedParams {
-  if (history.length < 2) {
-    return { drift: 0, volatility: 0 };
-  }
-
-  const values: number[] = history
-    .map((p) => calcPortfolioValue(p, amounts))
-    .filter((v) => Number.isFinite(v) && v > 0);
-
-  if (values.length < 2) {
-    return { drift: 0, volatility: 0 };
-  }
-
-  // log-returns
-  const returns: number[] = [];
-
-  for (let i = 1; i < values.length; i++) {
-    const r = Math.log(values[i] / values[i - 1]);
-    if (Number.isFinite(r)) returns.push(r);
-  }
-
-  if (!returns.length) {
-    return { drift: 0, volatility: 0 };
-  }
-
-  // mean (drift)
-  const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
-
-  // std (volatility)
-  const variance =
-    returns.reduce((sum, r) => sum + (r - mean) ** 2, 0) / returns.length;
-
-  const std = Math.sqrt(variance);
-
-  return {
-    drift: mean,
-    volatility: std,
-  };
-}\nfrontend/src/services/simulation/assetsService.ts\n
+}\nfrontend/src/services/balances/moralisClient.ts\n

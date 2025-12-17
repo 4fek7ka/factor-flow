@@ -1,8 +1,5 @@
 import { useMemo, useState } from "react";
-import { useOutletContext } from "react-router-dom";
-
 import historyJson from "../data/mock-history.json";
-import portfoliosJson from "../data/mock-portfolios.json";
 
 import {
   buildTopMetrics,
@@ -10,36 +7,27 @@ import {
 } from "../services/portfolio/portfolioService";
 
 import type {
-  AssetAmounts,
   HistoryPoint,
   Period,
+  AssetAmounts,
 } from "../services/portfolio/portfolioService";
 
-// components
+// portfolio components
 import { PortfolioMetricsRow } from "../components/portfolio/PortfolioMetricsRow";
 import { PortfolioChartCard } from "../components/portfolio/PortfolioChartCard";
-//import { AssetSparklinesSection } from "../components/portfolio/AssetSparklinesSection";
 import { PortfolioAllocationSection } from "../components/portfolio/PortfolioAllocationSection";
 
-type OutletCtx = {
-  profileId: string;
-};
-
-type Profile = {
-  id: string;
-  name: string;
-  assets: AssetAmounts;
+// локальный fallback (чтобы не зависеть от экспорта DEFAULT_AMOUNTS)
+const DEFAULT_AMOUNTS: AssetAmounts = {
+  ETH: 2,
+  WBTC: 0.03,
+  USDC: 80,
+  DAI: 40,
+  UNI: 400,
 };
 
 export function PortfolioPage() {
-  const { profileId } = useOutletContext<OutletCtx>();
-
   const history = historyJson as unknown as HistoryPoint[];
-  const profiles = (portfoliosJson as any).profiles as Profile[];
-
-  const profile = profiles.find((p) => p.id === profileId) ?? profiles[0];
-
-  const amounts = profile.assets;
 
   const [period, setPeriod] = useState<Period>("year");
 
@@ -49,15 +37,9 @@ export function PortfolioPage() {
   );
 
   const metrics = useMemo(
-    () => buildTopMetrics(filteredHistory, amounts, "BTC"),
-    [filteredHistory, amounts]
+    () => buildTopMetrics(filteredHistory, DEFAULT_AMOUNTS, "BTC"),
+    [filteredHistory]
   );
-
-  /*const profileSymbols = useMemo(() => {
-    return Object.keys(amounts)
-      .sort((a, b) => (amounts[b] ?? 0) - (amounts[a] ?? 0))
-      .slice(0, 5);
-  }, [amounts]);*/
 
   return (
     <div>
@@ -72,17 +54,15 @@ export function PortfolioPage() {
       />
 
       <PortfolioChartCard
-        history={history}
+        history={filteredHistory}
         period={period}
         onPeriodChange={setPeriod}
-        amounts={amounts}
+        amounts={DEFAULT_AMOUNTS}
       />
 
-      {/* ✅ VolatilityArcCard под графиком УБРАН (чтобы не было дубля) */}
+      <PortfolioAllocationSection history={filteredHistory} amounts={DEFAULT_AMOUNTS} />
 
-      <PortfolioAllocationSection history={filteredHistory} amounts={amounts} />
-
-    {/*<AssetSparklinesSection history={filteredHistory} symbols={profileSymbols} />*/}
+      {/* amounts сюда НЕ передаём (компонент его не принимает) */}
     </div>
   );
 }

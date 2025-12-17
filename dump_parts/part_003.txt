@@ -1,4 +1,324 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { HistoryPoint, AssetAmounts } from "../../services/portfolio/portfolioService";
+
+/* =========================
+   Helpers
+========================= */
+
+function calcPortfolioValue(p: HistoryPoint, amounts: AssetAmounts) {
+  let total = 0;
+
+  for (const [symbol, amount] of Object.entries(amounts)) {
+    const price = p.prices[symbol] ?? 0;
+    total += price * amount;
+  }
+
+  return total;
+}
+
+function computeStats(history: HistoryPoint[], amounts: AssetAmounts) {
+  if (history.length < 2) {
+    return { volatility: 0, minVol: 0, maxVol: 0, avgMove: 0, stdDev: 0 };
+  }
+
+  const vals = history
+    .map((p) => calcPortfolioValue(p, amounts))
+    .filter((v) => Number.isFinite(v) && v > 0);
+
+  if (vals.length < 2) {
+    return { volatility: 0, minVol: 0, maxVol: 0, avgMove: 0, stdDev: 0 };
+  }
+
+  const minVal = Math.min(...vals);
+  const maxVal = Math.max(...vals);
+  const avg = vals.reduce((s, x) => s + x, 0) / vals.length || 1;
+
+  const volatilityRange = ((maxVal - minVal) / avg) * 100;
+
+  const minPct = ((minVal - avg) / avg) * 100;
+  const maxPct = ((maxVal - avg) / avg) * 100;
+
+  const avgMoveCalc =
+    vals
+      .slice(1)
+      .reduce((s, v, i) => s + Math.abs(v - vals[i]), 0) /
+    (vals.length - 1);
+
+  const avgMovePct = (avgMoveCalc / avg) * 100;
+
+  const variance = vals.reduce((s, v) => s + (v - avg) ** 2, 0) / vals.length;
+  const std = Math.sqrt(variance);
+  const stdDevPct = (std / avg) * 100;
+
+  return {
+    volatility: volatilityRange,
+    minVol: minPct,
+    maxVol: maxPct,
+    avgMove: avgMovePct,
+    stdDev: stdDevPct,
+  };
+}
+
+/* =========================
+   Types
+========================= */
+
+type Props = {
+  history: HistoryPoint[]; // уже filteredHistory
+  amounts: AssetAmounts;
+};
+
+type Stats = {
+  volatility: number;
+  minVol: number;
+  maxVol: number;
+  avgMove: number;
+  stdDev: number;
+};
+
+/* =========================
+   Component
+========================= */
+
+export function VolatilityArcCard({ history, amounts }: Props) {
+  // "истина" (новые значения при смене периода)
+  const nextStats = useMemo<Stats>(() => computeStats(history, amounts), [history, amounts]);
+
+  // то, что реально отображаем в цифрах (анимируем fade)
+  const [displayStats, setDisplayStats] = useState<Stats>(nextStats);
+
+  // дуга анимируется отдельно: обновляем сразу
+  const [arcVolatility, setArcVolatility] = useState<number>(nextStats.volatility);
+
+  // фаза для fade цифр
+  const [fadePhase, setFadePhase] = useState<"in" | "out">("in");
+
+  // signature, чтобы понимать "переключили период"
+  const signature = useMemo(() => {
+    const first = history[0]?.timestamp ?? 0;
+    const last = history[history.length - 1]?.timestamp ?? 0;
+
+    const amountsKey = Object.entries(amounts)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => `${k}:${v}`)
+      .join("|");
+
+    return `${history.length}:${first}:${last}:${amountsKey}`;
+  }, [history, amounts]);
+
+  const prevSigRef = useRef<string>(signature);
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (prevSigRef.current === signature) return;
+    prevSigRef.current = signature;
+
+    // 1) дуга — сразу, sweep-анимация
+    setArcVolatility(nextStats.volatility);
+
+    // 2) цифры — плавно тухнут → обновляем → плавно появляются
+    setFadePhase("out");
+
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+
+    timerRef.current = window.setTimeout(() => {
+      setDisplayStats(nextStats);
+      setFadePhase("in");
+      timerRef.current = null;
+    }, 180);
+
+    return () => {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    };
+  }, [signature, nextStats]);
+
+  /* =========================
+     Arc math
+  ========================= */
+
+  const pct = Math.min(Math.max(arcVolatility / 120, 0), 1);
+
+  const radius = 100;
+  const circumference = Math.PI * radius;
+  const filled = pct * circumference;
+  const empty = circumference - filled;
+
+  const TEXT_PRIMARY = "#EFEFEF";
+  const TEXT_SECONDARY = "rgba(255,255,255,0.75)";
+
+  return (
+    <div
+      className="card vola-card"
+      style={{
+        borderRadius: "10px",
+        height: "100%",
+        width: "100%",
+      }}
+    >
+      <style>{`
+        .vola-card {
+          will-change: opacity, transform;
+          transition: opacity 220ms ease, transform 220ms ease;
+        }
+
+        .vola-fade {
+          transition: opacity 220ms ease, filter 220ms ease;
+          will-change: opacity, filter;
+        }
+
+        .vola-fade.out {
+          opacity: 0;
+          filter: blur(2px);
+        }
+
+        .vola-fade.in {
+          opacity: 1;
+          filter: blur(0px);
+        }
+
+        /* ДУГА: отдельная анимация (другая длительность/easing) */
+        .vola-arc {
+          transition: stroke-dasharray 900ms cubic-bezier(0.22, 1, 0.36, 1);
+          will-change: stroke-dasharray;
+        }
+      `}</style>
+
+      <div
+        className="card-body"
+        style={{
+          display: "flex",
+          gap: "28px",
+          alignItems: "center",
+          paddingTop: 20,
+          paddingBottom: 20,
+        }}
+      >
+        {/* ======================= GAUGE ======================= */}
+        <div style={{ flex: "0 0 260px" }}>
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            <svg width="260" height="170" viewBox="0 0 260 170">
+              <defs>
+                <linearGradient id="volaGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#22c55e" />
+                  <stop offset="50%" stopColor="#eab308" />
+                  <stop offset="100%" stopColor="#ef4444" />
+                </linearGradient>
+              </defs>
+
+              {/* Background arc */}
+              <path
+                d="M30 120 A100 100 0 0 1 230 120"
+                stroke="rgba(255,255,255,0.08)"
+                strokeWidth="16"
+                fill="none"
+              />
+
+              {/* Foreground arc (sweep animation) */}
+              <path
+                className="vola-arc"
+                d="M30 120 A100 100 0 0 1 230 120"
+                stroke="url(#volaGradient)"
+                strokeWidth="16"
+                fill="none"
+                strokeDasharray={`${filled} ${empty}`}
+                strokeLinecap="round"
+              />
+
+              {/* Percentage (fade) */}
+              <text
+                x="130"
+                y="108"
+                fill={TEXT_PRIMARY}
+                fontSize="28"
+                fontWeight="700"
+                dominantBaseline="middle"
+                textAnchor="middle"
+                className={`vola-fade ${fadePhase}`}
+              >
+                {displayStats.volatility.toFixed(2)}%
+              </text>
+
+              {/* Low / High */}
+              <text x="12" y="155" fill={TEXT_PRIMARY} fontSize="15" fontWeight="600" textAnchor="start">
+                Low
+              </text>
+
+              <text x="248" y="155" fill={TEXT_PRIMARY} fontSize="15" fontWeight="600" textAnchor="end">
+                High
+              </text>
+            </svg>
+          </div>
+
+          <div
+            style={{
+              textAlign: "center",
+              marginTop: 8,
+              fontSize: 15,
+              color: TEXT_SECONDARY,
+            }}
+          >
+            Period Range Volatility
+          </div>
+        </div>
+
+        {/* ======================= ANALYTICS ======================= */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px",
+            paddingLeft: "32px",
+            flex: 1,
+            color: TEXT_PRIMARY,
+            fontSize: "15px",
+          }}
+        >
+          <div
+            style={{
+              marginBottom: "6px",
+              opacity: 0.9,
+              fontWeight: 600,
+              fontSize: "16px",
+            }}
+          >
+            Analytics
+          </div>
+
+          {[
+            { label: "Min", value: displayStats.minVol },
+            { label: "Max", value: displayStats.maxVol },
+            { label: "Avg Abs Move", value: displayStats.avgMove },
+            { label: "Std Dev", value: displayStats.stdDev },
+          ].map((m, i) => (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                borderBottom: i < 3 ? "1px solid rgba(255,255,255,0.06)" : "none",
+                paddingBottom: "6px",
+                paddingTop: "4px",
+              }}
+            >
+              <span style={{ opacity: 0.75 }}>{m.label}</span>
+
+              <span
+                className={`vola-fade ${fadePhase}`}
+                style={{
+                  fontFamily: "monospace",
+                  opacity: 0.95,
+                }}
+              >
+                {m.value.toFixed(2)}%
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}\nfrontend/src/components/simulation/FinalOutcomeCard.tsx\nimport { useMemo } from "react";
 
 type Props = {
   startValue: number;
@@ -401,15 +721,12 @@ export type SimulationChartCardProps = {
   showRepresentative?: boolean;
   showRange: boolean;
 
-  // Quantile Fan
   showFan?: boolean;
 
   onToggleCloud?: () => void;
   onToggleMedian?: () => void;
   onToggleRepresentative?: () => void;
   onToggleRange?: () => void;
-
-  // Quantile Fan
   onToggleFan?: () => void;
 };
 
@@ -487,6 +804,7 @@ export function SimulationChartCard({
             ]
           : []),
       ];
+
       const min = Math.min(...all);
       const max = Math.max(...all);
       const pad = (max - min) * 0.08;
@@ -530,7 +848,18 @@ export function SimulationChartCard({
   ]);
 
   return (
-    <div style={{ position: "relative", width: "100%", height: 380 }}>
+    <div
+      className="card"
+      style={{
+        position: "relative",
+        width: "100%",
+        height: 380,
+
+        /* ✅ ТОЧНО как у других карточек */
+        background: "var(--tblr-card-bg)",
+        border: "1px solid var(--tblr-border-color)",
+      }}
+    >
       <style>{`
         .sim-legend {
           position: absolute;
@@ -553,7 +882,6 @@ export function SimulationChartCard({
           gap: 8px;
           font-size: 13px;
           font-weight: 700;
-          line-height: 1;
           cursor: pointer;
           user-select: none;
           color: ${TEXT_INACTIVE};
@@ -569,7 +897,6 @@ export function SimulationChartCard({
           border-radius: 999px;
           background: ${INACTIVE_COLOR};
           transition: background 120ms ease;
-          flex-shrink: 0;
         }
 
         .sim-legend-item.is-on .sim-legend-dot {
@@ -578,7 +905,6 @@ export function SimulationChartCard({
       `}</style>
 
       <div className="sim-legend">
-        {/* 1) Main */}
         <div
           className={`sim-legend-item ${showRepresentative ? "is-on" : ""}`}
           onClick={onToggleRepresentative}
@@ -587,7 +913,6 @@ export function SimulationChartCard({
           Main
         </div>
 
-        {/* 2) Fan */}
         <div
           className={`sim-legend-item ${showFan ? "is-on" : ""}`}
           onClick={onToggleFan}
@@ -596,7 +921,6 @@ export function SimulationChartCard({
           Fan
         </div>
 
-        {/* 3) Median */}
         <div
           className={`sim-legend-item ${showMedian ? "is-on" : ""}`}
           onClick={onToggleMedian}
@@ -605,7 +929,6 @@ export function SimulationChartCard({
           Median
         </div>
 
-        {/* 4) Cloud */}
         <div
           className={`sim-legend-item ${showCloud ? "is-on" : ""}`}
           onClick={onToggleCloud}
@@ -614,7 +937,6 @@ export function SimulationChartCard({
           Cloud
         </div>
 
-        {/* 5) Range (last) */}
         <div
           className={`sim-legend-item ${showRange ? "is-on" : ""}`}
           onClick={onToggleRange}
@@ -627,349 +949,4 @@ export function SimulationChartCard({
       <div ref={ref} style={{ width: "100%", height: "100%" }} />
     </div>
   );
-}\nfrontend/src/components/simulation/simulationChart.option.ts\n// simulationChart.option.ts
-import type { EChartsCoreOption } from "echarts/core";
-const FAN_OUTER = "rgba(148,163,184,0.12)";
-const FAN_INNER = "rgba(148,163,184,0.20)";
-
-const COLOR_MAIN = "#0ea5e9";
-const COLOR_UPPER = "#22c55e";
-const COLOR_LOWER = "#ef4444";
-
-type FanQuantiles = {
-  q05: number[];
-  q25: number[];
-  q50: number[];
-  q75: number[];
-  q95: number[];
-};
-
-type BuildOptionParams = {
-  timestamps: number[];
-  median: number[];
-  representative: number[];
-  upper: number[];
-  lower: number[];
-  cloud: number[][];
-  fan?: FanQuantiles;
-  yDomain: { min: number; max: number };
-  flags: {
-    showCloud: boolean;
-    showMedian: boolean;
-    showRepresentative: boolean;
-    showRange: boolean;
-    showFan: boolean;
-  };
-};
-
-function buildPolygon(
-  timestamps: number[],
-  upper: number[],
-  lower: number[],
-  api: any
-) {
-  const pts: number[][] = [];
-  for (let i = 0; i < timestamps.length; i++) {
-    pts.push(api.coord([timestamps[i], upper[i]]));
-  }
-  for (let i = timestamps.length - 1; i >= 0; i--) {
-    pts.push(api.coord([timestamps[i], lower[i]]));
-  }
-  return pts;
-}
-
-function tooltipRow(
-  label: string,
-  value: number,
-  dotColor: string,
-  bold = false
-) {
-  return `
-    <div style="
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      margin-top:4px;
-      font-weight:${bold ? 800 : 700};
-    ">
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="
-          width:8px;
-          height:8px;
-          border-radius:50%;
-          background:${dotColor};
-        "></span>
-        <span style="color:rgba(148,163,184,0.9)">${label}</span>
-      </div>
-      <span style="color:rgba(30,41,59,0.95)">
-        ${value.toFixed(2)}%
-      </span>
-    </div>
-  `;
-}
-
-export function buildSimulationChartOption({
-  timestamps,
-  median,
-  representative,
-  upper,
-  lower,
-  cloud,
-  fan,
-  yDomain,
-  flags,
-}: BuildOptionParams): EChartsCoreOption {
-  return {
-    backgroundColor: "transparent",
-
-    // ✅ ключевая часть
-    animationDurationUpdate: 420,
-    animationEasingUpdate: "cubicOut",
-
-    tooltip: {
-      trigger: "axis",
-      axisPointer: {
-        type: "line",
-        lineStyle: {
-          color: "rgba(148,163,184,0.45)",
-          width: 1,
-          type: "dashed",
-        },
-      },
-      formatter: (params: any[]) => {
-        const main = params.find((p) => p.seriesName === "Main");
-        if (!main) return "";
-
-        const i = main.dataIndex;
-        const day = Math.round(main.value[0]);
-
-        let html = `<div style="font-weight:800;margin-bottom:6px">${day}d</div>`;
-        html += tooltipRow("Upper", upper[i], COLOR_UPPER);
-        html += tooltipRow("Main", representative[i], COLOR_MAIN, true);
-        html += tooltipRow("Lower", lower[i], COLOR_LOWER);
-        return html;
-      },
-    },
-
-    grid: { left: 40, right: 48, top: 44, bottom: 40 },
-
-    xAxis: {
-      type: "value",
-      min: 0,
-      max: timestamps[timestamps.length - 1],
-      animation: false,
-      axisLabel: {
-        color: "#94a3b8",
-        formatter: (v: number) => `${Math.round(v)}d`,
-      },
-      axisLine: { lineStyle: { color: "#334155" } },
-      splitLine: { show: false },
-    },
-
-    yAxis: {
-      type: "value",
-      min: yDomain.min,
-      max: yDomain.max,
-      position: "right",
-      animation: false,
-      axisLabel: {
-        color: "#94a3b8",
-        formatter: (v: number) =>
-          v === yDomain.min || v === yDomain.max ? "" : `${v}%`,
-      },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: {
-        show: true,
-        lineStyle: { color: "#334155", width: 1, opacity: 0.7 },
-      },
-    },
-
-    series: [
-      ...cloud.map((p) => ({
-        type: "line",
-        name: "Cloud",
-        data: timestamps.map((t, i) => [t, p[i]]),
-        showSymbol: false,
-        silent: true,
-        tooltip: { show: false },
-        animation: false,
-        lineStyle: {
-          color: "#64748b",
-          width: 1,
-          opacity: flags.showCloud ? 0.15 : 0,
-        },
-        z: 1,
-      })),
-
-      fan && {
-        type: "custom",
-        name: "FanOuter",
-        silent: true,
-        tooltip: { show: false },
-        animation: false,
-        data: [0],
-        z: 2,
-        renderItem: (_: unknown, api: any) => ({
-          type: "polygon",
-          shape: { points: buildPolygon(timestamps, fan.q95, fan.q05, api) },
-          style: { fill: FAN_OUTER, opacity: flags.showFan ? 1 : 0 },
-        }),
-      },
-
-      fan && {
-        type: "custom",
-        name: "FanInner",
-        silent: true,
-        tooltip: { show: false },
-        animation: false,
-        data: [0],
-        z: 3,
-        renderItem: (_: unknown, api: any) => ({
-          type: "polygon",
-          shape: { points: buildPolygon(timestamps, fan.q75, fan.q25, api) },
-          style: { fill: FAN_INNER, opacity: flags.showFan ? 1 : 0 },
-        }),
-      },
-
-      {
-        type: "line",
-        name: "Median",
-        data: timestamps.map((t, i) => [t, median[i]]),
-        showSymbol: false,
-        animation: true,
-        lineStyle: {
-          color: "#ef4444",
-          width: 2,
-          opacity: flags.showMedian ? 0.45 : 0,
-        },
-        z: 10,
-      },
-
-      {
-        type: "line",
-        name: "Main",
-        data: timestamps.map((t, i) => [t, representative[i]]),
-        showSymbol: false,
-        animation: true,
-        lineStyle: {
-          color: COLOR_MAIN,
-          width: 2,
-          opacity: flags.showRepresentative ? 0.7 : 0,
-        },
-        z: 12,
-      },
-    ].filter(Boolean),
-  };
-}\nfrontend/src/components/simulation/simulationChart.utils.ts\n// simulationChart.utils.ts
-
-export type FanQuantiles = {
-  q05: number[];
-  q25: number[];
-  q50: number[];
-  q75: number[];
-  q95: number[];
-};
-
-export function resample<T>(arr: T[], target: number): T[] {
-  if (arr.length <= target) return arr;
-
-  const res: T[] = [];
-  const step = (arr.length - 1) / (target - 1);
-
-  for (let i = 0; i < target; i++) {
-    res.push(arr[Math.round(i * step)]);
-  }
-
-  return res;
-}
-
-export function toPercentFromBase(values: number[], base: number): number[] {
-  if (values.length === 0) return values;
-  if (!Number.isFinite(base) || base === 0) return values.map(() => 0);
-  return values.map((v) => ((v - base) / base) * 100);
-}
-
-function quantileSorted(sorted: number[], q: number): number {
-  const n = sorted.length;
-  if (n === 0) return 0;
-  if (n === 1) return sorted[0];
-
-  const qq = Math.max(0, Math.min(1, q));
-  const pos = (n - 1) * qq;
-  const base = Math.floor(pos);
-  const rest = pos - base;
-
-  const left = sorted[base]!;
-  const right = sorted[Math.min(base + 1, n - 1)]!;
-  return left + (right - left) * rest;
-}
-
-function finiteOnly(values: number[]): number[] {
-  const out: number[] = [];
-  for (let i = 0; i < values.length; i++) {
-    const v = values[i];
-    if (Number.isFinite(v)) out.push(v);
-  }
-  return out;
-}
-
-/**
- * Builds a quantile "fan" from Monte Carlo paths.
- * Each path is an array of values over time, all paths must have the same length.
- */
-export function buildFanQuantiles(paths: number[][]): FanQuantiles | null {
-  if (!paths || paths.length === 0) return null;
-
-  const T = paths[0]?.length ?? 0;
-  if (T === 0) return null;
-
-  // Ensure consistent lengths
-  for (let p = 0; p < paths.length; p++) {
-    if ((paths[p]?.length ?? 0) !== T) return null;
-  }
-
-  const q05: number[] = new Array(T);
-  const q25: number[] = new Array(T);
-  const q50: number[] = new Array(T);
-  const q75: number[] = new Array(T);
-  const q95: number[] = new Array(T);
-
-  for (let t = 0; t < T; t++) {
-    const col: number[] = new Array(paths.length);
-    for (let p = 0; p < paths.length; p++) {
-      col[p] = paths[p]![t]!;
-    }
-
-    const vals = finiteOnly(col);
-    if (vals.length === 0) {
-      q05[t] = 0;
-      q25[t] = 0;
-      q50[t] = 0;
-      q75[t] = 0;
-      q95[t] = 0;
-      continue;
-    }
-
-    vals.sort((a, b) => a - b);
-
-    q05[t] = quantileSorted(vals, 0.05);
-    q25[t] = quantileSorted(vals, 0.25);
-    q50[t] = quantileSorted(vals, 0.5);
-    q75[t] = quantileSorted(vals, 0.75);
-    q95[t] = quantileSorted(vals, 0.95);
-  }
-
-  return { q05, q25, q50, q75, q95 };
-}
-
-export function resampleFan(fan: FanQuantiles, target: number): FanQuantiles {
-  return {
-    q05: resample(fan.q05, target),
-    q25: resample(fan.q25, target),
-    q50: resample(fan.q50, target),
-    q75: resample(fan.q75, target),
-    q95: resample(fan.q95, target),
-  };
-}\nfrontend/src/components/simulation/SimulationControls.tsx\n
+}\nfrontend/src/components/simulation/simulationChart.option.ts\n

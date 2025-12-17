@@ -1,4 +1,276 @@
-export type AssetRow = {
+const MORALIS_BASE = "https://deep-index.moralis.io/api/v2";
+
+/**
+ * ⚠️ TEMP HARDCODE
+ * Только для MVP / локальной разработки
+ * Потом убрать в .env или backend
+ */
+const MORALIS_API_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjM1ZDc2OTRmLTBmOWUtNDM4Yy1iNTBmLTRmNmE4YTEyZGY0YiIsIm9yZ0lkIjoiNDg2Mjg2IiwidXNlcklkIjoiNTAwMjkxIiwidHlwZUlkIjoiYzM3MzRjOGMtMzUzNC00MDI4LTlmNzEtOGRlOGRiM2Q4MmYwIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NjU4NTM5MzMsImV4cCI6NDkyMTYxMzkzM30.wQ9VlqQKyg6v5f7wU85HEozh1el1pUwnvSXkf3FS-Gk";
+
+type FetchOptions = {
+  path: string;
+  params?: Record<string, string | number | boolean | undefined>;
+};
+
+async function moralisFetch<T>({ path, params }: FetchOptions): Promise<T> {
+  const url = new URL(`${MORALIS_BASE}${path}`);
+
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined) url.searchParams.set(k, String(v));
+    });
+  }
+
+  const res = await fetch(url.toString(), {
+    headers: {
+      "X-API-Key": MORALIS_API_KEY,
+    },
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`[Moralis] ${res.status}: ${text}`);
+  }
+
+  return res.json();
+}
+
+/* =========================
+   ETH MAINNET
+========================= */
+
+export function fetchEthNativeBalance(address: string) {
+  return moralisFetch<{
+    balance: string;
+  }>({
+    path: `/${address}/balance`,
+    params: { chain: "eth" },
+  });
+}
+
+export function fetchEthTokenBalances(address: string) {
+  return moralisFetch<
+    Array<{
+      token_address: string;
+      symbol: string;
+      name: string;
+      decimals: number;
+      balance: string;
+    }>
+  >({
+    path: `/${address}/erc20`,
+    params: { chain: "eth" },
+  });
+}\nfrontend/src/services/balances/types.ts\nexport type BalanceAsset = {
+  source: "moralis";
+
+  symbol: string;
+  name: string;
+  decimals: number;
+
+  balanceRaw: string;
+  balance: number;
+
+  tokenAddress?: string;
+  isNative: boolean;
+};\nfrontend/src/services/portfolio/portfolioService.ts\nexport type Period = "year" | "month" | "week";
+
+export type AssetAmounts = Record<string, number>;
+
+export type HistoryPoint = {
+  timestamp: number; // unix seconds
+  prices: Record<string, number>;
+};
+
+// fallback (если где-то не передали amounts)
+export const DEFAULT_AMOUNTS: AssetAmounts = {
+  ETH: 2,
+  WBTC: 0.03,
+  USDC: 80,
+  DAI: 40,
+  UNI: 400,
+};
+
+export function calcPortfolioValue(
+  p: HistoryPoint,
+  amounts: AssetAmounts = DEFAULT_AMOUNTS
+): number {
+  const pr = p.prices;
+  let total = 0;
+
+  for (const [sym, amount] of Object.entries(amounts)) {
+    const price = pr[sym] ?? 0;
+    total += price * amount;
+  }
+
+  return total;
+}
+
+export function filterHistoryByPeriod(history: HistoryPoint[], period: Period) {
+  if (!history.length) return [];
+
+  const last = history[history.length - 1].timestamp;
+  const seconds =
+    period === "week"
+      ? 7 * 24 * 3600
+      : period === "month"
+      ? 30 * 24 * 3600
+      : 365 * 24 * 3600;
+
+  const cutoff = last - seconds;
+  return history.filter((p) => p.timestamp >= cutoff);
+}
+
+/* ================================
+   📌 Downsampling (visual)
+================================ */
+
+function downsample(xs: number[], ys: number[], target: number) {
+  const n = xs.length;
+  if (n <= target) return { xs, ys };
+
+  const step = Math.ceil(n / target);
+  const outX: number[] = [];
+  const outY: number[] = [];
+
+  for (let i = 0; i < n; i += step) {
+    outX.push(xs[i]);
+    outY.push(ys[i]);
+  }
+
+  // гарантируем последнюю точку
+  if (outX[outX.length - 1] !== xs[n - 1]) {
+    outX.push(xs[n - 1]);
+    outY.push(ys[n - 1]);
+  }
+
+  return { xs: outX, ys: outY };
+}
+
+/* ================================
+   ✅ Series
+================================ */
+
+export function buildPortfolioSeries(
+  history: HistoryPoint[],
+  period: Period,
+  amounts: AssetAmounts = DEFAULT_AMOUNTS
+) {
+  const rawTimestamps = history.map((p) => p.timestamp * 1000);
+  const values = history.map((p) => calcPortfolioValue(p, amounts));
+
+  if (!values.length) {
+    return { timestamps: [], percentValues: [] };
+  }
+
+  const base = values[0];
+  const rawPercentValues = values.map((v) =>
+    base === 0 ? 0 : ((v - base) / base) * 100
+  );
+
+  const target = period === "week" ? 50 : period === "month" ? 70 : 150;
+  const { xs, ys } = downsample(rawTimestamps, rawPercentValues, target);
+
+  return { timestamps: xs, percentValues: ys };
+}
+
+export function buildTopMetrics(
+  history: HistoryPoint[],
+  amounts: AssetAmounts = DEFAULT_AMOUNTS,
+  btcSymbol: string = "BTC"
+) {
+  if (history.length < 2) {
+    return {
+      tvl: 0,
+      lastTsMs: 0,
+      changeUsd: 0,
+      changePct: 0,
+      btcPct: 0,
+      vsBtcPp: 0,
+    };
+  }
+
+  const first = history[0];
+  const last = history[history.length - 1];
+
+  const startValue = calcPortfolioValue(first, amounts);
+  const endValue = calcPortfolioValue(last, amounts);
+
+  const changeUsd = endValue - startValue;
+  const changePct = startValue === 0 ? 0 : (changeUsd / startValue) * 100;
+
+  // BTC benchmark (если BTC нет — fallback на WBTC)
+  const btcStart =
+    first.prices[btcSymbol] ?? first.prices["WBTC"] ?? first.prices["BTC"] ?? 0;
+  const btcEnd =
+    last.prices[btcSymbol] ?? last.prices["WBTC"] ?? last.prices["BTC"] ?? 0;
+
+  const btcPct = btcStart === 0 ? 0 : ((btcEnd - btcStart) / btcStart) * 100;
+
+  const vsBtcPp = changePct - btcPct;
+
+  return {
+    tvl: endValue,
+    lastTsMs: last.timestamp * 1000,
+    changeUsd,
+    changePct,
+    btcPct,
+    vsBtcPp,
+  };
+}\nfrontend/src/services/portfolio/portfolioStatsService.ts\nimport type {
+  AssetAmounts,
+  HistoryPoint,
+} from "./portfolioService";
+import { calcPortfolioValue, DEFAULT_AMOUNTS } from "./portfolioService";
+
+export type EstimatedParams = {
+  drift: number; // μ — mean log-return per day
+  volatility: number; // σ — std of log-returns per day
+};
+
+export function estimatePortfolioParams(
+  history: HistoryPoint[],
+  amounts: AssetAmounts = DEFAULT_AMOUNTS
+): EstimatedParams {
+  if (history.length < 2) {
+    return { drift: 0, volatility: 0 };
+  }
+
+  const values: number[] = history
+    .map((p) => calcPortfolioValue(p, amounts))
+    .filter((v) => Number.isFinite(v) && v > 0);
+
+  if (values.length < 2) {
+    return { drift: 0, volatility: 0 };
+  }
+
+  // log-returns
+  const returns: number[] = [];
+
+  for (let i = 1; i < values.length; i++) {
+    const r = Math.log(values[i] / values[i - 1]);
+    if (Number.isFinite(r)) returns.push(r);
+  }
+
+  if (!returns.length) {
+    return { drift: 0, volatility: 0 };
+  }
+
+  // mean (drift)
+  const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
+
+  // std (volatility)
+  const variance =
+    returns.reduce((sum, r) => sum + (r - mean) ** 2, 0) / returns.length;
+
+  const std = Math.sqrt(variance);
+
+  return {
+    drift: mean,
+    volatility: std,
+  };
+}\nfrontend/src/services/simulation/assetsService.ts\nexport type AssetRow = {
   symbol: string;
   iconUrl: string | null;
 
@@ -226,12 +498,14 @@ export async function getFearGreedIndex(): Promise<number | null> {
   } catch {
     return cached || null;
   }
-}\nfrontend/src/services/simulation/monteCarloService.ts\nexport type Scenario = "conservative" | "baseline" | "stress";
+}\nfrontend/src/services/simulation/monteCarloService.ts\n// frontend/src/services/monteCarloService.ts
+
+export type Scenario = "conservative" | "baseline" | "stress";
 
 export type MonteCarloInput = {
   startValue: number;
-  drift: number;
-  volatility: number;
+  drift: number; // daily log-return (historical)
+  volatility: number; // daily vol of log-returns (historical)
   horizonDays: number;
   simulations: number;
   scenario: Scenario;
@@ -260,6 +534,20 @@ const START_RANGE_PCT: Record<Scenario, number> = {
 
 const FIXED_SEED = 42;
 const END_PENALTY_LAMBDA = 12;
+
+/**
+ * Регулировка долгосрочного роста рынка:
+ * 1.0 = +100% в год (удвоение)
+ * 0.5 = +50% в год
+ * 0.0 = без добавочного тренда (чисто по истории)
+ */
+const LONG_TERM_ANNUAL_GROWTH = 0.3;
+
+function annualGrowthToDailyLogDrift(annualGrowth: number): number {
+  // annualGrowth = 1.0 => log(2)/365
+  if (!Number.isFinite(annualGrowth) || annualGrowth <= -1) return 0;
+  return Math.log(1 + annualGrowth) / 365;
+}
 
 function mulberry32(seed: number) {
   let t = seed >>> 0;
@@ -294,6 +582,12 @@ export function runMonteCarloAdvanced(
   const sigma = volatility * SCENARIO_VOL_MULTIPLIER[scenario];
   const rng = mulberry32(FIXED_SEED);
 
+  // ✅ добавляем структурный тренд вверх (регулируется одной константой)
+  const longTermDailyDrift = annualGrowthToDailyLogDrift(
+    LONG_TERM_ANNUAL_GROWTH
+  );
+  const effectiveDrift = drift + longTermDailyDrift;
+
   const timestamps = Array.from({ length: horizonDays + 1 }, (_, i) => i);
   const paths: number[][] = [];
 
@@ -304,7 +598,7 @@ export function runMonteCarloAdvanced(
     for (let t = 1; t <= horizonDays; t++) {
       const prev = path[t - 1];
       const z = randomNormal(rng);
-      path.push(prev * Math.exp(drift + sigma * z));
+      path.push(prev * Math.exp(effectiveDrift + sigma * z));
     }
 
     paths.push(path);
@@ -314,17 +608,14 @@ export function runMonteCarloAdvanced(
   const median = timestamps.map((i) => {
     const values = paths.map((p) => p[i]).sort((a, b) => a - b);
     const m = Math.floor(values.length / 2);
-    return values.length % 2
-      ? values[m]
-      : (values[m - 1] + values[m]) / 2;
+    return values.length % 2 ? values[m] : (values[m - 1] + values[m]) / 2;
   });
 
   // 3) bounds
   const endValues = paths.map((p) => p[horizonDays]).sort((a, b) => a - b);
   const k = Math.max(1, Math.floor(simulations * 0.2));
 
-  const avg = (xs: number[]) =>
-    xs.reduce((s, v) => s + v, 0) / xs.length;
+  const avg = (xs: number[]) => xs.reduce((s, v) => s + v, 0) / xs.length;
 
   const lowerEnd = avg(endValues.slice(0, k));
   const upperEnd = avg(endValues.slice(endValues.length - k));
@@ -357,9 +648,7 @@ export function runMonteCarloAdvanced(
   }
 
   const candidates =
-    validIndices.length > 0
-      ? validIndices
-      : paths.map((_, i) => i); // fallback
+    validIndices.length > 0 ? validIndices : paths.map((_, i) => i); // fallback
 
   // 5) representative selection
   let bestIdx = candidates[0];
@@ -671,220 +960,4 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-})\ngenerate_prices\n#!/bin/bash
-
-echo "⏳ Генерация годовой часовой истории цен (портфель + рынок)..."
-
-OUTPUT="mock-history-hourly.json"
-
-node << 'EOF'
-const fs = require("fs");
-
-// =======================================
-// 🔹 КОНФИГ: ВСЕ АКТИВЫ (портфель + рынок)
-// =======================================
-
-const assets = [
-  // портфельные
-  "ETH",
-  "WBTC",
-  "USDC",
-  "DAI",
-  "UNI",
-
-  // рыночные дополнительные
-  "BTC",
-  "SOL",
-  "BNB",
-  "TON",
-  "XRP",
-  "ADA",
-  "DOGE",
-  "AVAX",
-  "LINK",
-  "ATOM",
-];
-
-// Реалистичные базовые цены + волатильности
-const cfg = {
-  // ==== портфельные ====
-  WBTC: { base: 30000, noise: 0.002,  shockP: 1 / (24 * 3.5), shockMin: -0.04, shockMax: 0.04 },
-  ETH:  { base: 1800,  noise: 0.004,  shockP: 1 / (24 * 3),   shockMin: -0.06, shockMax: 0.06 },
-  UNI:  { base: 6.5,   noise: 0.012,  shockP: 1 / (24 * 2),   shockMin: -0.12, shockMax: 0.14 },
-  USDC: { base: 1.0,   noise: 0.0003, shockP: 1 / (24 * 20),  shockMin: -0.003,shockMax: 0.003 },
-  DAI:  { base: 1.0,   noise: 0.00035,shockP: 1 / (24 * 18),  shockMin: -0.004,shockMax: 0.004 },
-
-  // ==== рыночные (новые) ====
-  // BTC — низкая волатильность
-  BTC: {
-    base: 68000,
-    noise: 0.0018,
-    shockP: 1 / (24 * 4.5),  // примерно раз в 4–5 дней
-    shockMin: -0.03,
-    shockMax: 0.03,
-  },
-
-  // SOL — высокая волатильность
-  SOL: {
-    base: 120,
-    noise: 0.009,
-    shockP: 1 / (24 * 2.5),
-    shockMin: -0.10,
-    shockMax: 0.12,
-  },
-
-  // BNB — умеренная волатильность
-  BNB: {
-    base: 300,
-    noise: 0.004,
-    shockP: 1 / (24 * 3.5),
-    shockMin: -0.06,
-    shockMax: 0.07,
-  },
-
-  // TON — высокая волатильность
-  TON: {
-    base: 2.8,
-    noise: 0.012,
-    shockP: 1 / (24 * 2),
-    shockMin: -0.14,
-    shockMax: 0.16,
-  },
-
-  // XRP — резкие скачки, средняя волатильность
-  XRP: {
-    base: 0.52,
-    noise: 0.007,
-    shockP: 1 / (24 * 3),
-    shockMin: -0.12,
-    shockMax: 0.12,
-  },
-
-  // ADA — умеренная волатильность
-  ADA: {
-    base: 0.42,
-    noise: 0.006,
-    shockP: 1 / (24 * 3.5),
-    shockMin: -0.08,
-    shockMax: 0.09,
-  },
-
-  // DOGE — очень высокая волатильность
-  DOGE: {
-    base: 0.09,
-    noise: 0.015,
-    shockP: 1 / (24 * 2),
-    shockMin: -0.18,
-    shockMax: 0.20,
-  },
-
-  // AVAX — высокая волатильность
-  AVAX: {
-    base: 28,
-    noise: 0.010,
-    shockP: 1 / (24 * 2.5),
-    shockMin: -0.12,
-    shockMax: 0.14,
-  },
-
-  // LINK — умеренно высокая
-  LINK: {
-    base: 15,
-    noise: 0.008,
-    shockP: 1 / (24 * 2.7),
-    shockMin: -0.09,
-    shockMax: 0.11,
-  },
-
-  // ATOM — умеренная волатильность
-  ATOM: {
-    base: 10,
-    noise: 0.007,
-    shockP: 1 / (24 * 3),
-    shockMin: -0.08,
-    shockMax: 0.10,
-  },
-};
-
-// ===============================
-// ⚙️ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-// ===============================
-const HOURS = 24 * 365;
-const now = Math.floor(Date.now() / 1000);
-const startTs = now - HOURS * 3600;
-
-// нормальное распределение (Box–Muller)
-function normal(std) {
-  return (
-    std *
-    Math.sqrt(-2 * Math.log(Math.random())) *
-    Math.cos(2 * Math.PI * Math.random())
-  );
-}
-function rand(min, max) {
-  return min + Math.random() * (max - min);
-}
-
-// ===============================
-// 🧮 ИНИЦИАЛИЗАЦИЯ
-// ===============================
-const prices = Object.fromEntries(
-  assets.map((a) => [a, cfg[a].base])
-);
-
-const history = [];
-
-// ===============================
-// 🔄 ГЕНЕРАЦИЯ ИСТОРИИ
-// ===============================
-for (let i = 0; i < HOURS; i++) {
-  const ts = startTs + i * 3600;
-  const row = { timestamp: ts, prices: {} };
-
-  for (const a of assets) {
-    const c = cfg[a];
-
-    // базовый шум
-    const noise = normal(c.noise);
-
-    // редкие рыночные "шоки"
-    const shock =
-      Math.random() < c.shockP ? rand(c.shockMin, c.shockMax) : 0;
-
-    // результирующая доходность
-    let ret = noise + shock;
-
-    // новый расчёт цены
-    let newPrice = prices[a] * (1 + ret);
-
-    // защита от NaN / Infinity / отрицательных значений
-    if (!Number.isFinite(newPrice) || newPrice <= 0) {
-      // fallback: откат к базовой цене ± случайный диапазон
-      newPrice = c.base * (0.5 + Math.random() * 0.5);
-    }
-
-    prices[a] = newPrice;
-
-    // округление
-    const rounded = Number(newPrice.toFixed(4));
-
-    // дополнительная защита JSON
-    row.prices[a] = Number.isFinite(rounded) ? rounded : c.base;
-  }
-
-  history.push(row);
-}
-
-// ===============================
-// 💾 СОХРАНЕНИЕ В ФАЙЛ
-// ===============================
-fs.writeFileSync(
-  "mock-history-hourly.json",
-  JSON.stringify(history, null, 2)
-);
-
-console.log("✅ Сгенерировано точек:", history.length);
-console.log("✅ Активов:", assets.length);
-EOF
-
-echo "✅ Файл mock-history-hourly.json успешно создан!"\n
+})\ngenerate_prices\n
