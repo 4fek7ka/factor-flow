@@ -42,15 +42,12 @@ export type SimulationChartCardProps = {
   showRepresentative?: boolean;
   showRange: boolean;
 
-  // Quantile Fan
   showFan?: boolean;
 
   onToggleCloud?: () => void;
   onToggleMedian?: () => void;
   onToggleRepresentative?: () => void;
   onToggleRange?: () => void;
-
-  // Quantile Fan
   onToggleFan?: () => void;
 };
 
@@ -128,6 +125,7 @@ export function SimulationChartCard({
             ]
           : []),
       ];
+
       const min = Math.min(...all);
       const max = Math.max(...all);
       const pad = (max - min) * 0.08;
@@ -171,7 +169,18 @@ export function SimulationChartCard({
   ]);
 
   return (
-    <div style={{ position: "relative", width: "100%", height: 380 }}>
+    <div
+      className="card"
+      style={{
+        position: "relative",
+        width: "100%",
+        height: 380,
+
+        /* ✅ ТОЧНО как у других карточек */
+        background: "var(--tblr-card-bg)",
+        border: "1px solid var(--tblr-border-color)",
+      }}
+    >
       <style>{`
         .sim-legend {
           position: absolute;
@@ -194,7 +203,6 @@ export function SimulationChartCard({
           gap: 8px;
           font-size: 13px;
           font-weight: 700;
-          line-height: 1;
           cursor: pointer;
           user-select: none;
           color: ${TEXT_INACTIVE};
@@ -210,7 +218,6 @@ export function SimulationChartCard({
           border-radius: 999px;
           background: ${INACTIVE_COLOR};
           transition: background 120ms ease;
-          flex-shrink: 0;
         }
 
         .sim-legend-item.is-on .sim-legend-dot {
@@ -219,7 +226,6 @@ export function SimulationChartCard({
       `}</style>
 
       <div className="sim-legend">
-        {/* 1) Main */}
         <div
           className={`sim-legend-item ${showRepresentative ? "is-on" : ""}`}
           onClick={onToggleRepresentative}
@@ -228,7 +234,6 @@ export function SimulationChartCard({
           Main
         </div>
 
-        {/* 2) Fan */}
         <div
           className={`sim-legend-item ${showFan ? "is-on" : ""}`}
           onClick={onToggleFan}
@@ -237,7 +242,6 @@ export function SimulationChartCard({
           Fan
         </div>
 
-        {/* 3) Median */}
         <div
           className={`sim-legend-item ${showMedian ? "is-on" : ""}`}
           onClick={onToggleMedian}
@@ -246,7 +250,6 @@ export function SimulationChartCard({
           Median
         </div>
 
-        {/* 4) Cloud */}
         <div
           className={`sim-legend-item ${showCloud ? "is-on" : ""}`}
           onClick={onToggleCloud}
@@ -255,7 +258,6 @@ export function SimulationChartCard({
           Cloud
         </div>
 
-        {/* 5) Range (last) */}
         <div
           className={`sim-legend-item ${showRange ? "is-on" : ""}`}
           onClick={onToggleRange}
