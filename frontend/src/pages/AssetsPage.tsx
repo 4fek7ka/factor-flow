@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Reveal } from "../components/Reveal";
 
 import {
   fetchMarkets,
@@ -59,8 +60,12 @@ export function AssetsPage() {
     pct7d: number;
   } | null>(null);
 
-  /* ===== BASE DATA ===== */
+  /* =========================
+     BASE DATA
+  ========================= */
   useEffect(() => {
+    let active = true;
+
     async function load() {
       if (!isMarketsFresh()) {
         const [markets, global, fear] = await Promise.all([
@@ -68,6 +73,8 @@ export function AssetsPage() {
           fetchGlobal(),
           fetchFearGreed(),
         ]);
+
+        if (!active) return;
 
         saveMarkets(markets);
         saveGlobal(global);
@@ -77,6 +84,8 @@ export function AssetsPage() {
       const markets = readMarkets() ?? [];
       const global = readGlobal();
       const fear = readFearGreed();
+
+      if (!active) return;
 
       setAssets(buildAssetsTable(markets));
       setFearGreed(fear);
@@ -96,9 +105,24 @@ export function AssetsPage() {
     }
 
     load().catch(console.error);
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  /* ===== PAGINATION ===== */
+  /* =========================
+     READY FLAG (ключевое)
+  ========================= */
+  const ready =
+    assets.length > 0 &&
+    marketCap !== null &&
+    fearGreed !== null &&
+    dominance !== null;
+
+  /* =========================
+     PAGINATION
+  ========================= */
   const totalPages = Math.max(1, Math.ceil(assets.length / PAGE_SIZE));
 
   useEffect(() => {
@@ -110,7 +134,9 @@ export function AssetsPage() {
     return assets.slice(start, start + PAGE_SIZE);
   }, [assets, page]);
 
-  /* ===== LIVE PRICES ===== */
+  /* =========================
+     LIVE PRICES
+  ========================= */
   const visibleSymbols = useMemo(
     () => pagedAssets.map((a) => a.symbol),
     [pagedAssets]
@@ -137,89 +163,98 @@ export function AssetsPage() {
     };
   }, [visibleSymbols]);
 
+  /* =========================
+     RENDER
+  ========================= */
   return (
-    <div>
-      <div className="row row-cards mb-2">
-        <div className="col-12 col-md-6 col-lg-3 d-flex">
-          {marketCap && (
-            <MarketCapCard
-              capUsd={marketCap.capUsd}
-              changePct={marketCap.changePct24h}
-              spark={marketCap.sparkline}
-            />
-          )}
-        </div>
+    <div key={ready ? "ready" : "loading"}>
+      {ready && (
+        <>
+          {/* 🟣 Карточки — первая волна */}
+          <Reveal delayMs={0}>
+            <div className="row row-cards mb-2">
+              <div className="col-12 col-md-6 col-lg-3 d-flex">
+                <MarketCapCard
+                  capUsd={marketCap!.capUsd}
+                  changePct={marketCap!.changePct24h}
+                  spark={marketCap!.sparkline}
+                />
+              </div>
 
-        <div className="col-12 col-md-6 col-lg-3 d-flex">
-          {fearGreed !== null && <FearGreedCard value={fearGreed} />}
-        </div>
+              <div className="col-12 col-md-6 col-lg-3 d-flex">
+                <FearGreedCard value={fearGreed!} />
+              </div>
 
-        <div className="col-12 col-md-6 col-lg-3 d-flex">
-          {dominance && (
-            <BtcEthAltCard
-              btc={dominance.btc}
-              eth={dominance.eth}
-              alt={dominance.alt}
-            />
-          )}
-        </div>
+              <div className="col-12 col-md-6 col-lg-3 d-flex">
+                <BtcEthAltCard
+                  btc={dominance!.btc}
+                  eth={dominance!.eth}
+                  alt={dominance!.alt}
+                />
+              </div>
 
-        <div className="col-12 col-md-6 col-lg-3 d-flex">
-          {topGainer && (
-            <TopGainer7dCard
-              name={topGainer.name}
-              symbol={topGainer.symbol}
-              image={topGainer.image}
-              pct7d={topGainer.pct7d}
-            />
-          )}
-        </div>
-      </div>
+              <div className="col-12 col-md-6 col-lg-3 d-flex">
+                <TopGainer7dCard
+                  name={topGainer!.name}
+                  symbol={topGainer!.symbol}
+                  image={topGainer!.image}
+                  pct7d={topGainer!.pct7d}
+                />
+              </div>
+            </div>
+          </Reveal>
 
-      <div style={{ marginTop: 15 }}>
-        <AssetsTable assets={pagedAssets} livePrices={livePrices} />
-      </div>
+          {/* 🟣 Таблица — вторая волна */}
+          <Reveal delayMs={100}>
+            <div style={{ marginTop: 15 }}>
+              <AssetsTable assets={pagedAssets} livePrices={livePrices} />
+            </div>
+          </Reveal>
 
-      {/* Pagination */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          marginTop: 16,
-          gap: 8,
-        }}
-      >
-        <button
-          className="btn btn-sm"
-          disabled={page === 1}
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-        >
-          Prev
-        </button>
-
-        {Array.from({ length: totalPages }).map((_, i) => {
-          const p = i + 1;
-          const active = p === page;
-
-          return (
-            <button
-              key={p}
-              className={`btn btn-sm ${active ? "btn-primary" : ""}`}
-              onClick={() => setPage(p)}
+          {/* 🟣 Пагинация — последняя */}
+          <Reveal delayMs={160}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                marginTop: 16,
+                gap: 8,
+              }}
             >
-              {p}
-            </button>
-          );
-        })}
+              <button
+                className="btn btn-sm"
+                disabled={page === 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Prev
+              </button>
 
-        <button
-          className="btn btn-sm"
-          disabled={page === totalPages}
-          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-        >
-          Next
-        </button>
-      </div>
+              {Array.from({ length: totalPages }).map((_, i) => {
+                const p = i + 1;
+                const active = p === page;
+
+                return (
+                  <button
+                    key={p}
+                    className={`btn btn-sm ${active ? "btn-primary" : ""}`}
+                    onClick={() => setPage(p)}
+                  >
+                    {p}
+                  </button>
+                );
+              })}
+
+              <button
+                className="btn btn-sm"
+                disabled={page === totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Next
+              </button>
+            </div>
+          </Reveal>
+        </>
+      )}
     </div>
   );
 }

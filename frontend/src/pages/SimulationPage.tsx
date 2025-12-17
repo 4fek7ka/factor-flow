@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
+import { Reveal } from "../components/Reveal";
 
 import historyJson from "../data/mock-history.json";
 import portfoliosJson from "../data/mock-portfolios.json";
@@ -66,15 +67,24 @@ export function SimulationPage() {
     showFan: true,
   });
 
+  /* =========================
+     HISTORY
+  ========================= */
   const filteredHistory = useMemo(() => {
     const period = periodFromHorizon(params.horizonDays) as any;
     return filterHistoryByPeriod(history, period);
   }, [history, params.horizonDays]);
 
+  /* =========================
+     PARAM ESTIMATION
+  ========================= */
   const { drift, volatility } = useMemo(() => {
     return estimatePortfolioParams(filteredHistory, amounts);
   }, [filteredHistory, amounts]);
 
+  /* =========================
+     START VALUE
+  ========================= */
   const startValue = useMemo(() => {
     if (!filteredHistory.length) return 100;
     const last = filteredHistory[filteredHistory.length - 1];
@@ -85,6 +95,9 @@ export function SimulationPage() {
     return v || 100;
   }, [filteredHistory, amounts]);
 
+  /* =========================
+     MONTE CARLO
+  ========================= */
   const sim = useMemo(() => {
     return runMonteCarloAdvanced({
       startValue,
@@ -105,72 +118,96 @@ export function SimulationPage() {
 
   const finalMedian = sim.median.at(-1) ?? startValue;
 
+  /* =========================
+     READY FLAG (КЛЮЧЕВОЕ)
+  ========================= */
+  const ready =
+    filteredHistory.length > 0 &&
+    Number.isFinite(drift) &&
+    Number.isFinite(volatility) &&
+    sim.timestamps.length > 0;
+
+  /* =========================
+     RENDER
+  ========================= */
   return (
-    <div style={{ marginTop: 10 }}>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr) 320px",
-          gap: 14,
-        }}
-      >
+    <div key={ready ? "ready" : "loading"} style={{ marginTop: 10 }}>
+      {ready && (
         <div
           style={{
-            display: "flex",
-            flexDirection: "column",
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) 320px",
             gap: 14,
-            minWidth: 0,
           }}
         >
-          <SimulationChartCard
-            timestamps={sim.timestamps}
-            median={sim.median}
-            representative={sim.representative}
-            upper={sim.upper}
-            lower={sim.lower}
-            cloud={sim.paths}
-            showCloud={params.showCloud}
-            showMedian={params.showMedian}
-            showRepresentative={params.showRepresentative}
-            showRange={params.showRange}
-            showFan={params.showFan}
-            onToggleCloud={() =>
-              setParams((p) => ({ ...p, showCloud: !p.showCloud }))
-            }
-            onToggleMedian={() =>
-              setParams((p) => ({ ...p, showMedian: !p.showMedian }))
-            }
-            onToggleRepresentative={() =>
-              setParams((p) => ({
-                ...p,
-                showRepresentative: !p.showRepresentative,
-              }))
-            }
-            onToggleFan={() =>
-              setParams((p) => ({ ...p, showFan: !p.showFan }))
-            }
-            onToggleRange={() =>
-              setParams((p) => ({ ...p, showRange: !p.showRange }))
-            }
-          />
-
+          {/* ===== LEFT ===== */}
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+              display: "flex",
+              flexDirection: "column",
               gap: 14,
+              minWidth: 0,
             }}
           >
-            <FinalOutcomeCard
-              startValue={startValue}
-              median={finalMedian}
-            />
-            <OutcomeDistributionCard paths={sim.paths} />
-          </div>
-        </div>
+            {/* 🟣 График — первая волна */}
+            <Reveal delayMs={0}>
+              <SimulationChartCard
+                timestamps={sim.timestamps}
+                median={sim.median}
+                representative={sim.representative}
+                upper={sim.upper}
+                lower={sim.lower}
+                cloud={sim.paths}
+                showCloud={params.showCloud}
+                showMedian={params.showMedian}
+                showRepresentative={params.showRepresentative}
+                showRange={params.showRange}
+                showFan={params.showFan}
+                onToggleCloud={() =>
+                  setParams((p) => ({ ...p, showCloud: !p.showCloud }))
+                }
+                onToggleMedian={() =>
+                  setParams((p) => ({ ...p, showMedian: !p.showMedian }))
+                }
+                onToggleRepresentative={() =>
+                  setParams((p) => ({
+                    ...p,
+                    showRepresentative: !p.showRepresentative,
+                  }))
+                }
+                onToggleFan={() =>
+                  setParams((p) => ({ ...p, showFan: !p.showFan }))
+                }
+                onToggleRange={() =>
+                  setParams((p) => ({ ...p, showRange: !p.showRange }))
+                }
+              />
+            </Reveal>
 
-        <SimulationControls value={params} onChange={setParams} />
-      </div>
+            {/* 🟣 Итоги — вторая волна */}
+            <Reveal delayMs={100}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                  gap: 14,
+                }}
+              >
+                <FinalOutcomeCard
+                  startValue={startValue}
+                  median={finalMedian}
+                />
+                <OutcomeDistributionCard paths={sim.paths} />
+              </div>
+            </Reveal>
+          </div>
+
+          {/* ===== RIGHT ===== */}
+          <Reveal delayMs={60}>
+            <SimulationControls value={params} onChange={setParams} />
+          </Reveal>
+        </div>
+      )}
     </div>
   );
 }

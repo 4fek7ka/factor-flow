@@ -1,7 +1,6 @@
-// frontend/src/pages/PortfolioPage.tsx
-
 import { useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
+import { Reveal } from "../components/Reveal";
 
 import historyJson from "../data/mock-history.json";
 import portfoliosJson from "../data/mock-portfolios.json";
@@ -65,25 +64,31 @@ export function PortfolioPage() {
   );
 
   return (
-    <div>
-      <PortfolioMetricsRow
-        tvl={metrics.tvl}
-        lastTsMs={metrics.lastTsMs}
-        changeUsd={metrics.changeUsd}
-        changePct={metrics.changePct}
-        vsBtcPp={metrics.vsBtcPp}
-        btcPct={metrics.btcPct}
-        period={period}
-      />
+    <div key={profileId}>
+      <Reveal delayMs={0}>
+        <PortfolioMetricsRow
+          tvl={metrics.tvl}
+          lastTsMs={metrics.lastTsMs}
+          changeUsd={metrics.changeUsd}
+          changePct={metrics.changePct}
+          vsBtcPp={metrics.vsBtcPp}
+          btcPct={metrics.btcPct}
+          period={period}
+        />
+      </Reveal>
 
-      <PortfolioChartCard
-        history={filteredHistory}
-        period={period}
-        onPeriodChange={setPeriod}
-        amounts={amounts}
-      />
+      <Reveal delayMs={80}>
+        <PortfolioChartCard
+          history={filteredHistory}
+          period={period}
+          onPeriodChange={setPeriod}
+          amounts={amounts}
+        />
+      </Reveal>
 
-      <PortfolioAllocationSection history={filteredHistory} amounts={amounts} />
+      <Reveal delayMs={140}>
+        <PortfolioAllocationSection history={filteredHistory} amounts={amounts} />
+      </Reveal>
     </div>
   );
 }
