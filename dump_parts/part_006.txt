@@ -14,6 +14,12 @@ export function AppLayout() {
         background: "#070B17",
       }}
     >
+      {/* фикс скачка из-за scrollbar */}
+      <style>{`
+        html { scrollbar-gutter: stable; }
+        body { overflow-y: scroll; }
+      `}</style>
+
       <Sidebar />
 
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -26,18 +32,17 @@ export function AppLayout() {
             height: 56,
             display: "flex",
             alignItems: "center",
-            padding: "0 24px",
             background: "#111827",
             borderBottom: "1px solid rgba(255,255,255,0.06)",
+            padding: "0 130px",
           }}
         >
-          {/* LOGO + TITLE (из public) */}
+          {/* LEFT: LOGO + TITLE */}
           <div
             style={{
               display: "flex",
               alignItems: "center",
               gap: 8,
-              marginLeft: 43,
             }}
           >
             <img

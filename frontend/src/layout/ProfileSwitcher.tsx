@@ -1,3 +1,4 @@
+// frontend/src/layout/ProfileSwitcher.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import portfoliosJson from "../data/mock-portfolios.json";
 import { buildIdenticonDataUri } from "../utils/identicon";
@@ -13,6 +14,9 @@ type Props = {
   selectedId: string;
   onSelect: (id: string) => void;
 };
+
+const FONT_FAMILY =
+  'system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif';
 
 export function ProfileSwitcher({ selectedId, onSelect }: Props) {
   const profiles = (portfoliosJson as any).profiles as Profile[];
@@ -39,6 +43,32 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
     [selected.owner.address]
   );
 
+  // ✅ фиксируем ширину имени по максимальному имени среди профилей (в пикселях)
+  const nameWidthPx = useMemo(() => {
+    const names = (profiles ?? []).map((p) => (p?.name ?? "").trim());
+    if (!names.length) return 120;
+
+    // fallback (если canvas недоступен)
+    const maxLen = Math.max(...names.map((n) => n.length), 8);
+    const fallback = Math.ceil(maxLen * 8.2) + 2;
+
+    if (typeof document === "undefined") return fallback;
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return fallback;
+
+    // должно совпадать со стилем текста в кнопке
+    ctx.font = `600 14px ${FONT_FAMILY}`;
+
+    let max = 0;
+    for (const n of names) {
+      max = Math.max(max, ctx.measureText(n).width);
+    }
+
+    return Math.ceil(max) + 2;
+  }, [profiles]);
+
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <button
@@ -53,17 +83,37 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
           border: "1px solid rgba(255,255,255,0.08)",
           color: "#fff",
           cursor: "pointer",
+
+          // фиксируем параметры шрифта (и для измерения, и для консистентности)
+          fontFamily: FONT_FAMILY,
+          fontSize: 14,
+          fontWeight: 600,
+          lineHeight: "20px",
         }}
       >
         <img
           src={avatar}
           width={32}
           height={32}
-          style={{ borderRadius: 999 }}
+          style={{ borderRadius: 999, flex: "0 0 auto" }}
           alt=""
         />
-        <span style={{ fontWeight: 600 }}>{selected.name}</span>
-        <span style={{ opacity: 0.7 }}>▾</span>
+
+        {/* ✅ фиксированная ширина под самое длинное имя */}
+        <span
+          style={{
+            display: "inline-block",
+            width: nameWidthPx,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+          title={selected.name}
+        >
+          {selected.name}
+        </span>
+
+        <span style={{ opacity: 0.7, flex: "0 0 auto" }}>▾</span>
       </button>
 
       {open && (
@@ -106,16 +156,19 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
                   color: "#fff",
                   cursor: "pointer",
                   textAlign: "left",
+                  fontFamily: FONT_FAMILY,
+                  fontSize: 14,
+                  fontWeight: 600,
                 }}
               >
                 <img
                   src={icon}
                   width={28}
                   height={28}
-                  style={{ borderRadius: 999 }}
+                  style={{ borderRadius: 999, flex: "0 0 auto" }}
                   alt=""
                 />
-                <span>{p.name}</span>
+                <span style={{ whiteSpace: "nowrap" }}>{p.name}</span>
               </button>
             );
           })}
