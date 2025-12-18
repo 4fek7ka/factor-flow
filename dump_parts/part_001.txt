@@ -150,7 +150,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?\nfrontend/index.html\n<!doctype html>
-<html lang="en">
+<html lang="en" style="background-color: #1E1E1E;">
   <head>
     <meta charset="UTF-8" />
 
@@ -159,6 +159,17 @@ dist-ssr
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Factor Flow</title>
+
+    <!-- 🌓 Базовый фон до загрузки React -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #1E1E1E; /* цвет navbar / surface */
+        color: #e6e6e6;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

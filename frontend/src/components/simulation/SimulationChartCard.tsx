@@ -64,6 +64,7 @@ export function SimulationChartCard({
   showCloud,
   showMedian,
   showRepresentative = true,
+
   showFan = false,
   onToggleCloud,
   onToggleMedian,
@@ -140,8 +141,6 @@ export function SimulationChartCard({
         timestamps: ts,
         median: resample(medianPct, TARGET_POINTS),
         representative: resample(repPct, TARGET_POINTS),
-        upper: resample(upperPct, TARGET_POINTS),
-        lower: resample(lowerPct, TARGET_POINTS),
         cloud: cloudPct.map((p) => resample(p, TARGET_POINTS)),
         yDomain: yDomainRef.current!,
         flags: {
@@ -252,6 +251,7 @@ export function SimulationChartCard({
           <span className="sim-legend-dot" />
           Cloud
         </div>
+
       </div>
 
       <div ref={ref} style={{ width: "100%", height: "100%" }} />

@@ -1,4 +1,64 @@
-import { useMemo } from "react";
+import { SparklineBase } from "../../charts/SparklineBase";
+
+type Props = {
+  name: string;
+  values: number[];
+  pct: number;
+  label?: string;
+};
+
+export function AssetSparklineCard({ name, values, pct, label }: Props) {
+  if (!values.length) return null;
+
+  const isUp = pct >= 0;
+  const color = isUp ? "#22c55e" : "#ef4444";
+  const pctStr = `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
+
+  return (
+    <div className="card card-sm" style={{ flex: 1, minWidth: 150 }}>
+      <div className="card-body">
+        {/* header */}
+        <div className="d-flex justify-content-between mb-1">
+          <div className="text-muted">{name}</div>
+          <div style={{ color }}>{pctStr}</div>
+        </div>
+
+        {/* период */}
+        {label && (
+          <div
+            style={{
+              fontSize: 12,
+              color: "#888",
+              marginTop: -2,
+              marginBottom: 6,
+            }}
+          >
+            {label}
+          </div>
+        )}
+
+        {/* centered sparkline */}
+        <div
+          style={{
+            width: "100%",
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          <div style={{ width: 140 }}> 
+            <SparklineBase
+              values={values}
+              color={color}
+              width={140}
+              height={40}
+              fullWidth={true}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}\nfrontend/src/components/portfolio/AssetSparklinesSection.tsx\nimport { useMemo } from "react";
 import type { HistoryPoint } from "../../services/portfolio/portfolioService";
 import { AssetSparklineCard } from "./AssetSparklineCard";
 
@@ -129,34 +189,64 @@ export function PortfolioAllocationSection({ history, amounts }: Props) {
 }\nfrontend/src/components/portfolio/PortfolioAllocation.tsx\nimport { useEffect, useRef, useMemo } from "react";
 import * as echarts from "echarts";
 
-import type {
-  AssetAmounts,
-  HistoryPoint,
-} from "../../services/portfolio/portfolioService";
+import type { AssetAmounts, HistoryPoint } from "../../services/portfolio/portfolioService";
 
+/**
+ * Asset colors tuned to match the purple/cyan dark theme.
+ * Goal: cohesive “designer” palette (not a random rainbow),
+ * while keeping BTC/ETH recognisable.
+ */
 const ASSET_COLORS: Record<string, string> = {
-  ETH: "#8A7FFF",
-  BTC: "#FFB45A",
-  WBTC: "#FFB45A",
-  USDC: "#5DA7FF",
-  USDT: "#2BB673",
-  DAI: "#FFD86B",
-  UNI: "#FF6F9E",
-  SOL: "#66E0FF",
-  BNB: "#F3BA2F",
-  ADA: "#3CC8C8",
-  XRP: "#7C89FF",
-  DOGE: "#C2A633",
-  AVAX: "#E84142",
-  LINK: "#2A5ADA",
-  TON: "#4AA8FF",
-  Others: "#6B7280",
+  // Core
+  ETH: "#8B5CF6", // violet
+  BTC: "#F59E0B", // warm amber (still “BTC-ish”, but fits theme)
+  WBTC: "#F59E0B",
+
+  // Stables
+  USDC: "#38BDF8", // sky/cyan
+  USDT: "#2DD4BF", // teal
+  DAI: "#FDE047", // soft warm yellow
+
+  // Majors / alts (kept within purple/blue/cyan/rose range)
+  SOL: "#22D3EE",
+  BNB: "#FBBF24",
+  ADA: "#60A5FA",
+  XRP: "#93C5FD",
+  LINK: "#7C3AED",
+  UNI: "#FB7185",
+  DOGE: "#FBBF24",
+  AVAX: "#FB7185",
+  TON: "#38BDF8",
+
+  Others: "rgba(255,255,255,0.35)",
 };
 
 type Props = {
   history: HistoryPoint[];
   amounts: AssetAmounts;
 };
+
+function clamp01(x: number) {
+  return Math.max(0, Math.min(1, x));
+}
+
+function hexToRgba(hex: string, alpha: number) {
+  const a = clamp01(alpha);
+  const h = hex.replace("#", "").trim();
+
+  // support #RGB and #RRGGBB
+  const full =
+    h.length === 3
+      ? `${h[0]}${h[0]}${h[1]}${h[1]}${h[2]}${h[2]}`
+      : h.padEnd(6, "0").slice(0, 6);
+
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+
+  if (![r, g, b].every(Number.isFinite)) return `rgba(255,255,255,${a})`;
+  return `rgba(${r},${g},${b},${a})`;
+}
 
 export function PortfolioAllocation({ history, amounts }: Props) {
   const chartRef = useRef<HTMLDivElement>(null);
@@ -184,9 +274,7 @@ export function PortfolioAllocation({ history, amounts }: Props) {
     const othersTotal = others.reduce((s, v) => s + v.valueUsd, 0);
 
     const finalList = [...top3];
-    if (othersTotal > 0) {
-      finalList.push({ symbol: "Others", valueUsd: othersTotal });
-    }
+    if (othersTotal > 0) finalList.push({ symbol: "Others", valueUsd: othersTotal });
 
     const total = finalList.reduce((s, v) => s + v.valueUsd, 0);
 
@@ -223,15 +311,21 @@ export function PortfolioAllocation({ history, amounts }: Props) {
       series: [
         {
           type: "pie",
-          radius: ["55%", "78%"],
+          radius: ["56%", "80%"],
           center: ["50%", "50%"],
           label: { show: false },
           labelLine: { show: false },
           minAngle: 2,
+          itemStyle: {
+            borderColor: "rgba(0,0,0,0.0)",
+            borderWidth: 0,
+          },
           data: allocation.map((a) => ({
             value: a.valueUsd,
             name: a.symbol,
-            itemStyle: { color: ASSET_COLORS[a.symbol] ?? "#6B7280" },
+            itemStyle: {
+              color: ASSET_COLORS[a.symbol] ?? ASSET_COLORS.Others,
+            },
           })),
         },
       ],
@@ -245,25 +339,80 @@ export function PortfolioAllocation({ history, amounts }: Props) {
   }, [allocation]);
 
   return (
-    <div className="card p-3" style={{ width: "100%" }}>
-      <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
-        Portfolio Allocation
-      </div>
+    <div className="card p-3 ff-card" style={{ width: "100%" }}>
+      <style>{`
+        .ff-card {
+          background: var(--surface);
+          border: 1px solid var(--border);
+        }
+
+        .ff-title {
+          font-size: 16px;
+          font-weight: 600;
+          color: #fff;
+          margin-bottom: 10px;
+          letter-spacing: 0.2px;
+        }
+
+        .ff-header {
+          color: rgba(255,255,255,0.70);
+          font-size: 12.5px;
+          letter-spacing: 0.2px;
+        }
+
+        .ff-row {
+          display: grid;
+          grid-template-columns: 14px 1fr 1fr 60px;
+          gap: 10px;
+          align-items: center;
+          padding: 8px 10px;
+          border-radius: 10px;
+
+          background: var(--surface-hover);
+          border: 1px solid var(--border);
+
+          transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+        }
+
+        .ff-row:hover {
+          border-color: rgba(255,255,255,0.14);
+          transform: translateY(-1px);
+        }
+
+        .ff-asset {
+          color: rgba(255,255,255,0.92);
+          font-weight: 600;
+          letter-spacing: 0.2px;
+        }
+
+        .ff-usd {
+          color: rgba(255,255,255,0.86);
+          font-weight: 500;
+        }
+
+        .ff-pct {
+          color: #fff;
+          font-weight: 700;
+        }
+      `}</style>
+
+      <div className="ff-title">Portfolio Allocation</div>
 
       <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 14 }}>
+        {/* CHART */}
         <div style={{ height: 220 }}>
           <div ref={chartRef} style={{ width: "100%", height: "100%" }} />
         </div>
 
+        {/* TABLE */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <div
+            className="ff-header"
             style={{
               display: "grid",
               gridTemplateColumns: "14px 1fr 1fr 60px",
               gap: 10,
               alignItems: "center",
-              fontSize: 13,
-              color: "rgba(255,255,255,0.6)",
               marginBottom: 4,
             }}
           >
@@ -273,38 +422,42 @@ export function PortfolioAllocation({ history, amounts }: Props) {
             <div style={{ textAlign: "right" }}>%</div>
           </div>
 
-          {allocation.map((a) => (
-            <div
-              key={a.symbol}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "14px 1fr 1fr 60px",
-                gap: 10,
-                alignItems: "center",
-                padding: "8px 10px",
-                borderRadius: 10,
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.06)",
-              }}
-            >
+          {allocation.map((a) => {
+            const c = ASSET_COLORS[a.symbol] ?? ASSET_COLORS.Others;
+
+            // Subtle tint (designer touch): the row gets a very light “ink”
+            // from the asset color, but still uses the theme surface.
+            const tint =
+              typeof c === "string" && c.startsWith("#") ? hexToRgba(c, 0.10) : "rgba(255,255,255,0.05)";
+
+            return (
               <div
+                key={a.symbol}
+                className="ff-row"
                 style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: 999,
-                  background: ASSET_COLORS[a.symbol] ?? "#6B7280",
-                  justifySelf: "center",
+                  background: `linear-gradient(90deg, ${tint} 0%, var(--surface-hover) 55%, var(--surface-hover) 100%)`,
                 }}
-              />
+              >
+                <div
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 999,
+                    background: c,
+                    justifySelf: "center",
+                  }}
+                />
 
-              <div style={{ fontWeight: 500 }}>{a.symbol}</div>
-              <div>${a.valueUsd.toFixed(0)}</div>
+                <div className="ff-asset">{a.symbol}</div>
 
-              <div style={{ textAlign: "right", fontWeight: 500, color: "#EFEFEF" }}>
-                {a.pct.toFixed(1)}%
+                <div className="ff-usd">${a.valueUsd.toFixed(0)}</div>
+
+                <div className="ff-pct" style={{ textAlign: "right" }}>
+                  {a.pct.toFixed(1)}%
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
@@ -318,7 +471,10 @@ import {
   type AssetAmounts,
 } from "../../services/portfolio/portfolioService";
 
-import type { HistoryPoint, Period } from "../../services/portfolio/portfolioService";
+import type {
+  HistoryPoint,
+  Period,
+} from "../../services/portfolio/portfolioService";
 import { buildPortfolioChartOption } from "../../charts/portfolioChartOptions";
 
 type Props = {
@@ -342,7 +498,9 @@ export function PortfolioChartCard({
 
   const [showBTC, setShowBTC] = useState(false);
 
-  // Init chart
+  /* =======================
+     INIT CHART
+  ======================= */
   useEffect(() => {
     if (!chartRef.current) return;
 
@@ -359,7 +517,9 @@ export function PortfolioChartCard({
     };
   }, []);
 
-  // Update chart
+  /* =======================
+     UPDATE CHART
+  ======================= */
   useEffect(() => {
     const chart = chartInstance.current;
     if (!chart) return;
@@ -374,37 +534,44 @@ export function PortfolioChartCard({
 
     if (!percentValues.length) return;
 
-    const option: any = buildPortfolioChartOption(timestamps, percentValues, {
-      seriesId: seriesIdRef.current,
-      initial: true,
-      opacity: 1,
-    });
+    const option: any = buildPortfolioChartOption(
+      timestamps,
+      percentValues,
+      {
+        seriesId: seriesIdRef.current,
+        initial: true,
+        opacity: 1,
+      }
+    );
 
     if (showBTC) {
-      // timestamps в графике — ms, а в history — seconds → приводим к ms
       const btcByTsMs = new Map<number, number>();
       for (const p of filteredHistory) {
-        const v = p.prices?.BTC ?? p.prices?.WBTC; // fallback, если вдруг BTC отсутствует
+        const v = p.prices?.BTC ?? p.prices?.WBTC;
         if (typeof v === "number") btcByTsMs.set(p.timestamp * 1000, v);
       }
 
-      const btcPrices: Array<number | null> = timestamps.map((tsMs: number) => {
+      const btcPrices = timestamps.map((tsMs: number) => {
         const v = btcByTsMs.get(tsMs);
         return typeof v === "number" ? v : null;
       });
 
-      const base = btcPrices.find((v) => typeof v === "number") as number | undefined;
+      const base = btcPrices.find(
+        (v) => typeof v === "number"
+      ) as number | undefined;
 
       if (typeof base === "number") {
-        const btcPercent: Array<number | null> = btcPrices.map((v) =>
+        const btcPercent = btcPrices.map((v) =>
           v == null ? null : ((v - base) / base) * 100
         );
 
-        const btcData: Array<[number, number | null]> = timestamps.map(
+        const btcData = timestamps.map(
           (tsMs: number, i: number) => [tsMs, btcPercent[i]]
         );
 
-        const baseSeries = Array.isArray(option.series) ? option.series : [option.series];
+        const baseSeries = Array.isArray(option.series)
+          ? option.series
+          : [option.series];
 
         baseSeries.push({
           id: "btc-line",
@@ -416,9 +583,8 @@ export function PortfolioChartCard({
           lineStyle: {
             width: 2,
             type: "dashed",
-            color: "#f7931a",
+            color: "var(--secondary)",
           },
-          areaStyle: undefined,
           emphasis: { disabled: true },
           animation: false,
         });
@@ -436,10 +602,8 @@ export function PortfolioChartCard({
 
   const switchPeriod = (next: Period) => {
     if (next === period) return;
-
     seriesCounterRef.current += 1;
     seriesIdRef.current = `portfolio-line-${seriesCounterRef.current}`;
-
     onPeriodChange(next);
   };
 
@@ -447,8 +611,13 @@ export function PortfolioChartCard({
     `period-tab ${period === key ? "active" : ""}`;
 
   return (
-    <div className="card p-3">
+    <div className="card p-3 ff-card">
       <style>{`
+        .ff-card {
+          background: var(--surface);
+          border: 1px solid var(--border);
+        }
+
         .chart-top-row {
           display: flex;
           justify-content: flex-end;
@@ -461,13 +630,13 @@ export function PortfolioChartCard({
           align-items: center;
           gap: 8px;
           font-size: 13px;
-          color: #9ca3af;
+          color: var(--text-secondary);
           cursor: pointer;
           user-select: none;
         }
 
         .btc-toggle input {
-          accent-color: #f7931a;
+          accent-color: var(--secondary);
         }
 
         .period-tabs-wrap {
@@ -479,7 +648,7 @@ export function PortfolioChartCard({
         .period-tabs {
           display: flex;
           gap: 28px;
-          border-bottom: 1px solid rgba(255,255,255,0.08);
+          border-bottom: 1px solid var(--border);
           position: relative;
           padding-bottom: 4px;
         }
@@ -488,7 +657,7 @@ export function PortfolioChartCard({
           background: none;
           border: none;
           padding: 8px 2px;
-          color: #9ca3af;
+          color: var(--text-secondary);
           font-size: 16px;
           cursor: pointer;
           position: relative;
@@ -496,21 +665,22 @@ export function PortfolioChartCard({
         }
 
         .period-tab:hover {
-          color: #d1d5db;
+          color: var(--text-primary);
         }
 
         .period-tab.active {
-          color: #b351f9;
+          color: var(--primary);
         }
 
         .period-underline {
           position: absolute;
           bottom: -1px;
           height: 2px;
-          background: #b351f9;
+          background: var(--primary);
           border-radius: 2px;
-          transition: transform 320ms cubic-bezier(0.25, 0.1, 0.25, 1),
-                      width 320ms cubic-bezier(0.25, 0.1, 0.25, 1);
+          transition:
+            transform 320ms cubic-bezier(0.25, 0.1, 0.25, 1),
+            width 320ms cubic-bezier(0.25, 0.1, 0.25, 1);
         }
       `}</style>
 
@@ -530,7 +700,12 @@ export function PortfolioChartCard({
           <div
             className="period-underline"
             style={{
-              width: period === "year" ? 36 : period === "month" ? 52 : 44,
+              width:
+                period === "year"
+                  ? 36
+                  : period === "month"
+                  ? 52
+                  : 44,
               transform:
                 period === "year"
                   ? "translateX(0px)"
@@ -540,21 +715,30 @@ export function PortfolioChartCard({
             }}
           />
 
-          <button className={tabClass("year")} onClick={() => switchPeriod("year")}>
+          <button
+            className={tabClass("year")}
+            onClick={() => switchPeriod("year")}
+          >
             Year
           </button>
 
-          <button className={tabClass("month")} onClick={() => switchPeriod("month")}>
+          <button
+            className={tabClass("month")}
+            onClick={() => switchPeriod("month")}
+          >
             Month
           </button>
 
-          <button className={tabClass("week")} onClick={() => switchPeriod("week")}>
+          <button
+            className={tabClass("week")}
+            onClick={() => switchPeriod("week")}
+          >
             Week
           </button>
         </div>
       </div>
 
-      <div style={{ width: "100%", height: "350px" }}>
+      <div style={{ width: "100%", height: 350 }}>
         <div ref={chartRef} style={{ width: "100%", height: "100%" }} />
       </div>
     </div>
@@ -575,6 +759,12 @@ type Props = {
   period: Period;
 };
 
+/**
+ * PortfolioChart
+ * - always uses brand accent color
+ * - no red/green logic
+ * - typesafe (no changes to ChartParams)
+ */
 export function PortfolioChart({ history, period }: Props) {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
@@ -600,18 +790,55 @@ export function PortfolioChart({ history, period }: Props) {
     if (!chart) return;
 
     const { timestamps, percentValues } = buildPortfolioSeries(history, period);
-
     if (!percentValues.length) return;
 
-    const option = buildPortfolioChartOption(timestamps, percentValues, {
-      initial: true,
-      opacity: 1,
-    });
+    const option: any = buildPortfolioChartOption(
+      timestamps,
+      percentValues,
+      {
+        initial: true,
+        opacity: 1,
+      }
+    );
 
-    chart.setOption(option, { notMerge: true, lazyUpdate: false });
+    // 🔒 FORCE ACCENT COLOR (safe & local)
+    if (Array.isArray(option.series)) {
+      option.series = option.series.map((s: any) => ({
+        ...s,
+        lineStyle: {
+          ...(s.lineStyle ?? {}),
+          color: "var(--primary)",
+          width: 2,
+        },
+        itemStyle: {
+          ...(s.itemStyle ?? {}),
+          color: "var(--primary)",
+        },
+        areaStyle: s.areaStyle
+          ? {
+              ...s.areaStyle,
+              color: "rgba(139,92,246,0.18)", // soft accent fill
+            }
+          : undefined,
+      }));
+    }
+
+    chart.setOption(option, {
+      notMerge: true,
+      lazyUpdate: true,
+      silent: true,
+    });
   }, [history, period]);
 
-  return <div ref={chartRef} style={{ width: "100%", height: "350px" }} />;
+  return (
+    <div
+      ref={chartRef}
+      style={{
+        width: "100%",
+        height: "350px",
+      }}
+    />
+  );
 }\nfrontend/src/components/portfolio/PortfolioMetricsRow.tsx\nimport type { Period } from "../../services/portfolio/portfolioService";
 
 type Props = {
@@ -651,8 +878,15 @@ export function PortfolioMetricsRow({
   btcPct,
   period,
 }: Props) {
-  const changeColor = changeUsd >= 0 ? "text-success" : "text-danger";
-  const vsBtcColor = vsBtcPp >= 0 ? "text-success" : "text-danger";
+  const changeStyle =
+    changeUsd >= 0
+      ? { color: "var(--positive)" }
+      : { color: "var(--negative)" };
+
+  const vsBtcStyle =
+    vsBtcPp >= 0
+      ? { color: "var(--positive)" }
+      : { color: "var(--negative)" };
 
   return (
     <div className="row row-cards mb-3">
@@ -671,18 +905,29 @@ export function PortfolioMetricsRow({
           from { opacity: 0; }
           to { opacity: 1; }
         }
+
+        /* 🔧 Приводим карточки к нашей теме */
+        .ff-card {
+          background: var(--surface);
+          border: 1px solid var(--border);
+        }
+
+        .ff-muted {
+          color: var(--text-muted);
+        }
       `}</style>
 
-      {/* TVL — без анимации, не меняется от периода */}
+      {/* TVL */}
       <div className="col-12 col-md-4">
-        <div className="card card-sm">
+        <div className="card card-sm ff-card">
           <div className="card-body">
-            <div className="text-muted">TVL</div>
+            <div className="ff-muted">TVL</div>
 
-            {/* ❗ НЕТ key → нет анимации */}
-            <div className="h2 m-0">{fmtUsd(tvl)}</div>
+            <div className="h2 m-0" style={{ color: "var(--text-primary)" }}>
+              {fmtUsd(tvl)}
+            </div>
 
-            <div className="text-muted mt-1 fade-sub" key={`asof`}>
+            <div className="ff-muted mt-1 fade-sub" key="asof">
               {lastTsMs
                 ? `As of ${new Date(lastTsMs).toLocaleDateString("en-GB")}`
                 : "—"}
@@ -693,18 +938,19 @@ export function PortfolioMetricsRow({
 
       {/* Net Change */}
       <div className="col-12 col-md-4">
-        <div className="card card-sm">
+        <div className="card card-sm ff-card">
           <div className="card-body">
-            <div className="text-muted">Net Change</div>
+            <div className="ff-muted">Net Change</div>
 
             <div
               key={`net-${period}`}
-              className={`h2 m-0 fade-number ${changeColor}`}
+              className="h2 m-0 fade-number"
+              style={changeStyle}
             >
               {fmtSignedUsd(changeUsd)}
             </div>
 
-            <div key={`netpct-${period}`} className="text-muted mt-1 fade-sub">
+            <div key={`netpct-${period}`} className="ff-muted mt-1 fade-sub">
               ({fmtSignedPct(changePct)})
             </div>
           </div>
@@ -713,346 +959,28 @@ export function PortfolioMetricsRow({
 
       {/* Vs BTC */}
       <div className="col-12 col-md-4">
-        <div className="card card-sm">
+        <div className="card card-sm ff-card">
           <div className="card-body">
-            <div className="text-muted">Vs BTC</div>
+            <div className="ff-muted">Vs BTC</div>
 
             <div
               key={`vsbtc-${period}`}
-              className={`h2 m-0 fade-number ${vsBtcColor}`}
+              className="h2 m-0 fade-number"
+              style={vsBtcStyle}
             >
               {fmtSignedPct(vsBtcPp)}
             </div>
 
             <div
               key={`vsbtc-details-${period}`}
-              className="text-muted mt-1 fade-sub"
+              className="ff-muted mt-1 fade-sub"
             >
-              (Portfolio: {fmtSignedPct(changePct)} · BTC: {fmtSignedPct(btcPct)})
+              (Portfolio: {fmtSignedPct(changePct)} · BTC:{" "}
+              {fmtSignedPct(btcPct)})
             </div>
           </div>
         </div>
       </div>
     </div>
   );
-}\nfrontend/src/components/portfolio/VolatilityArcCard.tsx\nimport { useEffect, useMemo, useRef, useState } from "react";
-import type { HistoryPoint, AssetAmounts } from "../../services/portfolio/portfolioService";
-
-/* =========================
-   Helpers
-========================= */
-
-function calcPortfolioValue(p: HistoryPoint, amounts: AssetAmounts) {
-  let total = 0;
-
-  for (const [symbol, amount] of Object.entries(amounts)) {
-    const price = p.prices[symbol] ?? 0;
-    total += price * amount;
-  }
-
-  return total;
-}
-
-function computeStats(history: HistoryPoint[], amounts: AssetAmounts) {
-  if (history.length < 2) {
-    return { volatility: 0, minVol: 0, maxVol: 0, avgMove: 0, stdDev: 0 };
-  }
-
-  const vals = history
-    .map((p) => calcPortfolioValue(p, amounts))
-    .filter((v) => Number.isFinite(v) && v > 0);
-
-  if (vals.length < 2) {
-    return { volatility: 0, minVol: 0, maxVol: 0, avgMove: 0, stdDev: 0 };
-  }
-
-  const minVal = Math.min(...vals);
-  const maxVal = Math.max(...vals);
-  const avg = vals.reduce((s, x) => s + x, 0) / vals.length || 1;
-
-  const volatilityRange = ((maxVal - minVal) / avg) * 100;
-
-  const minPct = ((minVal - avg) / avg) * 100;
-  const maxPct = ((maxVal - avg) / avg) * 100;
-
-  const avgMoveCalc =
-    vals
-      .slice(1)
-      .reduce((s, v, i) => s + Math.abs(v - vals[i]), 0) /
-    (vals.length - 1);
-
-  const avgMovePct = (avgMoveCalc / avg) * 100;
-
-  const variance = vals.reduce((s, v) => s + (v - avg) ** 2, 0) / vals.length;
-  const std = Math.sqrt(variance);
-  const stdDevPct = (std / avg) * 100;
-
-  return {
-    volatility: volatilityRange,
-    minVol: minPct,
-    maxVol: maxPct,
-    avgMove: avgMovePct,
-    stdDev: stdDevPct,
-  };
-}
-
-/* =========================
-   Types
-========================= */
-
-type Props = {
-  history: HistoryPoint[]; // уже filteredHistory
-  amounts: AssetAmounts;
-};
-
-type Stats = {
-  volatility: number;
-  minVol: number;
-  maxVol: number;
-  avgMove: number;
-  stdDev: number;
-};
-
-/* =========================
-   Component
-========================= */
-
-export function VolatilityArcCard({ history, amounts }: Props) {
-  // "истина" (новые значения при смене периода)
-  const nextStats = useMemo<Stats>(() => computeStats(history, amounts), [history, amounts]);
-
-  // то, что реально отображаем в цифрах (анимируем fade)
-  const [displayStats, setDisplayStats] = useState<Stats>(nextStats);
-
-  // дуга анимируется отдельно: обновляем сразу
-  const [arcVolatility, setArcVolatility] = useState<number>(nextStats.volatility);
-
-  // фаза для fade цифр
-  const [fadePhase, setFadePhase] = useState<"in" | "out">("in");
-
-  // signature, чтобы понимать "переключили период"
-  const signature = useMemo(() => {
-    const first = history[0]?.timestamp ?? 0;
-    const last = history[history.length - 1]?.timestamp ?? 0;
-
-    const amountsKey = Object.entries(amounts)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([k, v]) => `${k}:${v}`)
-      .join("|");
-
-    return `${history.length}:${first}:${last}:${amountsKey}`;
-  }, [history, amounts]);
-
-  const prevSigRef = useRef<string>(signature);
-  const timerRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (prevSigRef.current === signature) return;
-    prevSigRef.current = signature;
-
-    // 1) дуга — сразу, sweep-анимация
-    setArcVolatility(nextStats.volatility);
-
-    // 2) цифры — плавно тухнут → обновляем → плавно появляются
-    setFadePhase("out");
-
-    if (timerRef.current) window.clearTimeout(timerRef.current);
-
-    timerRef.current = window.setTimeout(() => {
-      setDisplayStats(nextStats);
-      setFadePhase("in");
-      timerRef.current = null;
-    }, 180);
-
-    return () => {
-      if (timerRef.current) window.clearTimeout(timerRef.current);
-      timerRef.current = null;
-    };
-  }, [signature, nextStats]);
-
-  /* =========================
-     Arc math
-  ========================= */
-
-  const pct = Math.min(Math.max(arcVolatility / 120, 0), 1);
-
-  const radius = 100;
-  const circumference = Math.PI * radius;
-  const filled = pct * circumference;
-  const empty = circumference - filled;
-
-  const TEXT_PRIMARY = "#EFEFEF";
-  const TEXT_SECONDARY = "rgba(255,255,255,0.75)";
-
-  return (
-    <div
-      className="card vola-card"
-      style={{
-        borderRadius: "10px",
-        height: "100%",
-        width: "100%",
-      }}
-    >
-      <style>{`
-        .vola-card {
-          will-change: opacity, transform;
-          transition: opacity 220ms ease, transform 220ms ease;
-        }
-
-        .vola-fade {
-          transition: opacity 220ms ease, filter 220ms ease;
-          will-change: opacity, filter;
-        }
-
-        .vola-fade.out {
-          opacity: 0;
-          filter: blur(2px);
-        }
-
-        .vola-fade.in {
-          opacity: 1;
-          filter: blur(0px);
-        }
-
-        /* ДУГА: отдельная анимация (другая длительность/easing) */
-        .vola-arc {
-          transition: stroke-dasharray 900ms cubic-bezier(0.22, 1, 0.36, 1);
-          will-change: stroke-dasharray;
-        }
-      `}</style>
-
-      <div
-        className="card-body"
-        style={{
-          display: "flex",
-          gap: "28px",
-          alignItems: "center",
-          paddingTop: 20,
-          paddingBottom: 20,
-        }}
-      >
-        {/* ======================= GAUGE ======================= */}
-        <div style={{ flex: "0 0 260px" }}>
-          <div style={{ display: "flex", justifyContent: "center" }}>
-            <svg width="260" height="170" viewBox="0 0 260 170">
-              <defs>
-                <linearGradient id="volaGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#22c55e" />
-                  <stop offset="50%" stopColor="#eab308" />
-                  <stop offset="100%" stopColor="#ef4444" />
-                </linearGradient>
-              </defs>
-
-              {/* Background arc */}
-              <path
-                d="M30 120 A100 100 0 0 1 230 120"
-                stroke="rgba(255,255,255,0.08)"
-                strokeWidth="16"
-                fill="none"
-              />
-
-              {/* Foreground arc (sweep animation) */}
-              <path
-                className="vola-arc"
-                d="M30 120 A100 100 0 0 1 230 120"
-                stroke="url(#volaGradient)"
-                strokeWidth="16"
-                fill="none"
-                strokeDasharray={`${filled} ${empty}`}
-                strokeLinecap="round"
-              />
-
-              {/* Percentage (fade) */}
-              <text
-                x="130"
-                y="108"
-                fill={TEXT_PRIMARY}
-                fontSize="28"
-                fontWeight="700"
-                dominantBaseline="middle"
-                textAnchor="middle"
-                className={`vola-fade ${fadePhase}`}
-              >
-                {displayStats.volatility.toFixed(2)}%
-              </text>
-
-              {/* Low / High */}
-              <text x="12" y="155" fill={TEXT_PRIMARY} fontSize="15" fontWeight="600" textAnchor="start">
-                Low
-              </text>
-
-              <text x="248" y="155" fill={TEXT_PRIMARY} fontSize="15" fontWeight="600" textAnchor="end">
-                High
-              </text>
-            </svg>
-          </div>
-
-          <div
-            style={{
-              textAlign: "center",
-              marginTop: 8,
-              fontSize: 15,
-              color: TEXT_SECONDARY,
-            }}
-          >
-            Period Range Volatility
-          </div>
-        </div>
-
-        {/* ======================= ANALYTICS ======================= */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "12px",
-            paddingLeft: "32px",
-            flex: 1,
-            color: TEXT_PRIMARY,
-            fontSize: "15px",
-          }}
-        >
-          <div
-            style={{
-              marginBottom: "6px",
-              opacity: 0.9,
-              fontWeight: 600,
-              fontSize: "16px",
-            }}
-          >
-            Analytics
-          </div>
-
-          {[
-            { label: "Min", value: displayStats.minVol },
-            { label: "Max", value: displayStats.maxVol },
-            { label: "Avg Abs Move", value: displayStats.avgMove },
-            { label: "Std Dev", value: displayStats.stdDev },
-          ].map((m, i) => (
-            <div
-              key={i}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                borderBottom: i < 3 ? "1px solid rgba(255,255,255,0.06)" : "none",
-                paddingBottom: "6px",
-                paddingTop: "4px",
-              }}
-            >
-              <span style={{ opacity: 0.75 }}>{m.label}</span>
-
-              <span
-                className={`vola-fade ${fadePhase}`}
-                style={{
-                  fontFamily: "monospace",
-                  opacity: 0.95,
-                }}
-              >
-                {m.value.toFixed(2)}%
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}\nfrontend/src/components/Reveal.tsx\n
+}\nfrontend/src/components/portfolio/VolatilityArcCard.tsx\n

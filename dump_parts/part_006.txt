@@ -1,4 +1,366 @@
-// SimulationControls.tsx
+// simulationChart.option.ts
+import type { EChartsCoreOption } from "echarts/core";
+
+/* =========================
+   ACCENT CLOUD COLORS
+========================= */
+
+// мягкое облако
+const CLOUD_COLOR = "rgba(187,134,252,0.14)"; // var(--primary) с alpha
+
+// fan — чуть плотнее, но всё ещё мягко
+const FAN_OUTER = "rgba(187,134,252,0.18)";
+const FAN_INNER = "rgba(187,134,252,0.28)";
+
+const COLOR_MAIN = "#0ea5e9";
+
+type FanQuantiles = {
+  q05: number[];
+  q25: number[];
+  q50: number[];
+  q75: number[];
+  q95: number[];
+};
+
+type BuildOptionParams = {
+  timestamps: number[];
+  median: number[];
+  representative: number[];
+  upper: number[];
+  lower: number[];
+  cloud: number[][];
+  fan?: FanQuantiles;
+  yDomain: { min: number; max: number };
+  flags: {
+    showCloud: boolean;
+    showMedian: boolean;
+    showRepresentative: boolean;
+    showFan: boolean;
+  };
+};
+
+function tooltipRow(label: string, value: number, color: string) {
+  const sign = value >= 0 ? "+" : "";
+  return `
+    <div style="
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      margin-top:4px;
+      font-weight:600;
+    ">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="
+          width:8px;
+          height:8px;
+          border-radius:50%;
+          background:${color};
+        "></span>
+        <span style="color:rgba(226,232,240,0.85)">${label}</span>
+      </div>
+      <span style="color:rgba(226,232,240,0.95)">
+        ${sign}${value.toFixed(2)}%
+      </span>
+    </div>
+  `;
+}
+
+export function buildSimulationChartOption({
+  timestamps,
+  median,
+  representative,
+  cloud,
+  fan,
+  yDomain,
+  flags,
+}: BuildOptionParams): EChartsCoreOption {
+  return {
+    backgroundColor: "transparent",
+
+    tooltip: {
+      trigger: "axis",
+      appendToBody: true,
+      backgroundColor: "var(--tblr-card-bg)",
+      borderColor: "var(--tblr-border-color)",
+      borderWidth: 1,
+      textStyle: {
+        color: "rgba(226,232,240,0.95)",
+        fontSize: 12,
+      },
+      axisPointer: {
+        type: "line",
+        lineStyle: {
+          color: "rgba(148,163,184,0.45)",
+          width: 1,
+          type: "dashed",
+        },
+      },
+      formatter: (params: any[]) => {
+        const main = params.find((p) => p.seriesName === "Main");
+        if (!main) return "";
+
+        const i = main.dataIndex;
+        let html = `
+          <div style="font-weight:700;margin-bottom:6px">
+            Simulation
+          </div>
+        `;
+
+      
+        if (flags.showRepresentative)
+          html += tooltipRow("Main", representative[i], COLOR_MAIN);
+        if (flags.showMedian)
+          html += tooltipRow("Median", median[i], "rgba(226,232,240,0.7)");
+     
+        return html;
+      },
+    },
+
+    grid: { left: 40, right: 48, top: 44, bottom: 40 },
+
+    xAxis: {
+      type: "value",
+      min: 0,
+      max: timestamps[timestamps.length - 1],
+      axisLabel: {
+        color: "rgba(148,163,184,0.85)",
+        formatter: (v: number) => `${Math.round(v)}d`,
+      },
+      axisLine: { lineStyle: { color: "rgba(148,163,184,0.25)" } },
+      splitLine: { show: false },
+    },
+
+    yAxis: {
+      type: "value",
+      min: yDomain.min,
+      max: yDomain.max,
+      position: "right",
+      axisLabel: {
+        color: "rgba(148,163,184,0.85)",
+        formatter: (v: number) =>
+          v === yDomain.min || v === yDomain.max ? "" : `${v}%`,
+      },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: {
+        show: true,
+        lineStyle: { color: "rgba(148,163,184,0.18)" },
+      },
+    },
+
+    series: [
+      /* ================= CLOUD ================= */
+      ...cloud.map((p) => ({
+        type: "line",
+        name: "Cloud",
+        data: timestamps.map((t, i) => [t, p[i]]),
+        showSymbol: false,
+        silent: true,
+        tooltip: { show: false },
+        lineStyle: {
+          color: CLOUD_COLOR,
+          width: 1,
+          opacity: flags.showCloud ? 1 : 0,
+        },
+        z: 1,
+      })),
+
+      /* ================= FAN ================= */
+      fan && {
+        type: "custom",
+        name: "FanOuter",
+        silent: true,
+        tooltip: { show: false },
+        data: [0],
+        z: 2,
+        renderItem: (_: unknown, api: any) => ({
+          type: "polygon",
+          shape: {
+            points: [
+              ...timestamps.map((t, i) => api.coord([t, fan.q95[i]])),
+              ...timestamps
+                .slice()
+                .reverse()
+                .map((t, i) =>
+                  api.coord([t, fan.q05[fan.q05.length - 1 - i]])
+                ),
+            ],
+          },
+          style: {
+            fill: FAN_OUTER,
+            opacity: flags.showFan ? 1 : 0,
+          },
+        }),
+      },
+
+      fan && {
+        type: "custom",
+        name: "FanInner",
+        silent: true,
+        tooltip: { show: false },
+        data: [0],
+        z: 3,
+        renderItem: (_: unknown, api: any) => ({
+          type: "polygon",
+          shape: {
+            points: [
+              ...timestamps.map((t, i) => api.coord([t, fan.q75[i]])),
+              ...timestamps
+                .slice()
+                .reverse()
+                .map((t, i) =>
+                  api.coord([t, fan.q25[fan.q25.length - 1 - i]])
+                ),
+            ],
+          },
+          style: {
+            fill: FAN_INNER,
+            opacity: flags.showFan ? 1 : 0,
+          },
+        }),
+      },
+
+      /* ================= MEDIAN ================= */
+      {
+        type: "line",
+        name: "Median",
+        data: timestamps.map((t, i) => [t, median[i]]),
+        showSymbol: false,
+        lineStyle: {
+          color: "rgba(226,232,240,0.7)",
+          width: 2,
+          opacity: flags.showMedian ? 1 : 0,
+          type: "dashed",
+        },
+        z: 10,
+      },
+
+      /* ================= MAIN ================= */
+      {
+        type: "line",
+        name: "Main",
+        data: timestamps.map((t, i) => [t, representative[i]]),
+        showSymbol: false,
+        lineStyle: {
+          color: COLOR_MAIN,
+          width: 2,
+          opacity: flags.showRepresentative ? 1 : 0,
+        },
+        z: 12,
+      },
+    ].filter(Boolean),
+  };
+}\nfrontend/src/components/simulation/simulationChart.utils.ts\n// simulationChart.utils.ts
+
+export type FanQuantiles = {
+  q05: number[];
+  q25: number[];
+  q50: number[];
+  q75: number[];
+  q95: number[];
+};
+
+export function resample<T>(arr: T[], target: number): T[] {
+  if (arr.length <= target) return arr;
+
+  const res: T[] = [];
+  const step = (arr.length - 1) / (target - 1);
+
+  for (let i = 0; i < target; i++) {
+    res.push(arr[Math.round(i * step)]);
+  }
+
+  return res;
+}
+
+export function toPercentFromBase(values: number[], base: number): number[] {
+  if (values.length === 0) return values;
+  if (!Number.isFinite(base) || base === 0) return values.map(() => 0);
+  return values.map((v) => ((v - base) / base) * 100);
+}
+
+function quantileSorted(sorted: number[], q: number): number {
+  const n = sorted.length;
+  if (n === 0) return 0;
+  if (n === 1) return sorted[0];
+
+  const qq = Math.max(0, Math.min(1, q));
+  const pos = (n - 1) * qq;
+  const base = Math.floor(pos);
+  const rest = pos - base;
+
+  const left = sorted[base]!;
+  const right = sorted[Math.min(base + 1, n - 1)]!;
+  return left + (right - left) * rest;
+}
+
+function finiteOnly(values: number[]): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    if (Number.isFinite(v)) out.push(v);
+  }
+  return out;
+}
+
+/**
+ * Builds a quantile "fan" from Monte Carlo paths.
+ * Each path is an array of values over time, all paths must have the same length.
+ */
+export function buildFanQuantiles(paths: number[][]): FanQuantiles | null {
+  if (!paths || paths.length === 0) return null;
+
+  const T = paths[0]?.length ?? 0;
+  if (T === 0) return null;
+
+  // Ensure consistent lengths
+  for (let p = 0; p < paths.length; p++) {
+    if ((paths[p]?.length ?? 0) !== T) return null;
+  }
+
+  const q05: number[] = new Array(T);
+  const q25: number[] = new Array(T);
+  const q50: number[] = new Array(T);
+  const q75: number[] = new Array(T);
+  const q95: number[] = new Array(T);
+
+  for (let t = 0; t < T; t++) {
+    const col: number[] = new Array(paths.length);
+    for (let p = 0; p < paths.length; p++) {
+      col[p] = paths[p]![t]!;
+    }
+
+    const vals = finiteOnly(col);
+    if (vals.length === 0) {
+      q05[t] = 0;
+      q25[t] = 0;
+      q50[t] = 0;
+      q75[t] = 0;
+      q95[t] = 0;
+      continue;
+    }
+
+    vals.sort((a, b) => a - b);
+
+    q05[t] = quantileSorted(vals, 0.05);
+    q25[t] = quantileSorted(vals, 0.25);
+    q50[t] = quantileSorted(vals, 0.5);
+    q75[t] = quantileSorted(vals, 0.75);
+    q95[t] = quantileSorted(vals, 0.95);
+  }
+
+  return { q05, q25, q50, q75, q95 };
+}
+
+export function resampleFan(fan: FanQuantiles, target: number): FanQuantiles {
+  return {
+    q05: resample(fan.q05, target),
+    q25: resample(fan.q25, target),
+    q50: resample(fan.q50, target),
+    q75: resample(fan.q75, target),
+    q95: resample(fan.q95, target),
+  };
+}\nfrontend/src/components/simulation/SimulationControls.tsx\n// SimulationControls.tsx
 import type { ReactNode } from "react";
 import type { Scenario } from "../../services/simulation/monteCarloService";
 
@@ -35,14 +397,14 @@ const SCENARIOS = [
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div style={{ marginBottom: 14 }}>
       <div
         style={{
           fontSize: 11,
-          fontWeight: 800,
+          fontWeight: 700,
           letterSpacing: 0.4,
           textTransform: "uppercase",
-          color: "rgba(148,163,184,0.75)",
+          color: "var(--text-muted)",
           marginBottom: 6,
         }}
       >
@@ -73,18 +435,17 @@ function SegButton({
         alignItems: "center",
         justifyContent: "center",
         fontSize: 12,
-        fontWeight: 800,
-        lineHeight: "16px",
+        fontWeight: 700,
         borderRadius: 8,
         border: active
-          ? "1px solid rgba(56,189,248,0.55)"
-          : "1px solid rgba(255,255,255,0.10)",
+          ? "1px solid var(--primary)"
+          : "1px solid var(--border)",
         background: active
-          ? "rgba(14,165,233,0.22)"
-          : "rgba(15,23,42,0.55)",
+          ? "var(--primary-soft)"
+          : "var(--surface-hover)",
         color: active
-          ? "rgba(226,232,240,0.95)"
-          : "rgba(226,232,240,0.75)",
+          ? "var(--text-primary)"
+          : "var(--text-secondary)",
         cursor: "pointer",
         transition: "all 120ms ease",
         userSelect: "none",
@@ -131,27 +492,28 @@ function ToggleRow({
         justifyContent: "space-between",
         borderRadius: 10,
         border: active
-          ? "1px solid rgba(56,189,248,0.45)"
-          : "1px solid rgba(255,255,255,0.08)",
+          ? "1px solid var(--primary)"
+          : "1px solid var(--border)",
         background: active
-          ? "rgba(14,165,233,0.14)"
-          : "rgba(15,23,42,0.45)",
+          ? "var(--primary-soft)"
+          : "var(--surface-hover)",
         color: active
-          ? "rgba(226,232,240,0.95)"
-          : "rgba(226,232,240,0.80)",
+          ? "var(--text-primary)"
+          : "var(--text-secondary)",
         cursor: "pointer",
         userSelect: "none",
       }}
     >
-      <span style={{ fontSize: 12, fontWeight: 800 }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 700 }}>{label}</span>
+
       <span
         style={{
           width: 10,
           height: 10,
           borderRadius: 999,
           background: active
-            ? "rgba(14,165,233,1)"
-            : "rgba(100,116,139,1)",
+            ? "var(--primary)"
+            : "var(--text-muted)",
         }}
       />
     </button>
@@ -167,22 +529,40 @@ export function SimulationControls({ value, onChange }: Props) {
     onChange({ ...value, ...next });
 
   return (
-    <div className="card" style={{ height: "100%" }}>
+    <div
+      className="card"
+      style={{
+        height: "100%",
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+      }}
+    >
       <div
         className="card-body"
         style={{
           height: "100%",
           display: "flex",
           flexDirection: "column",
-          padding: 0, // важно: управляем паддингами вручную
+          padding: 0,
         }}
       >
         {/* HEADER */}
         <div style={{ padding: 14, flexShrink: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: 14 }}>
+          <div
+            style={{
+              fontWeight: 700,
+              fontSize: 14,
+              color: "var(--text-primary)",
+            }}
+          >
             Simulation settings
           </div>
-          <div style={{ fontSize: 12, color: "rgba(148,163,184,0.8)" }}>
+          <div
+            style={{
+              fontSize: 12,
+              color: "var(--text-muted)",
+            }}
+          >
             Horizon, scenario and runs
           </div>
         </div>
@@ -258,11 +638,7 @@ export function SimulationControls({ value, onChange }: Props) {
                 active={value.showCloud}
                 onClick={() => patch({ showCloud: !value.showCloud })}
               />
-              <ToggleRow
-                label="Range"
-                active={value.showRange}
-                onClick={() => patch({ showRange: !value.showRange })}
-              />
+              
             </div>
           </Section>
         </div>
@@ -282,7 +658,7 @@ export function AppLayout() {
       style={{
         display: "flex",
         minHeight: "100vh",
-        background: "#070B17",
+        background: "var(--bg)",
       }}
     >
       {/* фикс скачка из-за scrollbar */}
@@ -303,8 +679,8 @@ export function AppLayout() {
             height: 56,
             display: "flex",
             alignItems: "center",
-            background: "#111827",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            background: "var(--surface)",
+            borderBottom: "1px solid var(--border)",
             padding: "0 125px",
           }}
         >
@@ -330,7 +706,7 @@ export function AppLayout() {
               style={{
                 fontWeight: 600,
                 fontSize: 16,
-                color: "#ffffff",
+                color: "var(--text-primary)",
                 whiteSpace: "nowrap",
               }}
             >
@@ -354,7 +730,12 @@ export function AppLayout() {
         </header>
 
         {/* ================= CONTENT ================= */}
-        <main style={{ padding: 24 }}>
+        <main
+          style={{
+            padding: 24,
+            background: "var(--bg)",
+          }}
+        >
           <div
             style={{
               maxWidth: 1280,
@@ -375,24 +756,25 @@ export function Navbar() {
     <header
       className="navbar navbar-expand-md navbar-dark"
       style={{
-        background: "#111827",
-        borderBottom: "1px solid rgba(255,255,255,0.08)",
+        background: "var(--surface)",
+        borderBottom: "1px solid var(--border)",
       }}
     >
       <div className="container-xl d-flex justify-content-between">
-        {/* ЛОГО */}
+        {/* LOGO */}
         <NavLink
           to="/"
           className="navbar-brand"
           style={{
             fontWeight: 600,
-            fontSize: "20px",
+            fontSize: 20,
+            color: "var(--text-primary)",
           }}
         >
           Factor Flow
         </NavLink>
 
-        {/* НАВИГАЦИЯ */}
+        {/* NAVIGATION */}
         <ul className="navbar-nav flex-row">
           <NavItem to="/" label="Dashboard" />
           <NavItem to="/prices" label="Prices" />
@@ -414,16 +796,18 @@ function NavItem({ to, label }: { to: string; label: string }) {
           "nav-link px-3" + (isActive ? " active" : "")
         }
         style={({ isActive }) => ({
-          color: isActive ? "#b351f9" : "#d1d5db",
+          color: isActive
+            ? "var(--primary)"
+            : "var(--text-secondary)",
           fontWeight: isActive ? 600 : 400,
+          transition: "color 0.2s ease-in-out",
         })}
       >
         {label}
       </NavLink>
     </li>
   );
-}\nfrontend/src/layout/ProfileSwitcher.tsx\n// frontend/src/layout/ProfileSwitcher.tsx
-import { useEffect, useMemo, useRef, useState } from "react";
+}\nfrontend/src/layout/ProfileSwitcher.tsx\nimport { useEffect, useMemo, useRef, useState } from "react";
 import portfoliosJson from "../data/mock-portfolios.json";
 import { buildIdenticonDataUri } from "../utils/identicon";
 
@@ -467,12 +851,11 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
     [selected.owner.address]
   );
 
-  // ✅ фиксируем ширину имени по максимальному имени среди профилей (в пикселях)
+  // фиксируем ширину имени по максимальному имени среди профилей
   const nameWidthPx = useMemo(() => {
     const names = (profiles ?? []).map((p) => (p?.name ?? "").trim());
     if (!names.length) return 120;
 
-    // fallback (если canvas недоступен)
     const maxLen = Math.max(...names.map((n) => n.length), 8);
     const fallback = Math.ceil(maxLen * 8.2) + 2;
 
@@ -482,7 +865,6 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return fallback;
 
-    // должно совпадать со стилем текста в кнопке
     ctx.font = `600 14px ${FONT_FAMILY}`;
 
     let max = 0;
@@ -495,6 +877,7 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
 
   return (
     <div ref={ref} style={{ position: "relative" }}>
+      {/* ================= BUTTON ================= */}
       <button
         onClick={() => setOpen((v) => !v)}
         style={{
@@ -503,12 +886,13 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
           alignItems: "center",
           padding: "6px 10px",
           borderRadius: 10,
-          background: "#0f172a",
-          border: "1px solid rgba(255,255,255,0.08)",
-          color: "#fff",
+
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          color: "var(--text-primary)",
+
           cursor: "pointer",
 
-          // фиксируем параметры шрифта (и для измерения, и для консистентности)
           fontFamily: FONT_FAMILY,
           fontSize: 14,
           fontWeight: 600,
@@ -523,7 +907,6 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
           alt=""
         />
 
-        {/* ✅ фиксированная ширина под самое длинное имя */}
         <span
           style={{
             display: "inline-block",
@@ -537,9 +920,18 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
           {selected.name}
         </span>
 
-        <span style={{ opacity: 0.7, flex: "0 0 auto" }}>▾</span>
+        <span
+          style={{
+            opacity: 0.7,
+            flex: "0 0 auto",
+            color: "var(--text-secondary)",
+          }}
+        >
+          ▾
+        </span>
       </button>
 
+      {/* ================= DROPDOWN ================= */}
       {open && (
         <div
           style={{
@@ -547,10 +939,12 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
             right: 0,
             top: "100%",
             marginTop: 6,
-            background: "#0b1220",
-            border: "1px solid rgba(255,255,255,0.1)",
+
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
             borderRadius: 10,
             minWidth: 260,
+
             zIndex: 20,
           }}
         >
@@ -558,6 +952,8 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
             const icon = buildIdenticonDataUri(p.owner.address, {
               size: 28,
             });
+
+            const isActive = p.id === selectedId;
 
             return (
               <button
@@ -572,14 +968,16 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
                   alignItems: "center",
                   padding: "10px",
                   width: "100%",
-                  background:
-                    p.id === selectedId
-                      ? "rgba(179,81,249,0.15)"
-                      : "transparent",
+
+                  background: isActive
+                    ? "var(--primary-soft)"
+                    : "transparent",
+
                   border: "none",
-                  color: "#fff",
+                  color: "var(--text-primary)",
                   cursor: "pointer",
                   textAlign: "left",
+
                   fontFamily: FONT_FAMILY,
                   fontSize: 14,
                   fontWeight: 600,
@@ -621,13 +1019,15 @@ export function SidebarItem({ to, icon, label, expanded }: Props) {
       style={({ isActive }) => ({
         padding: "10px 12px",
         gap: "14px",
-        color: isActive ? "#b351f9" : "#9ca3af",
+        color: isActive
+          ? "var(--primary)"
+          : "var(--text-secondary)",
         transition: "color 0.2s ease-in-out",
         whiteSpace: "nowrap",
       })}
       title={!expanded ? label : undefined}
     >
-      {/* ICON — теперь тоже двигается чуть-чуть */}
+      {/* ICON */}
       <div
         style={{
           width: 32,
@@ -635,20 +1035,26 @@ export function SidebarItem({ to, icon, label, expanded }: Props) {
           display: "flex",
           justifyContent: "center",
           transition: "transform 0.35s ease-in-out",
-          transform: expanded ? "translateX(6px)" : "translateX(0px)",
+          transform: expanded
+            ? "translateX(6px)"
+            : "translateX(0px)",
         }}
       >
         {icon}
       </div>
 
-      {/* LABEL — фирменная mask-анимация */}
+      {/* LABEL */}
       <span
         style={{
-          fontSize: "15px",
+          fontSize: 15,
           fontWeight: 500,
+          color: "inherit",
+
           opacity: expanded ? 1 : 0,
+          marginLeft: expanded ? "2px" : "-4px",
+
           transition:
-            "opacity 0.25s ease-in-out, mask-image 0.35s ease-in-out, -webkit-mask-image 0.35s ease-in-out",
+            "opacity 0.25s ease-in-out, margin-left 0.35s ease-in-out, mask-image 0.35s ease-in-out, -webkit-mask-image 0.35s ease-in-out",
 
           maskImage: expanded
             ? "linear-gradient(90deg, black 100%, transparent 100%)"
@@ -663,9 +1069,6 @@ export function SidebarItem({ to, icon, label, expanded }: Props) {
 
           overflow: "hidden",
           display: "inline-block",
-
-          marginLeft: expanded ? "2px" : "-4px", // лёгкое движение текста
-          transitionProperty: "opacity, margin-left, mask-image, -webkit-mask-image",
         }}
       >
         {label}
@@ -729,9 +1132,9 @@ export function Sidebar() {
       style={{
         width: expanded ? WIDTH_EXPANDED : WIDTH_COLLAPSED,
         transition: "width 0.35s ease-in-out",
-        background: "#111827",
-        borderRight: "1px solid rgba(255,255,255,0.05)",
-        paddingTop: "20px",
+        background: "var(--surface)",
+        borderRight: "1px solid var(--border)",
+        paddingTop: 20,
         height: "calc(100vh - 55px)",
         position: "fixed",
         top: 55,
@@ -740,13 +1143,20 @@ export function Sidebar() {
         zIndex: 20,
       }}
     >
-      <div style={{ display: "flex", flexDirection: "column", marginTop: 10 }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          marginTop: 10,
+        }}
+      >
         <SidebarItem
           to="/"
           label="Dashboard"
           icon={<IconLayoutDashboard size={22} />}
           expanded={expanded}
         />
+
         <SidebarItem
           to="/assets"
           label="Assets"
@@ -754,289 +1164,13 @@ export function Sidebar() {
           expanded={expanded}
         />
 
-        {/* ➜ Новый пункт меню Simulation */}
         <SidebarItem
           to="/simulation"
           label="Simulation"
           icon={<IconChartDots size={22} />}
           expanded={expanded}
         />
-
-       
       </div>
     </aside>
   );
-}\nfrontend/src/main.tsx\nimport { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
-
-import "@tabler/core/dist/css/tabler.min.css";
-import "@tabler/core/dist/js/tabler.min.js";
-
-// Включаем тёмную тему Tabler
-document.documentElement.setAttribute("data-bs-theme", "dark");
-
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-);\nfrontend/src/pages/AssetsPage.tsx\nimport { useEffect, useMemo, useState } from "react";
-import { Reveal } from "../components/Reveal";
-
-import {
-  fetchMarkets,
-  fetchGlobal,
-  fetchFearGreed,
-} from "../services//assets/assetsApi";
-
-import {
-  saveMarkets,
-  readMarkets,
-  isMarketsFresh,
-  saveGlobal,
-  readGlobal,
-  saveFearGreed,
-  readFearGreed,
-} from "../services/assets/assetsCache";
-
-import {
-  buildAssetsTable,
-  getDominance,
-  getGlobalMarketCapSnapshot,
-  getTopGainer7d,
-  type AssetRow,
-} from "../services/assets/assetsSelectors";
-
-import { fetchBinancePrices } from "../services/assets/binanceService";
-
-import { AssetsTable } from "../components/assets/AssetsTable";
-import { MarketCapCard } from "../components/assets/MarketCapCard";
-import { FearGreedCard } from "../components/assets/FearGreedCard";
-import { BtcEthAltCard } from "../components/assets/BtcEthAltCard";
-import { TopGainer7dCard } from "../components/assets/TopGainer7dCard";
-
-const PAGE_SIZE = 20;
-
-export function AssetsPage() {
-  const [assets, setAssets] = useState<AssetRow[]>([]);
-  const [livePrices, setLivePrices] = useState<Record<string, number>>({});
-  const [page, setPage] = useState(1);
-
-  const [fearGreed, setFearGreed] = useState<number | null>(null);
-  const [marketCap, setMarketCap] = useState<{
-    capUsd: number;
-    changePct24h: number;
-    sparkline: number[];
-  } | null>(null);
-
-  const [dominance, setDominance] = useState<{
-    btc: number;
-    eth: number;
-    alt: number;
-  } | null>(null);
-
-  const [topGainer, setTopGainer] = useState<{
-    name: string;
-    symbol: string;
-    image?: string;
-    pct7d: number;
-  } | null>(null);
-
-  /* =========================
-     BASE DATA
-  ========================= */
-  useEffect(() => {
-    let active = true;
-
-    async function load() {
-      if (!isMarketsFresh()) {
-        const [markets, global, fear] = await Promise.all([
-          fetchMarkets(),
-          fetchGlobal(),
-          fetchFearGreed(),
-        ]);
-
-        if (!active) return;
-
-        saveMarkets(markets);
-        saveGlobal(global);
-        if (fear !== null) saveFearGreed(fear);
-      }
-
-      const markets = readMarkets() ?? [];
-      const global = readGlobal();
-      const fear = readFearGreed();
-
-      if (!active) return;
-
-      setAssets(buildAssetsTable(markets));
-      setFearGreed(fear);
-
-      if (global) {
-        const snap = getGlobalMarketCapSnapshot(global);
-        setMarketCap({
-          capUsd: snap.capUsd,
-          changePct24h: snap.changePct24h,
-          sparkline: markets[0]?.sparkline_in_7d?.price ?? [],
-        });
-
-        setDominance(getDominance(global));
-      }
-
-      setTopGainer(getTopGainer7d(markets));
-    }
-
-    load().catch(console.error);
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  /* =========================
-     READY FLAG (ключевое)
-  ========================= */
-  const ready =
-    assets.length > 0 &&
-    marketCap !== null &&
-    fearGreed !== null &&
-    dominance !== null;
-
-  /* =========================
-     PAGINATION
-  ========================= */
-  const totalPages = Math.max(1, Math.ceil(assets.length / PAGE_SIZE));
-
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
-
-  const pagedAssets = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return assets.slice(start, start + PAGE_SIZE);
-  }, [assets, page]);
-
-  /* =========================
-     LIVE PRICES
-  ========================= */
-  const visibleSymbols = useMemo(
-    () => pagedAssets.map((a) => a.symbol),
-    [pagedAssets]
-  );
-
-  useEffect(() => {
-    if (!visibleSymbols.length) return;
-
-    let active = true;
-
-    async function tick() {
-      try {
-        const prices = await fetchBinancePrices();
-        if (active) setLivePrices(prices);
-      } catch {}
-    }
-
-    tick();
-    const id = setInterval(tick, 4_000);
-
-    return () => {
-      active = false;
-      clearInterval(id);
-    };
-  }, [visibleSymbols]);
-
-  /* =========================
-     RENDER
-  ========================= */
-  return (
-    <div key={ready ? "ready" : "loading"}>
-      {ready && (
-        <>
-          {/* 🟣 Карточки — первая волна */}
-          <Reveal delayMs={0}>
-            <div className="row row-cards mb-2">
-              <div className="col-12 col-md-6 col-lg-3 d-flex">
-                <MarketCapCard
-                  capUsd={marketCap!.capUsd}
-                  changePct={marketCap!.changePct24h}
-                  spark={marketCap!.sparkline}
-                />
-              </div>
-
-              <div className="col-12 col-md-6 col-lg-3 d-flex">
-                <FearGreedCard value={fearGreed!} />
-              </div>
-
-              <div className="col-12 col-md-6 col-lg-3 d-flex">
-                <BtcEthAltCard
-                  btc={dominance!.btc}
-                  eth={dominance!.eth}
-                  alt={dominance!.alt}
-                />
-              </div>
-
-              <div className="col-12 col-md-6 col-lg-3 d-flex">
-                <TopGainer7dCard
-                  name={topGainer!.name}
-                  symbol={topGainer!.symbol}
-                  image={topGainer!.image}
-                  pct7d={topGainer!.pct7d}
-                />
-              </div>
-            </div>
-          </Reveal>
-
-          {/* 🟣 Таблица — вторая волна */}
-          <Reveal delayMs={100}>
-            <div style={{ marginTop: 15 }}>
-              <AssetsTable assets={pagedAssets} livePrices={livePrices} />
-            </div>
-          </Reveal>
-
-          {/* 🟣 Пагинация — последняя */}
-          <Reveal delayMs={160}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                marginTop: 16,
-                gap: 8,
-              }}
-            >
-              <button
-                className="btn btn-sm"
-                disabled={page === 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Prev
-              </button>
-
-              {Array.from({ length: totalPages }).map((_, i) => {
-                const p = i + 1;
-                const active = p === page;
-
-                return (
-                  <button
-                    key={p}
-                    className={`btn btn-sm ${active ? "btn-primary" : ""}`}
-                    onClick={() => setPage(p)}
-                  >
-                    {p}
-                  </button>
-                );
-              })}
-
-              <button
-                className="btn btn-sm"
-                disabled={page === totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              >
-                Next
-              </button>
-            </div>
-          </Reveal>
-        </>
-      )}
-    </div>
-  );
-}\nfrontend/src/pages/PortfolioPage.tsx\n
+}\nfrontend/src/main.tsx\n

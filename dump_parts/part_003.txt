@@ -74,35 +74,88 @@ export default defineConfig([
 import { router } from "./router";
 
 export default function App() {
-  return <RouterProvider router={router} />;
-}\nfrontend/src/charts/portfolioChartOptions.ts\ntype ChartParams = {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "var(--bg)",
+        color: "var(--text-primary)",
+      }}
+    >
+      <RouterProvider router={router} />
+    </div>
+  );
+}\nfrontend/src/charts/portfolioChartOptions.ts\n/* =========================
+   Types
+========================= */
+
+type ChartParams = {
   seriesId?: string;
   initial?: boolean;
   opacity?: number; // 0..1
 };
 
+type LineSeries = {
+  id: string;
+  name: string;
+  type: "line";
+  smooth: boolean;
+  showSymbol: boolean;
+
+  animationDuration: number;
+  animationEasing: string;
+  animationDurationUpdate: number;
+  animationEasingUpdate: string;
+
+  color?: string;        // ⬅️ ВАЖНО
+  lineStyle: any;
+  areaStyle?: any;
+  emphasis?: any;
+
+  data: Array<[number, number]>;
+};
+
+/* =========================
+   Tooltip
+========================= */
+
 export function buildTooltip() {
   return {
     trigger: "axis",
-    formatter: (params: any) => {
-      const val = params[0].value[1] as number;
-      const sign = val >= 0 ? "+" : "";
+    formatter: (params: any[]) => {
       const date = new Date(params[0].value[0]);
+
+      const rows = params.map((p) => {
+        const val = p.value[1] as number;
+        const sign = val >= 0 ? "+" : "";
+        return `<div><strong>${p.seriesName}:</strong> ${sign}${val.toFixed(
+          2
+        )}%</div>`;
+      });
 
       return `
         <div>
-          <strong>${sign}${val.toFixed(2)}%</strong><br/>
-          ${date.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}
+          ${rows.join("")}
+          <div style="margin-top:6px;opacity:0.7">
+            ${date.toLocaleDateString("en-GB", {
+              month: "long",
+              year: "numeric",
+            })}
+          </div>
         </div>
       `;
     },
   };
 }
 
+/* =========================
+   Layout
+========================= */
+
 export function buildGrid() {
   return {
     left: 20,
-    right: 48, // ✅ место под проценты справа
+    right: 48,
     top: 20,
     bottom: 40,
   };
@@ -126,7 +179,7 @@ export function buildXAxis() {
 export function buildYAxis() {
   return {
     type: "value",
-    position: "right", // ✅ проценты справа
+    position: "right",
     axisLabel: {
       formatter: (v: number) => `${v.toFixed(0)}%`,
       color: "#999",
@@ -138,68 +191,112 @@ export function buildYAxis() {
   };
 }
 
-export function buildSeries(
+/* =========================
+   Series builders
+========================= */
+
+function buildPortfolioSeries(
   timestamps: number[],
   percentValues: number[],
-  params: ChartParams = {}
-) {
-  const { seriesId = "portfolio-line", initial = false, opacity = 1 } = params;
+  params: ChartParams
+): LineSeries {
+  const { seriesId = "portfolio", initial = false, opacity = 1 } = params;
 
-  const first = percentValues[0];
-  const last = percentValues[percentValues.length - 1];
-  const isUp = last >= first;
+  const ACCENT = "#8B5CF6";
+  const AREA_TOP = "rgba(139,92,246,0.35)";
+  const AREA_BOTTOM = "rgba(139,92,246,0.00)";
 
-  const lineColor = isUp ? "#27a95e" : "#e11c14";
-  const areaTop = isUp ? "rgba(39,169,94,0.40)" : "rgba(225,28,20,0.40)";
-  const areaBottom = isUp ? "rgba(39,169,94,0.05)" : "rgba(225,28,20,0.05)";
+  return {
+    id: seriesId,
+    name: "Portfolio",
+    type: "line",
+    smooth: false,
+    showSymbol: false,
 
-  return [
-    {
-      id: seriesId,
-      name: "Portfolio % Change",
-      type: "line",
-      smooth: false,
-      showSymbol: false,
+    animationDuration: initial ? 1500 : 0,
+    animationEasing: initial ? "quadraticInOut" : "linear",
+    animationDurationUpdate: 750,
+    animationEasingUpdate: "quadraticInOut",
 
-
-      animationDuration: initial ? 1500 : 0,
-      animationEasing: initial ? "quadraticInOut" : "linear",
-
-      animationDurationUpdate: 750,
-      animationEasingUpdate: "quadraticInOut",
-
-      lineStyle: {
-        width: 3,
-        color: lineColor,
-        opacity,
-      },
-
-      areaStyle: {
-        origin: "start",
-        opacity,
-        color: {
-          type: "linear",
-          x: 0,
-          y: 0,
-          x2: 0,
-          y2: 1,
-          colorStops: [
-            { offset: 0, color: areaTop },
-            { offset: 1, color: areaBottom },
-          ],
-        },
-      },
-
-      data: percentValues.map((v, i) => [timestamps[i], v]),
+    color: ACCENT,
+    lineStyle: {
+      width: 3,
+      color: ACCENT,
+      opacity,
     },
-  ];
+
+    areaStyle: {
+      origin: "start",
+      opacity,
+      color: {
+        type: "linear",
+        x: 0,
+        y: 0,
+        x2: 0,
+        y2: 1,
+        colorStops: [
+          { offset: 0, color: AREA_TOP },
+          { offset: 1, color: AREA_BOTTOM },
+        ],
+      },
+    },
+
+    data: percentValues.map((v, i) => [timestamps[i], v]),
+  };
 }
+
+function buildBtcSeries(
+  timestamps: number[],
+  btcPercentValues: number[],
+  initial = false
+): LineSeries {
+  const BTC_ORANGE = "#F59E0B"; // 🔥 явно тёплый benchmark
+
+  return {
+    id: "btc",
+    name: "BTC",
+    type: "line",
+    smooth: false,
+    showSymbol: false,
+
+    animationDuration: initial ? 1500 : 0,
+    animationEasing: initial ? "quadraticInOut" : "linear",
+    animationDurationUpdate: 750,
+    animationEasingUpdate: "quadraticInOut",
+
+    color: BTC_ORANGE, // ⬅️ КЛЮЧЕВО
+    lineStyle: {
+      width: 2,
+      color: BTC_ORANGE,
+      type: "dashed",
+    },
+
+    emphasis: {
+      focus: "series",
+    },
+
+    data: btcPercentValues.map((v, i) => [timestamps[i], v]),
+  };
+}
+
+/* =========================
+   Option
+========================= */
 
 export function buildPortfolioChartOption(
   timestamps: number[],
   percentValues: number[],
-  params: ChartParams = {}
+  params: ChartParams = {},
+  btcPercentValues?: number[]
 ) {
+  const series: LineSeries[] = [
+    buildPortfolioSeries(timestamps, percentValues, params),
+  ];
+
+  if (btcPercentValues && btcPercentValues.length) {
+    series.push(buildBtcSeries(timestamps, btcPercentValues, params.initial));
+  }
+
   return {
     backgroundColor: "transparent",
     animation: true,
@@ -207,7 +304,7 @@ export function buildPortfolioChartOption(
     grid: buildGrid(),
     xAxis: buildXAxis(),
     yAxis: buildYAxis(),
-    series: buildSeries(timestamps, percentValues, params),
+    series,
   };
 }\nfrontend/src/charts/SparklineBase.tsx\n
 
@@ -274,7 +371,7 @@ export function SparklineBase({
     </svg>
   );
 }\nfrontend/src/components/assets/AssetRow.tsx\nimport { useEffect, useRef, useState } from "react";
-import type { AssetRow } from "../../services/assetsService";
+import type { AssetRow } from "../../services/assets/assetsSelectors";
 import { SparklineBase } from "../../charts/SparklineBase";
 
 type Props = {
@@ -421,6 +518,13 @@ export function AssetsTable({ assets, livePrices }: Props) {
   return (
     <>
       <style>{`
+        .assets-card {
+          background: var(--surface, #111827);
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 12px;
+          overflow-x: auto;
+        }
+
         .assets-table {
           width: 100%;
           border-collapse: collapse;
@@ -440,23 +544,32 @@ export function AssetsTable({ assets, livePrices }: Props) {
           vertical-align: middle;
         }
 
+        /* ===== Header ===== */
+
         th .cell {
           font-weight: 600;
-          font-size: 15px;
-          color: #e5e7eb;
-          letter-spacing: 0.25px;
+          font-size: 14px;
+          letter-spacing: 0.4px;
+          color: #E5E7EB;
         }
 
+        /* ===== Rows ===== */
+
         .assets-table tbody tr {
-          border-bottom: 1px solid rgba(255,255,255,0.06);
+          border-bottom: 1px solid rgba(255,255,255,0.04);
+          transition: background 120ms ease;
+        }
+
+        .assets-table tbody tr:last-child {
+          border-bottom: none;
         }
 
         .assets-table tbody tr:hover {
-          background: rgba(255,255,255,0.03);
+          background: rgba(139,92,246,0.06);
         }
       `}</style>
 
-      <div className="card" style={{ padding: 0, overflowX: "auto" }}>
+      <div className="assets-card">
         <table className="assets-table">
           <colgroup>
             <col style={{ width: "60px" }} />
@@ -538,9 +651,9 @@ export function AssetsTable({ assets, livePrices }: Props) {
 }\nfrontend/src/components/assets/BtcEthAltCard.tsx\nimport type { FC } from "react";
 
 type Props = {
-  btc: number; // BTC dominance %
-  eth: number; // ETH dominance %
-  alt: number; // ALT dominance %
+  btc: number;
+  eth: number;
+  alt: number;
 };
 
 export const BtcEthAltCard: FC<Props> = ({ btc, eth, alt }) => {
@@ -548,15 +661,18 @@ export const BtcEthAltCard: FC<Props> = ({ btc, eth, alt }) => {
   const ethPct = eth.toFixed(1);
   const altPct = alt.toFixed(1);
 
-  const btcColor = "#fbbf24";  // amber-400
-  const ethColor = "#c084fc";  // violet-400 (нежный фиолетовый)
-  const altColor = "#475569";  // slate-700
+  // 🎨 Цвета под общую тему
+  const btcColor = "#F59E0B"; // BTC — оранжевый
+  const ethColor = "#8B5CF6"; // ETH — фиолетовый
+  const altColor = "#64748B"; // ALT — нейтральный
 
   return (
     <div
       className="card card-sm mb-3 h-100"
       style={{
         flex: 1,
+        backgroundColor: "var(--surface)", // ✅ без градиента
+        border: "1px solid var(--border)",
       }}
     >
       <div
@@ -569,44 +685,25 @@ export const BtcEthAltCard: FC<Props> = ({ btc, eth, alt }) => {
         }}
       >
         {/* Заголовок */}
-        <div className="text-muted">Market Dominance</div>
+        <div style={{ color: "var(--text-muted)", fontSize: 14 }}>
+          Market Dominance
+        </div>
 
-        {/* Горизонтальная полоса */}
+        {/* Полоса */}
         <div
           style={{
             width: "100%",
-            height: 12, // ← было 18, теперь тоньше
+            height: 12,
             borderRadius: 10,
             overflow: "hidden",
             display: "flex",
+            background: "var(--surface-hover)",
+            border: "1px solid var(--border)",
           }}
         >
-          {/* BTC */}
-          <div
-            style={{
-              width: `${btc}%`,
-              backgroundColor: btcColor,
-              transition: "width 0.3s ease",
-            }}
-          />
-
-          {/* ETH */}
-          <div
-            style={{
-              width: `${eth}%`,
-              backgroundColor: ethColor,
-              transition: "width 0.3s ease",
-            }}
-          />
-
-          {/* ALT */}
-          <div
-            style={{
-              width: `${alt}%`,
-              backgroundColor: altColor,
-              transition: "width 0.3s ease",
-            }}
-          />
+          <div style={{ width: `${btc}%`, backgroundColor: btcColor }} />
+          <div style={{ width: `${eth}%`, backgroundColor: ethColor }} />
+          <div style={{ width: `${alt}%`, backgroundColor: altColor }} />
         </div>
 
         {/* Подписи */}
@@ -625,9 +722,15 @@ export const BtcEthAltCard: FC<Props> = ({ btc, eth, alt }) => {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <span style={{ color: btcColor, fontWeight: 600 }}>{btcPct}%</span>
-            <span style={{ color: ethColor, fontWeight: 600 }}>{ethPct}%</span>
-            <span style={{ color: altColor, fontWeight: 600 }}>{altPct}%</span>
+            <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>
+              {btcPct}%
+            </span>
+            <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>
+              {ethPct}%
+            </span>
+            <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>
+              {altPct}%
+            </span>
           </div>
         </div>
       </div>
@@ -656,6 +759,8 @@ export function FearGreedCard({ value }: Props) {
       style={{
         flex: 1,
         position: "relative",
+        backgroundColor: "var(--surface)",
+        border: "1px solid var(--border)",
       }}
     >
       <div
@@ -665,22 +770,21 @@ export function FearGreedCard({ value }: Props) {
           position: "relative",
         }}
       >
-
         {/* Заголовок */}
         <div
-          className="text-muted"
           style={{
             position: "absolute",
-            top: 14,       // ← добавили отступ сверху
+            top: 14,
             left: 12,
             fontSize: "0.75rem",
-            opacity: 0.85,
+            color: "var(--text-muted)",
+            letterSpacing: "0.02em",
           }}
         >
           Fear & Greed
         </div>
 
-        {/* Контейнер gauge */}
+        {/* Gauge */}
         <div
           style={{
             display: "flex",
@@ -692,7 +796,7 @@ export function FearGreedCard({ value }: Props) {
         >
           <FearGreedGauge value={value} width={160} height={80} />
 
-          {/* ЦЕНТРАЛЬНЫЙ ТЕКСТ ВНУТРИ ДУГИ */}
+          {/* Центр */}
           <div
             style={{
               position: "absolute",
@@ -707,7 +811,7 @@ export function FearGreedCard({ value }: Props) {
                 fontSize: "1.35rem",
                 fontWeight: 600,
                 lineHeight: "1.2",
-                margin: 0,
+                color: "var(--text-primary)",
               }}
             >
               {value}
@@ -716,7 +820,7 @@ export function FearGreedCard({ value }: Props) {
             <div
               style={{
                 fontSize: "0.85rem",
-                opacity: 0.8,
+                color: "var(--text-secondary)",
               }}
             >
               {label}
@@ -726,72 +830,99 @@ export function FearGreedCard({ value }: Props) {
       </div>
     </div>
   );
-}\nfrontend/src/components/assets/FearGreedGauge.tsx\n
-type Props = {
+}\nfrontend/src/components/assets/FearGreedGauge.tsx\ntype Props = {
   value: number; // 0–100
   width?: number;
   height?: number;
 };
 
-// Полярные координаты → (x, y)
+/* =========================
+   Geometry helpers
+========================= */
+
 function polar(cx: number, cy: number, r: number, angleDeg: number) {
   const rad = (angleDeg * Math.PI) / 180;
   return {
     x: cx + r * Math.cos(rad),
-    y: cy - r * Math.sin(rad), // минус → верхняя полудуга
+    y: cy - r * Math.sin(rad),
   };
 }
 
-// Построение пути дуги от startAngle до endAngle
-function buildArcPath(cx: number, cy: number, r: number, start: number, end: number) {
+function arcPath(cx: number, cy: number, r: number, start: number, end: number) {
   const p0 = polar(cx, cy, r, start);
   const p1 = polar(cx, cy, r, end);
 
   const largeArcFlag = Math.abs(end - start) > 180 ? 1 : 0;
-  const sweepFlag = end < start ? 1 : 0; // слева → направо
+  const sweepFlag = end < start ? 1 : 0;
 
   return `M ${p0.x} ${p0.y} A ${r} ${r} 0 ${largeArcFlag} ${sweepFlag} ${p1.x} ${p1.y}`;
 }
+
+/* =========================
+   Component
+========================= */
 
 export function FearGreedGauge({
   value,
   width = 220,
   height = 120,
 }: Props) {
-  // Центр круга находится ниже viewBox
   const cx = width / 2;
   const cy = height;
   const r = height - 20;
-
-  // ✔ ТОНКАЯ дуга
   const strokeWidth = 8;
 
-  // Сегменты гейджа 0–100
-  const segments = [
-    { from: 180, to: 144, color: "#ef4444" }, // 0–20
-    { from: 144, to: 108, color: "#f97316" }, // 20–40
-    { from: 108, to: 72,  color: "#eab308" }, // 40–60
-    { from: 72,  to: 36,  color: "#84cc16" }, // 60–80
-    { from: 36,  to: 0,   color: "#22c55e" }, // 80–100
+  /* =========================
+     Stepped gradient sectors
+     (accent → blue → white)
+  ========================= */
+
+  const SECTORS = [
+    { color: "var(--primary)" }, // фиолетовый
+    { color: "#8FA4F9" },        // фиолетово-голубой
+    { color: "var(--secondary)" }, // голубой
+    { color: "#AEEBFA" },        // голубовато-белый
+    { color: "#E6E6E6" },        // белый
   ];
 
-  // Позиция pointer'а
+  const stepAngle = 180 / SECTORS.length;
+
+  const sectors = SECTORS.map((s, i) => ({
+    from: 180 - i * stepAngle,
+    to: 180 - (i + 1) * stepAngle,
+    color: s.color,
+  }));
+
+  /* =========================
+     Pointer (points to sector)
+  ========================= */
+
   const clamped = Math.max(0, Math.min(100, value));
   const angle = 180 - (clamped / 100) * 180;
   const pointer = polar(cx, cy, r, angle);
 
   return (
     <svg width="100%" viewBox={`0 0 ${width} ${height}`}>
-      {/* Цветные сегменты одной полудуги */}
-      {segments.map((seg, i) => (
+      {/* Background arc */}
+      <path
+        d={arcPath(cx, cy, r, 180, 0)}
+        stroke="var(--border)"
+        strokeWidth={strokeWidth}
+        fill="none"
+        strokeLinecap="round"
+        vectorEffect="non-scaling-stroke"
+      />
+
+      {/* Stepped sectors */}
+      {sectors.map((s, i) => (
         <path
           key={i}
-          d={buildArcPath(cx, cy, r, seg.from, seg.to)}
-          stroke={seg.color}
+          d={arcPath(cx, cy, r, s.from, s.to)}
+          stroke={s.color}
           strokeWidth={strokeWidth}
           fill="none"
           strokeLinecap="round"
-          vectorEffect="non-scaling-stroke"  // ❗ делает линию реально тоньше
+          vectorEffect="non-scaling-stroke"
         />
       ))}
 
@@ -800,10 +931,10 @@ export function FearGreedGauge({
         cx={pointer.x}
         cy={pointer.y}
         r={6}
-        fill="#ffffff"
-        stroke="#020617"
+        fill="var(--primary)"
+        stroke="var(--surface)"
         strokeWidth={2}
-        vectorEffect="non-scaling-stroke" // ❗ pointer тоже не масштабируется
+        vectorEffect="non-scaling-stroke"
       />
     </svg>
   );
@@ -825,33 +956,52 @@ type Props = {
 
 export function MarketCapCard({ capUsd, changePct, spark }: Props) {
   const isUp = changePct >= 0;
-  const color = isUp ? "#22c55e" : "#ef4444";
+
+  // Sparkline всегда акцентная
+  const sparkColor = "var(--primary)";
 
   return (
     <div
       className="card card-sm mb-3 h-100"
       style={{
-        flex: 1, // ⭐ позволяет карточке растянуться по ширине
+        flex: 1,
+        backgroundColor: "var(--surface)",
+        border: "1px solid var(--border)",
       }}
     >
       <div className="card-body" style={{ padding: "12px 16px" }}>
         <div className="d-flex justify-content-between mb-1">
-          <div className="text-muted">Market Cap</div>
-          <div className={isUp ? "text-success" : "text-danger"}>
-            {changePct >= 0 ? "+" : ""}
+          <div style={{ color: "var(--text-muted)" }}>Market Cap</div>
+
+          <div
+            style={{
+              color: isUp ? "var(--positive)" : "var(--negative)",
+              fontWeight: 500,
+            }}
+          >
+            {isUp ? "+" : ""}
             {changePct.toFixed(2)}%
           </div>
         </div>
 
-        <div className="h2 m-0">{formatMarketCap(capUsd)}</div>
+        <div
+          style={{
+            fontSize: "1.45rem",
+            fontWeight: 600,
+            color: "var(--text-primary)",
+            lineHeight: 1.15,
+          }}
+        >
+          {formatMarketCap(capUsd)}
+        </div>
 
-        <div style={{ marginTop: 6 }}>
+        {/* ⬇️ сдвиг вниз */}
+        <div style={{ marginTop: 22 }}>
           <SparklineBase
             values={spark}
-            color={color}
-            width={200}   // можно заменить на 100% если нужно
+            color={sparkColor}
             height={30}
-            fullWidth={true} // ⭐ Sparkline тянется на всю ширину
+            fullWidth={true}
           />
         </div>
       </div>
@@ -866,7 +1016,9 @@ export function MarketCapCard({ capUsd, changePct, spark }: Props) {
 
 export function TopGainer7dCard({ name, symbol, image, pct7d }: Props) {
   const isUp = pct7d >= 0;
-  const color = isUp ? "#4ADE80" : "#F87171";
+
+  // ✅ цвета как раньше: зелёный / красный
+  const pctColor = isUp ? "var(--positive)" : "var(--negative)";
 
   return (
     <div
@@ -876,13 +1028,15 @@ export function TopGainer7dCard({ name, symbol, image, pct7d }: Props) {
         display: "flex",
         flexDirection: "column",
         padding: "16px 20px",
+        backgroundColor: "var(--surface)",
+        border: "1px solid var(--border)",
       }}
     >
       {/* Заголовок */}
       <div
-        className="text-muted"
         style={{
-          fontSize: "0.9rem",
+          fontSize: "0.85rem",
+          color: "var(--text-muted)",
           marginBottom: 4,
         }}
       >
@@ -905,15 +1059,15 @@ export function TopGainer7dCard({ name, symbol, image, pct7d }: Props) {
             gap: 16,
           }}
         >
-          {/* Иконка (ТОЛЬКО если есть image) */}
+          {/* Иконка */}
           {image ? (
             <div
               style={{
                 width: 66,
                 height: 66,
                 borderRadius: "999px",
-                border: "1px solid rgba(148, 163, 184, 0.7)",
-                background: "transparent",
+                border: "1px solid var(--border)",
+                background: "var(--surface-hover)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -942,9 +1096,9 @@ export function TopGainer7dCard({ name, symbol, image, pct7d }: Props) {
           >
             <span
               style={{
-                color: "#e5e7eb",
+                color: "var(--text-primary)",
                 fontWeight: 600,
-                fontSize: "1.1rem",
+                fontSize: "1.05rem",
                 letterSpacing: "0.04em",
               }}
             >
@@ -953,9 +1107,9 @@ export function TopGainer7dCard({ name, symbol, image, pct7d }: Props) {
 
             <span
               style={{
-                color,
+                color: pctColor,
                 fontWeight: 700,
-                fontSize: "1.5rem",
+                fontSize: "1.45rem",
               }}
             >
               {isUp ? "+" : ""}
@@ -966,64 +1120,4 @@ export function TopGainer7dCard({ name, symbol, image, pct7d }: Props) {
       </div>
     </div>
   );
-}\nfrontend/src/components/portfolio/AssetSparklineCard.tsx\nimport { SparklineBase } from "../../charts/SparklineBase";
-
-type Props = {
-  name: string;
-  values: number[];
-  pct: number;
-  label?: string;
-};
-
-export function AssetSparklineCard({ name, values, pct, label }: Props) {
-  if (!values.length) return null;
-
-  const isUp = pct >= 0;
-  const color = isUp ? "#22c55e" : "#ef4444";
-  const pctStr = `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
-
-  return (
-    <div className="card card-sm" style={{ flex: 1, minWidth: 150 }}>
-      <div className="card-body">
-        {/* header */}
-        <div className="d-flex justify-content-between mb-1">
-          <div className="text-muted">{name}</div>
-          <div style={{ color }}>{pctStr}</div>
-        </div>
-
-        {/* период */}
-        {label && (
-          <div
-            style={{
-              fontSize: 12,
-              color: "#888",
-              marginTop: -2,
-              marginBottom: 6,
-            }}
-          >
-            {label}
-          </div>
-        )}
-
-        {/* centered sparkline */}
-        <div
-          style={{
-            width: "100%",
-            display: "flex",
-            justifyContent: "center",
-          }}
-        >
-          <div style={{ width: 140 }}> 
-            <SparklineBase
-              values={values}
-              color={color}
-              width={140}
-              height={40}
-              fullWidth={true}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}\nfrontend/src/components/portfolio/AssetSparklinesSection.tsx\n
+}\nfrontend/src/components/portfolio/AssetSparklineCard.tsx\n

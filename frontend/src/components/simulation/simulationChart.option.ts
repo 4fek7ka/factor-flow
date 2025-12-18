@@ -26,8 +26,6 @@ type BuildOptionParams = {
   timestamps: number[];
   median: number[];
   representative: number[];
-  upper: number[];
-  lower: number[];
   cloud: number[][];
   fan?: FanQuantiles;
   yDomain: { min: number; max: number };
@@ -100,18 +98,20 @@ export function buildSimulationChartOption({
         if (!main) return "";
 
         const i = main.dataIndex;
+
         let html = `
           <div style="font-weight:700;margin-bottom:6px">
             Simulation
           </div>
         `;
 
-      
-        if (flags.showRepresentative)
+        if (flags.showRepresentative) {
           html += tooltipRow("Main", representative[i], COLOR_MAIN);
-        if (flags.showMedian)
+        }
+        if (flags.showMedian) {
           html += tooltipRow("Median", median[i], "rgba(226,232,240,0.7)");
-     
+        }
+
         return html;
       },
     },
@@ -189,6 +189,10 @@ export function buildSimulationChartOption({
           style: {
             fill: FAN_OUTER,
             opacity: flags.showFan ? 1 : 0,
+
+            // важно: никакой обводки (чтобы не было "верх/низ линий")
+            stroke: "rgba(0,0,0,0)",
+            lineWidth: 0,
           },
         }),
       },
@@ -216,6 +220,10 @@ export function buildSimulationChartOption({
           style: {
             fill: FAN_INNER,
             opacity: flags.showFan ? 1 : 0,
+
+            // важно: никакой обводки
+            stroke: "rgba(0,0,0,0)",
+            lineWidth: 0,
           },
         }),
       },
