@@ -27,59 +27,100 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
     return { deltaPct, isPositive, posPct, RANGE };
   }, [startValue, median]);
 
-  const ACCENT_COLOR = model.isPositive ? "#22c55e" : "#ef4444";
-  const sign = model.deltaPct >= 0 ? "+" : "";
+  const ACCENT_COLOR = model.isPositive
+    ? "var(--positive)"
+    : "var(--negative)";
+
+  // ✅ ВСЕГДА показываем знак
+  const sign = model.deltaPct >= 0 ? "+" : "-";
 
   const centerPct = 50;
   const fillLeft = model.isPositive ? centerPct : model.posPct;
   const fillWidth = Math.abs(model.posPct - centerPct);
 
   return (
-    <div className="card card-sm w-100">
+    <div
+      className="card card-sm w-100"
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+      }}
+    >
       <div className="card-body">
-        <div style={{ fontWeight: 700, marginBottom: 10 }}>
+        <div
+          style={{
+            fontWeight: 600,
+            marginBottom: 10,
+            color: "var(--text-primary)",
+          }}
+        >
           Final outcome
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-          <div style={{ fontSize: 28, fontWeight: 800 }}>
+        {/* VALUE */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            gap: 10,
+            marginBottom: 14,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 26,
+              fontWeight: 700,
+              color: "var(--text-primary)",
+            }}
+          >
             {formatMoney(median)}
           </div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: ACCENT_COLOR }}>
+
+          <div
+            style={{
+              fontSize: 15,
+              fontWeight: 700,
+              color: ACCENT_COLOR,
+            }}
+          >
             {sign}
             {Math.abs(model.deltaPct).toFixed(1)}%
           </div>
         </div>
 
+        {/* SCALE */}
         <div style={{ position: "relative", height: 20 }}>
+          {/* base line */}
           <div
             style={{
               position: "absolute",
               top: "50%",
               left: 0,
               right: 0,
-              height: 7,
+              height: 6,
               transform: "translateY(-50%)",
               borderRadius: 999,
-              background: "rgba(255,255,255,0.22)",
+              background: "var(--surface-hover)",
             }}
           />
 
+          {/* filled range */}
           <div
             style={{
               position: "absolute",
               top: "50%",
               left: `${fillLeft}%`,
               width: `${fillWidth}%`,
-              height: 7,
+              height: 6,
               transform: "translateY(-50%)",
               borderRadius: 999,
               background: model.isPositive
-                ? "rgba(34,197,94,0.45)"
-                : "rgba(239,68,68,0.45)",
+                ? "rgba(34,197,94,0.35)"
+                : "rgba(239,68,68,0.35)",
             }}
           />
 
+          {/* center zero */}
           <div
             style={{
               position: "absolute",
@@ -88,28 +129,51 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
               transform: "translate(-50%, -50%)",
               width: 2,
               height: 14,
-              background: "rgba(226,232,240,0.85)",
+              background: "var(--border)",
             }}
           />
 
+          {/* marker */}
           <div
             style={{
               position: "absolute",
               top: "50%",
               left: `${model.posPct}%`,
               transform: "translate(-50%, -50%)",
-              width: 16,
-              height: 16,
+              width: 14,
+              height: 14,
               borderRadius: "50%",
               background: ACCENT_COLOR,
+              border: "2px solid var(--surface)",
             }}
           />
         </div>
 
-        <div style={{ position: "relative", height: 16, marginTop: 6, fontSize: 12 }}>
-          <div style={{ position: "absolute", left: 0 }}>-{model.RANGE}%</div>
-          <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}>0%</div>
-          <div style={{ position: "absolute", right: 0 }}>+{model.RANGE}%</div>
+        {/* labels */}
+        <div
+          style={{
+            position: "relative",
+            height: 16,
+            marginTop: 6,
+            fontSize: 12,
+            color: "var(--text-muted)",
+          }}
+        >
+          <div style={{ position: "absolute", left: 0 }}>
+            -{model.RANGE}%
+          </div>
+          <div
+            style={{
+              position: "absolute",
+              left: "50%",
+              transform: "translateX(-50%)",
+            }}
+          >
+            0%
+          </div>
+          <div style={{ position: "absolute", right: 0 }}>
+            +{model.RANGE}%
+          </div>
         </div>
       </div>
     </div>

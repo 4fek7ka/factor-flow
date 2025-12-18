@@ -21,9 +21,9 @@ export function Sidebar() {
       style={{
         width: expanded ? WIDTH_EXPANDED : WIDTH_COLLAPSED,
         transition: "width 0.35s ease-in-out",
-        background: "#111827",
-        borderRight: "1px solid rgba(255,255,255,0.05)",
-        paddingTop: "20px",
+        background: "var(--surface)",
+        borderRight: "1px solid var(--border)",
+        paddingTop: 20,
         height: "calc(100vh - 55px)",
         position: "fixed",
         top: 55,
@@ -32,13 +32,20 @@ export function Sidebar() {
         zIndex: 20,
       }}
     >
-      <div style={{ display: "flex", flexDirection: "column", marginTop: 10 }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          marginTop: 10,
+        }}
+      >
         <SidebarItem
           to="/"
           label="Dashboard"
           icon={<IconLayoutDashboard size={22} />}
           expanded={expanded}
         />
+
         <SidebarItem
           to="/assets"
           label="Assets"
@@ -46,15 +53,12 @@ export function Sidebar() {
           expanded={expanded}
         />
 
-        {/* ➜ Новый пункт меню Simulation */}
         <SidebarItem
           to="/simulation"
           label="Simulation"
           icon={<IconChartDots size={22} />}
           expanded={expanded}
         />
-
-       
       </div>
     </aside>
   );

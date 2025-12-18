@@ -1,9 +1,9 @@
 import type { FC } from "react";
 
 type Props = {
-  btc: number; // BTC dominance %
-  eth: number; // ETH dominance %
-  alt: number; // ALT dominance %
+  btc: number;
+  eth: number;
+  alt: number;
 };
 
 export const BtcEthAltCard: FC<Props> = ({ btc, eth, alt }) => {
@@ -11,15 +11,18 @@ export const BtcEthAltCard: FC<Props> = ({ btc, eth, alt }) => {
   const ethPct = eth.toFixed(1);
   const altPct = alt.toFixed(1);
 
-  const btcColor = "#fbbf24";  // amber-400
-  const ethColor = "#c084fc";  // violet-400 (нежный фиолетовый)
-  const altColor = "#475569";  // slate-700
+  // 🎨 Цвета под общую тему
+  const btcColor = "#F59E0B"; // BTC — оранжевый
+  const ethColor = "#8B5CF6"; // ETH — фиолетовый
+  const altColor = "#64748B"; // ALT — нейтральный
 
   return (
     <div
       className="card card-sm mb-3 h-100"
       style={{
         flex: 1,
+        backgroundColor: "var(--surface)", // ✅ без градиента
+        border: "1px solid var(--border)",
       }}
     >
       <div
@@ -32,44 +35,25 @@ export const BtcEthAltCard: FC<Props> = ({ btc, eth, alt }) => {
         }}
       >
         {/* Заголовок */}
-        <div className="text-muted">Market Dominance</div>
+        <div style={{ color: "var(--text-muted)", fontSize: 14 }}>
+          Market Dominance
+        </div>
 
-        {/* Горизонтальная полоса */}
+        {/* Полоса */}
         <div
           style={{
             width: "100%",
-            height: 12, // ← было 18, теперь тоньше
+            height: 12,
             borderRadius: 10,
             overflow: "hidden",
             display: "flex",
+            background: "var(--surface-hover)",
+            border: "1px solid var(--border)",
           }}
         >
-          {/* BTC */}
-          <div
-            style={{
-              width: `${btc}%`,
-              backgroundColor: btcColor,
-              transition: "width 0.3s ease",
-            }}
-          />
-
-          {/* ETH */}
-          <div
-            style={{
-              width: `${eth}%`,
-              backgroundColor: ethColor,
-              transition: "width 0.3s ease",
-            }}
-          />
-
-          {/* ALT */}
-          <div
-            style={{
-              width: `${alt}%`,
-              backgroundColor: altColor,
-              transition: "width 0.3s ease",
-            }}
-          />
+          <div style={{ width: `${btc}%`, backgroundColor: btcColor }} />
+          <div style={{ width: `${eth}%`, backgroundColor: ethColor }} />
+          <div style={{ width: `${alt}%`, backgroundColor: altColor }} />
         </div>
 
         {/* Подписи */}
@@ -88,9 +72,15 @@ export const BtcEthAltCard: FC<Props> = ({ btc, eth, alt }) => {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <span style={{ color: btcColor, fontWeight: 600 }}>{btcPct}%</span>
-            <span style={{ color: ethColor, fontWeight: 600 }}>{ethPct}%</span>
-            <span style={{ color: altColor, fontWeight: 600 }}>{altPct}%</span>
+            <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>
+              {btcPct}%
+            </span>
+            <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>
+              {ethPct}%
+            </span>
+            <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>
+              {altPct}%
+            </span>
           </div>
         </div>
       </div>

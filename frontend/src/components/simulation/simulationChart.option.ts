@@ -1,12 +1,18 @@
 // simulationChart.option.ts
 import type { EChartsCoreOption } from "echarts/core";
 
-const FAN_OUTER = "rgba(148,163,184,0.12)";
-const FAN_INNER = "rgba(148,163,184,0.20)";
+/* =========================
+   ACCENT CLOUD COLORS
+========================= */
+
+// мягкое облако
+const CLOUD_COLOR = "rgba(187,134,252,0.14)"; // var(--primary) с alpha
+
+// fan — чуть плотнее, но всё ещё мягко
+const FAN_OUTER = "rgba(187,134,252,0.18)";
+const FAN_INNER = "rgba(187,134,252,0.28)";
 
 const COLOR_MAIN = "#0ea5e9";
-const COLOR_UPPER = "#22c55e";
-const COLOR_LOWER = "#ef4444";
 
 type FanQuantiles = {
   q05: number[];
@@ -29,7 +35,6 @@ type BuildOptionParams = {
     showCloud: boolean;
     showMedian: boolean;
     showRepresentative: boolean;
-    showRange: boolean;
     showFan: boolean;
   };
 };
@@ -64,8 +69,6 @@ export function buildSimulationChartOption({
   timestamps,
   median,
   representative,
-  upper,
-  lower,
   cloud,
   fan,
   yDomain,
@@ -77,17 +80,13 @@ export function buildSimulationChartOption({
     tooltip: {
       trigger: "axis",
       appendToBody: true,
-
-      /* ✅ Tabler card colors */
       backgroundColor: "var(--tblr-card-bg)",
       borderColor: "var(--tblr-border-color)",
       borderWidth: 1,
-
       textStyle: {
         color: "rgba(226,232,240,0.95)",
         fontSize: 12,
       },
-
       axisPointer: {
         type: "line",
         lineStyle: {
@@ -96,39 +95,23 @@ export function buildSimulationChartOption({
           type: "dashed",
         },
       },
-
       formatter: (params: any[]) => {
         const main = params.find((p) => p.seriesName === "Main");
         if (!main) return "";
 
         const i = main.dataIndex;
-
         let html = `
-          <div style="
-            font-weight:700;
-            margin-bottom:6px;
-            color:rgba(226,232,240,0.95)
-          ">
+          <div style="font-weight:700;margin-bottom:6px">
             Simulation
           </div>
         `;
 
-        if (flags.showRange) {
-          html += tooltipRow("Upper", upper[i], COLOR_UPPER);
-        }
-
-        if (flags.showRepresentative) {
+      
+        if (flags.showRepresentative)
           html += tooltipRow("Main", representative[i], COLOR_MAIN);
-        }
-
-        if (flags.showMedian) {
+        if (flags.showMedian)
           html += tooltipRow("Median", median[i], "rgba(226,232,240,0.7)");
-        }
-
-        if (flags.showRange) {
-          html += tooltipRow("Lower", lower[i], COLOR_LOWER);
-        }
-
+     
         return html;
       },
     },
@@ -166,6 +149,7 @@ export function buildSimulationChartOption({
     },
 
     series: [
+      /* ================= CLOUD ================= */
       ...cloud.map((p) => ({
         type: "line",
         name: "Cloud",
@@ -174,13 +158,14 @@ export function buildSimulationChartOption({
         silent: true,
         tooltip: { show: false },
         lineStyle: {
-          color: "#64748b",
+          color: CLOUD_COLOR,
           width: 1,
-          opacity: flags.showCloud ? 0.15 : 0,
+          opacity: flags.showCloud ? 1 : 0,
         },
         z: 1,
       })),
 
+      /* ================= FAN ================= */
       fan && {
         type: "custom",
         name: "FanOuter",
@@ -201,7 +186,10 @@ export function buildSimulationChartOption({
                 ),
             ],
           },
-          style: { fill: FAN_OUTER, opacity: flags.showFan ? 1 : 0 },
+          style: {
+            fill: FAN_OUTER,
+            opacity: flags.showFan ? 1 : 0,
+          },
         }),
       },
 
@@ -225,10 +213,14 @@ export function buildSimulationChartOption({
                 ),
             ],
           },
-          style: { fill: FAN_INNER, opacity: flags.showFan ? 1 : 0 },
+          style: {
+            fill: FAN_INNER,
+            opacity: flags.showFan ? 1 : 0,
+          },
         }),
       },
 
+      /* ================= MEDIAN ================= */
       {
         type: "line",
         name: "Median",
@@ -243,6 +235,7 @@ export function buildSimulationChartOption({
         z: 10,
       },
 
+      /* ================= MAIN ================= */
       {
         type: "line",
         name: "Main",

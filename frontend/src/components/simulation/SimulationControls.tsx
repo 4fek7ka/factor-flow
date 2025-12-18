@@ -35,14 +35,14 @@ const SCENARIOS = [
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div style={{ marginBottom: 14 }}>
       <div
         style={{
           fontSize: 11,
-          fontWeight: 800,
+          fontWeight: 700,
           letterSpacing: 0.4,
           textTransform: "uppercase",
-          color: "rgba(148,163,184,0.75)",
+          color: "var(--text-muted)",
           marginBottom: 6,
         }}
       >
@@ -73,18 +73,17 @@ function SegButton({
         alignItems: "center",
         justifyContent: "center",
         fontSize: 12,
-        fontWeight: 800,
-        lineHeight: "16px",
+        fontWeight: 700,
         borderRadius: 8,
         border: active
-          ? "1px solid rgba(56,189,248,0.55)"
-          : "1px solid rgba(255,255,255,0.10)",
+          ? "1px solid var(--primary)"
+          : "1px solid var(--border)",
         background: active
-          ? "rgba(14,165,233,0.22)"
-          : "rgba(15,23,42,0.55)",
+          ? "var(--primary-soft)"
+          : "var(--surface-hover)",
         color: active
-          ? "rgba(226,232,240,0.95)"
-          : "rgba(226,232,240,0.75)",
+          ? "var(--text-primary)"
+          : "var(--text-secondary)",
         cursor: "pointer",
         transition: "all 120ms ease",
         userSelect: "none",
@@ -131,27 +130,28 @@ function ToggleRow({
         justifyContent: "space-between",
         borderRadius: 10,
         border: active
-          ? "1px solid rgba(56,189,248,0.45)"
-          : "1px solid rgba(255,255,255,0.08)",
+          ? "1px solid var(--primary)"
+          : "1px solid var(--border)",
         background: active
-          ? "rgba(14,165,233,0.14)"
-          : "rgba(15,23,42,0.45)",
+          ? "var(--primary-soft)"
+          : "var(--surface-hover)",
         color: active
-          ? "rgba(226,232,240,0.95)"
-          : "rgba(226,232,240,0.80)",
+          ? "var(--text-primary)"
+          : "var(--text-secondary)",
         cursor: "pointer",
         userSelect: "none",
       }}
     >
-      <span style={{ fontSize: 12, fontWeight: 800 }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 700 }}>{label}</span>
+
       <span
         style={{
           width: 10,
           height: 10,
           borderRadius: 999,
           background: active
-            ? "rgba(14,165,233,1)"
-            : "rgba(100,116,139,1)",
+            ? "var(--primary)"
+            : "var(--text-muted)",
         }}
       />
     </button>
@@ -167,22 +167,40 @@ export function SimulationControls({ value, onChange }: Props) {
     onChange({ ...value, ...next });
 
   return (
-    <div className="card" style={{ height: "100%" }}>
+    <div
+      className="card"
+      style={{
+        height: "100%",
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+      }}
+    >
       <div
         className="card-body"
         style={{
           height: "100%",
           display: "flex",
           flexDirection: "column",
-          padding: 0, // важно: управляем паддингами вручную
+          padding: 0,
         }}
       >
         {/* HEADER */}
         <div style={{ padding: 14, flexShrink: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: 14 }}>
+          <div
+            style={{
+              fontWeight: 700,
+              fontSize: 14,
+              color: "var(--text-primary)",
+            }}
+          >
             Simulation settings
           </div>
-          <div style={{ fontSize: 12, color: "rgba(148,163,184,0.8)" }}>
+          <div
+            style={{
+              fontSize: 12,
+              color: "var(--text-muted)",
+            }}
+          >
             Horizon, scenario and runs
           </div>
         </div>
@@ -258,11 +276,7 @@ export function SimulationControls({ value, onChange }: Props) {
                 active={value.showCloud}
                 onClick={() => patch({ showCloud: !value.showCloud })}
               />
-              <ToggleRow
-                label="Range"
-                active={value.showRange}
-                onClick={() => patch({ showRange: !value.showRange })}
-              />
+              
             </div>
           </Section>
         </div>

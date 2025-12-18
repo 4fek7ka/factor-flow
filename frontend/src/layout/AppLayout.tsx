@@ -11,7 +11,7 @@ export function AppLayout() {
       style={{
         display: "flex",
         minHeight: "100vh",
-        background: "#070B17",
+        background: "var(--bg)",
       }}
     >
       {/* фикс скачка из-за scrollbar */}
@@ -32,8 +32,8 @@ export function AppLayout() {
             height: 56,
             display: "flex",
             alignItems: "center",
-            background: "#111827",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            background: "var(--surface)",
+            borderBottom: "1px solid var(--border)",
             padding: "0 125px",
           }}
         >
@@ -59,7 +59,7 @@ export function AppLayout() {
               style={{
                 fontWeight: 600,
                 fontSize: 16,
-                color: "#ffffff",
+                color: "var(--text-primary)",
                 whiteSpace: "nowrap",
               }}
             >
@@ -83,7 +83,12 @@ export function AppLayout() {
         </header>
 
         {/* ================= CONTENT ================= */}
-        <main style={{ padding: 24 }}>
+        <main
+          style={{
+            padding: 24,
+            background: "var(--bg)",
+          }}
+        >
           <div
             style={{
               maxWidth: 1280,

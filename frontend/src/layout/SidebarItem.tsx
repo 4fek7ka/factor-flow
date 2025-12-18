@@ -19,13 +19,15 @@ export function SidebarItem({ to, icon, label, expanded }: Props) {
       style={({ isActive }) => ({
         padding: "10px 12px",
         gap: "14px",
-        color: isActive ? "#b351f9" : "#9ca3af",
+        color: isActive
+          ? "var(--primary)"
+          : "var(--text-secondary)",
         transition: "color 0.2s ease-in-out",
         whiteSpace: "nowrap",
       })}
       title={!expanded ? label : undefined}
     >
-      {/* ICON — теперь тоже двигается чуть-чуть */}
+      {/* ICON */}
       <div
         style={{
           width: 32,
@@ -33,20 +35,26 @@ export function SidebarItem({ to, icon, label, expanded }: Props) {
           display: "flex",
           justifyContent: "center",
           transition: "transform 0.35s ease-in-out",
-          transform: expanded ? "translateX(6px)" : "translateX(0px)",
+          transform: expanded
+            ? "translateX(6px)"
+            : "translateX(0px)",
         }}
       >
         {icon}
       </div>
 
-      {/* LABEL — фирменная mask-анимация */}
+      {/* LABEL */}
       <span
         style={{
-          fontSize: "15px",
+          fontSize: 15,
           fontWeight: 500,
+          color: "inherit",
+
           opacity: expanded ? 1 : 0,
+          marginLeft: expanded ? "2px" : "-4px",
+
           transition:
-            "opacity 0.25s ease-in-out, mask-image 0.35s ease-in-out, -webkit-mask-image 0.35s ease-in-out",
+            "opacity 0.25s ease-in-out, margin-left 0.35s ease-in-out, mask-image 0.35s ease-in-out, -webkit-mask-image 0.35s ease-in-out",
 
           maskImage: expanded
             ? "linear-gradient(90deg, black 100%, transparent 100%)"
@@ -61,9 +69,6 @@ export function SidebarItem({ to, icon, label, expanded }: Props) {
 
           overflow: "hidden",
           display: "inline-block",
-
-          marginLeft: expanded ? "2px" : "-4px", // лёгкое движение текста
-          transitionProperty: "opacity, margin-left, mask-image, -webkit-mask-image",
         }}
       >
         {label}

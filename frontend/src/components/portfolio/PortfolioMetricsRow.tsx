@@ -37,8 +37,15 @@ export function PortfolioMetricsRow({
   btcPct,
   period,
 }: Props) {
-  const changeColor = changeUsd >= 0 ? "text-success" : "text-danger";
-  const vsBtcColor = vsBtcPp >= 0 ? "text-success" : "text-danger";
+  const changeStyle =
+    changeUsd >= 0
+      ? { color: "var(--positive)" }
+      : { color: "var(--negative)" };
+
+  const vsBtcStyle =
+    vsBtcPp >= 0
+      ? { color: "var(--positive)" }
+      : { color: "var(--negative)" };
 
   return (
     <div className="row row-cards mb-3">
@@ -57,18 +64,29 @@ export function PortfolioMetricsRow({
           from { opacity: 0; }
           to { opacity: 1; }
         }
+
+        /* 🔧 Приводим карточки к нашей теме */
+        .ff-card {
+          background: var(--surface);
+          border: 1px solid var(--border);
+        }
+
+        .ff-muted {
+          color: var(--text-muted);
+        }
       `}</style>
 
-      {/* TVL — без анимации, не меняется от периода */}
+      {/* TVL */}
       <div className="col-12 col-md-4">
-        <div className="card card-sm">
+        <div className="card card-sm ff-card">
           <div className="card-body">
-            <div className="text-muted">TVL</div>
+            <div className="ff-muted">TVL</div>
 
-            {/* ❗ НЕТ key → нет анимации */}
-            <div className="h2 m-0">{fmtUsd(tvl)}</div>
+            <div className="h2 m-0" style={{ color: "var(--text-primary)" }}>
+              {fmtUsd(tvl)}
+            </div>
 
-            <div className="text-muted mt-1 fade-sub" key={`asof`}>
+            <div className="ff-muted mt-1 fade-sub" key="asof">
               {lastTsMs
                 ? `As of ${new Date(lastTsMs).toLocaleDateString("en-GB")}`
                 : "—"}
@@ -79,18 +97,19 @@ export function PortfolioMetricsRow({
 
       {/* Net Change */}
       <div className="col-12 col-md-4">
-        <div className="card card-sm">
+        <div className="card card-sm ff-card">
           <div className="card-body">
-            <div className="text-muted">Net Change</div>
+            <div className="ff-muted">Net Change</div>
 
             <div
               key={`net-${period}`}
-              className={`h2 m-0 fade-number ${changeColor}`}
+              className="h2 m-0 fade-number"
+              style={changeStyle}
             >
               {fmtSignedUsd(changeUsd)}
             </div>
 
-            <div key={`netpct-${period}`} className="text-muted mt-1 fade-sub">
+            <div key={`netpct-${period}`} className="ff-muted mt-1 fade-sub">
               ({fmtSignedPct(changePct)})
             </div>
           </div>
@@ -99,22 +118,24 @@ export function PortfolioMetricsRow({
 
       {/* Vs BTC */}
       <div className="col-12 col-md-4">
-        <div className="card card-sm">
+        <div className="card card-sm ff-card">
           <div className="card-body">
-            <div className="text-muted">Vs BTC</div>
+            <div className="ff-muted">Vs BTC</div>
 
             <div
               key={`vsbtc-${period}`}
-              className={`h2 m-0 fade-number ${vsBtcColor}`}
+              className="h2 m-0 fade-number"
+              style={vsBtcStyle}
             >
               {fmtSignedPct(vsBtcPp)}
             </div>
 
             <div
               key={`vsbtc-details-${period}`}
-              className="text-muted mt-1 fade-sub"
+              className="ff-muted mt-1 fade-sub"
             >
-              (Portfolio: {fmtSignedPct(changePct)} · BTC: {fmtSignedPct(btcPct)})
+              (Portfolio: {fmtSignedPct(changePct)} · BTC:{" "}
+              {fmtSignedPct(btcPct)})
             </div>
           </div>
         </div>

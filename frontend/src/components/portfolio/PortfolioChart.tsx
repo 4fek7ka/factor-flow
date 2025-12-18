@@ -14,6 +14,12 @@ type Props = {
   period: Period;
 };
 
+/**
+ * PortfolioChart
+ * - always uses brand accent color
+ * - no red/green logic
+ * - typesafe (no changes to ChartParams)
+ */
 export function PortfolioChart({ history, period }: Props) {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
@@ -39,16 +45,53 @@ export function PortfolioChart({ history, period }: Props) {
     if (!chart) return;
 
     const { timestamps, percentValues } = buildPortfolioSeries(history, period);
-
     if (!percentValues.length) return;
 
-    const option = buildPortfolioChartOption(timestamps, percentValues, {
-      initial: true,
-      opacity: 1,
-    });
+    const option: any = buildPortfolioChartOption(
+      timestamps,
+      percentValues,
+      {
+        initial: true,
+        opacity: 1,
+      }
+    );
 
-    chart.setOption(option, { notMerge: true, lazyUpdate: false });
+    // 🔒 FORCE ACCENT COLOR (safe & local)
+    if (Array.isArray(option.series)) {
+      option.series = option.series.map((s: any) => ({
+        ...s,
+        lineStyle: {
+          ...(s.lineStyle ?? {}),
+          color: "var(--primary)",
+          width: 2,
+        },
+        itemStyle: {
+          ...(s.itemStyle ?? {}),
+          color: "var(--primary)",
+        },
+        areaStyle: s.areaStyle
+          ? {
+              ...s.areaStyle,
+              color: "rgba(139,92,246,0.18)", // soft accent fill
+            }
+          : undefined,
+      }));
+    }
+
+    chart.setOption(option, {
+      notMerge: true,
+      lazyUpdate: true,
+      silent: true,
+    });
   }, [history, period]);
 
-  return <div ref={chartRef} style={{ width: "100%", height: "350px" }} />;
+  return (
+    <div
+      ref={chartRef}
+      style={{
+        width: "100%",
+        height: "350px",
+      }}
+    />
+  );
 }

@@ -7,12 +7,10 @@ import type { HistoryPoint, AssetAmounts } from "../../services/portfolio/portfo
 
 function calcPortfolioValue(p: HistoryPoint, amounts: AssetAmounts) {
   let total = 0;
-
   for (const [symbol, amount] of Object.entries(amounts)) {
     const price = p.prices[symbol] ?? 0;
     total += price * amount;
   }
-
   return total;
 }
 
@@ -34,14 +32,11 @@ function computeStats(history: HistoryPoint[], amounts: AssetAmounts) {
   const avg = vals.reduce((s, x) => s + x, 0) / vals.length || 1;
 
   const volatilityRange = ((maxVal - minVal) / avg) * 100;
-
   const minPct = ((minVal - avg) / avg) * 100;
   const maxPct = ((maxVal - avg) / avg) * 100;
 
   const avgMoveCalc =
-    vals
-      .slice(1)
-      .reduce((s, v, i) => s + Math.abs(v - vals[i]), 0) /
+    vals.slice(1).reduce((s, v, i) => s + Math.abs(v - vals[i]), 0) /
     (vals.length - 1);
 
   const avgMovePct = (avgMoveCalc / avg) * 100;
@@ -64,7 +59,7 @@ function computeStats(history: HistoryPoint[], amounts: AssetAmounts) {
 ========================= */
 
 type Props = {
-  history: HistoryPoint[]; // уже filteredHistory
+  history: HistoryPoint[];
   amounts: AssetAmounts;
 };
 
@@ -81,19 +76,15 @@ type Stats = {
 ========================= */
 
 export function VolatilityArcCard({ history, amounts }: Props) {
-  // "истина" (новые значения при смене периода)
-  const nextStats = useMemo<Stats>(() => computeStats(history, amounts), [history, amounts]);
+  const nextStats = useMemo<Stats>(
+    () => computeStats(history, amounts),
+    [history, amounts]
+  );
 
-  // то, что реально отображаем в цифрах (анимируем fade)
   const [displayStats, setDisplayStats] = useState<Stats>(nextStats);
-
-  // дуга анимируется отдельно: обновляем сразу
   const [arcVolatility, setArcVolatility] = useState<number>(nextStats.volatility);
-
-  // фаза для fade цифр
   const [fadePhase, setFadePhase] = useState<"in" | "out">("in");
 
-  // signature, чтобы понимать "переключили период"
   const signature = useMemo(() => {
     const first = history[0]?.timestamp ?? 0;
     const last = history[history.length - 1]?.timestamp ?? 0;
@@ -113,10 +104,7 @@ export function VolatilityArcCard({ history, amounts }: Props) {
     if (prevSigRef.current === signature) return;
     prevSigRef.current = signature;
 
-    // 1) дуга — сразу, sweep-анимация
     setArcVolatility(nextStats.volatility);
-
-    // 2) цифры — плавно тухнут → обновляем → плавно появляются
     setFadePhase("out");
 
     if (timerRef.current) window.clearTimeout(timerRef.current);
@@ -144,51 +132,42 @@ export function VolatilityArcCard({ history, amounts }: Props) {
   const filled = pct * circumference;
   const empty = circumference - filled;
 
-  const TEXT_PRIMARY = "#EFEFEF";
-  const TEXT_SECONDARY = "rgba(255,255,255,0.75)";
+  /* 🔥 Контрастный текст */
+  const TEXT_PRIMARY = "#FFFFFF";
+  const TEXT_SECONDARY = "rgba(255,255,255,0.85)";
 
   return (
     <div
       className="card vola-card"
       style={{
-        borderRadius: "10px",
+        borderRadius: 10,
         height: "100%",
         width: "100%",
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
       }}
     >
       <style>{`
-        .vola-card {
-          will-change: opacity, transform;
-          transition: opacity 220ms ease, transform 220ms ease;
-        }
-
         .vola-fade {
           transition: opacity 220ms ease, filter 220ms ease;
-          will-change: opacity, filter;
         }
-
         .vola-fade.out {
           opacity: 0;
           filter: blur(2px);
         }
-
         .vola-fade.in {
           opacity: 1;
           filter: blur(0px);
         }
 
-        /* ДУГА: отдельная анимация (другая длительность/easing) */
-        .vola-arc {
-          transition: stroke-dasharray 900ms cubic-bezier(0.22, 1, 0.36, 1);
-          will-change: stroke-dasharray;
-        }
+        
       `}</style>
 
       <div
         className="card-body"
         style={{
           display: "flex",
-          gap: "28px",
+          gap: 28,
           alignItems: "center",
           paddingTop: 20,
           paddingBottom: 20,
@@ -199,22 +178,23 @@ export function VolatilityArcCard({ history, amounts }: Props) {
           <div style={{ display: "flex", justifyContent: "center" }}>
             <svg width="260" height="170" viewBox="0 0 260 170">
               <defs>
+                {/* 🎯 Фиолетовый → голубой → белый */}
                 <linearGradient id="volaGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#22c55e" />
-                  <stop offset="50%" stopColor="#eab308" />
-                  <stop offset="100%" stopColor="#ef4444" />
+                  <stop offset="0%" stopColor="#8B5CF6" />
+                  <stop offset="55%" stopColor="#38BDF8" />
+                  <stop offset="100%" stopColor="#FFFFFF" />
                 </linearGradient>
               </defs>
 
               {/* Background arc */}
               <path
                 d="M30 120 A100 100 0 0 1 230 120"
-                stroke="rgba(255,255,255,0.08)"
+                stroke="rgba(255,255,255,0.14)"
                 strokeWidth="16"
                 fill="none"
               />
 
-              {/* Foreground arc (sweep animation) */}
+              {/* Foreground arc */}
               <path
                 className="vola-arc"
                 d="M30 120 A100 100 0 0 1 230 120"
@@ -225,7 +205,7 @@ export function VolatilityArcCard({ history, amounts }: Props) {
                 strokeLinecap="round"
               />
 
-              {/* Percentage (fade) */}
+              {/* Percentage */}
               <text
                 x="130"
                 y="108"
@@ -240,11 +220,10 @@ export function VolatilityArcCard({ history, amounts }: Props) {
               </text>
 
               {/* Low / High */}
-              <text x="12" y="155" fill={TEXT_PRIMARY} fontSize="15" fontWeight="600" textAnchor="start">
+              <text x="12" y="155" fill={TEXT_SECONDARY} fontSize="15" fontWeight="600">
                 Low
               </text>
-
-              <text x="248" y="155" fill={TEXT_PRIMARY} fontSize="15" fontWeight="600" textAnchor="end">
+              <text x="248" y="155" fill={TEXT_SECONDARY} fontSize="15" fontWeight="600" textAnchor="end">
                 High
               </text>
             </svg>
@@ -267,21 +246,14 @@ export function VolatilityArcCard({ history, amounts }: Props) {
           style={{
             display: "flex",
             flexDirection: "column",
-            gap: "12px",
-            paddingLeft: "32px",
+            gap: 12,
+            paddingLeft: 32,
             flex: 1,
             color: TEXT_PRIMARY,
-            fontSize: "15px",
+            fontSize: 15,
           }}
         >
-          <div
-            style={{
-              marginBottom: "6px",
-              opacity: 0.9,
-              fontWeight: 600,
-              fontSize: "16px",
-            }}
-          >
+          <div style={{ marginBottom: 6, fontWeight: 600, fontSize: 16 }}>
             Analytics
           </div>
 
@@ -296,19 +268,15 @@ export function VolatilityArcCard({ history, amounts }: Props) {
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                borderBottom: i < 3 ? "1px solid rgba(255,255,255,0.06)" : "none",
-                paddingBottom: "6px",
-                paddingTop: "4px",
+                borderBottom: i < 3 ? "1px solid var(--border)" : "none",
+                paddingBottom: 6,
+                paddingTop: 4,
               }}
             >
-              <span style={{ opacity: 0.75 }}>{m.label}</span>
-
+              <span style={{ color: TEXT_SECONDARY }}>{m.label}</span>
               <span
                 className={`vola-fade ${fadePhase}`}
-                style={{
-                  fontFamily: "monospace",
-                  opacity: 0.95,
-                }}
+                style={{ fontFamily: "monospace", color: TEXT_PRIMARY }}
               >
                 {m.value.toFixed(2)}%
               </span>

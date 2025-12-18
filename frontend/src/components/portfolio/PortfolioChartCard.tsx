@@ -7,7 +7,10 @@ import {
   type AssetAmounts,
 } from "../../services/portfolio/portfolioService";
 
-import type { HistoryPoint, Period } from "../../services/portfolio/portfolioService";
+import type {
+  HistoryPoint,
+  Period,
+} from "../../services/portfolio/portfolioService";
 import { buildPortfolioChartOption } from "../../charts/portfolioChartOptions";
 
 type Props = {
@@ -31,7 +34,9 @@ export function PortfolioChartCard({
 
   const [showBTC, setShowBTC] = useState(false);
 
-  // Init chart
+  /* =======================
+     INIT CHART
+  ======================= */
   useEffect(() => {
     if (!chartRef.current) return;
 
@@ -48,7 +53,9 @@ export function PortfolioChartCard({
     };
   }, []);
 
-  // Update chart
+  /* =======================
+     UPDATE CHART
+  ======================= */
   useEffect(() => {
     const chart = chartInstance.current;
     if (!chart) return;
@@ -63,37 +70,44 @@ export function PortfolioChartCard({
 
     if (!percentValues.length) return;
 
-    const option: any = buildPortfolioChartOption(timestamps, percentValues, {
-      seriesId: seriesIdRef.current,
-      initial: true,
-      opacity: 1,
-    });
+    const option: any = buildPortfolioChartOption(
+      timestamps,
+      percentValues,
+      {
+        seriesId: seriesIdRef.current,
+        initial: true,
+        opacity: 1,
+      }
+    );
 
     if (showBTC) {
-      // timestamps в графике — ms, а в history — seconds → приводим к ms
       const btcByTsMs = new Map<number, number>();
       for (const p of filteredHistory) {
-        const v = p.prices?.BTC ?? p.prices?.WBTC; // fallback, если вдруг BTC отсутствует
+        const v = p.prices?.BTC ?? p.prices?.WBTC;
         if (typeof v === "number") btcByTsMs.set(p.timestamp * 1000, v);
       }
 
-      const btcPrices: Array<number | null> = timestamps.map((tsMs: number) => {
+      const btcPrices = timestamps.map((tsMs: number) => {
         const v = btcByTsMs.get(tsMs);
         return typeof v === "number" ? v : null;
       });
 
-      const base = btcPrices.find((v) => typeof v === "number") as number | undefined;
+      const base = btcPrices.find(
+        (v) => typeof v === "number"
+      ) as number | undefined;
 
       if (typeof base === "number") {
-        const btcPercent: Array<number | null> = btcPrices.map((v) =>
+        const btcPercent = btcPrices.map((v) =>
           v == null ? null : ((v - base) / base) * 100
         );
 
-        const btcData: Array<[number, number | null]> = timestamps.map(
+        const btcData = timestamps.map(
           (tsMs: number, i: number) => [tsMs, btcPercent[i]]
         );
 
-        const baseSeries = Array.isArray(option.series) ? option.series : [option.series];
+        const baseSeries = Array.isArray(option.series)
+          ? option.series
+          : [option.series];
 
         baseSeries.push({
           id: "btc-line",
@@ -105,9 +119,8 @@ export function PortfolioChartCard({
           lineStyle: {
             width: 2,
             type: "dashed",
-            color: "#f7931a",
+            color: "var(--secondary)",
           },
-          areaStyle: undefined,
           emphasis: { disabled: true },
           animation: false,
         });
@@ -125,10 +138,8 @@ export function PortfolioChartCard({
 
   const switchPeriod = (next: Period) => {
     if (next === period) return;
-
     seriesCounterRef.current += 1;
     seriesIdRef.current = `portfolio-line-${seriesCounterRef.current}`;
-
     onPeriodChange(next);
   };
 
@@ -136,8 +147,13 @@ export function PortfolioChartCard({
     `period-tab ${period === key ? "active" : ""}`;
 
   return (
-    <div className="card p-3">
+    <div className="card p-3 ff-card">
       <style>{`
+        .ff-card {
+          background: var(--surface);
+          border: 1px solid var(--border);
+        }
+
         .chart-top-row {
           display: flex;
           justify-content: flex-end;
@@ -150,13 +166,13 @@ export function PortfolioChartCard({
           align-items: center;
           gap: 8px;
           font-size: 13px;
-          color: #9ca3af;
+          color: var(--text-secondary);
           cursor: pointer;
           user-select: none;
         }
 
         .btc-toggle input {
-          accent-color: #f7931a;
+          accent-color: var(--secondary);
         }
 
         .period-tabs-wrap {
@@ -168,7 +184,7 @@ export function PortfolioChartCard({
         .period-tabs {
           display: flex;
           gap: 28px;
-          border-bottom: 1px solid rgba(255,255,255,0.08);
+          border-bottom: 1px solid var(--border);
           position: relative;
           padding-bottom: 4px;
         }
@@ -177,7 +193,7 @@ export function PortfolioChartCard({
           background: none;
           border: none;
           padding: 8px 2px;
-          color: #9ca3af;
+          color: var(--text-secondary);
           font-size: 16px;
           cursor: pointer;
           position: relative;
@@ -185,21 +201,22 @@ export function PortfolioChartCard({
         }
 
         .period-tab:hover {
-          color: #d1d5db;
+          color: var(--text-primary);
         }
 
         .period-tab.active {
-          color: #b351f9;
+          color: var(--primary);
         }
 
         .period-underline {
           position: absolute;
           bottom: -1px;
           height: 2px;
-          background: #b351f9;
+          background: var(--primary);
           border-radius: 2px;
-          transition: transform 320ms cubic-bezier(0.25, 0.1, 0.25, 1),
-                      width 320ms cubic-bezier(0.25, 0.1, 0.25, 1);
+          transition:
+            transform 320ms cubic-bezier(0.25, 0.1, 0.25, 1),
+            width 320ms cubic-bezier(0.25, 0.1, 0.25, 1);
         }
       `}</style>
 
@@ -219,7 +236,12 @@ export function PortfolioChartCard({
           <div
             className="period-underline"
             style={{
-              width: period === "year" ? 36 : period === "month" ? 52 : 44,
+              width:
+                period === "year"
+                  ? 36
+                  : period === "month"
+                  ? 52
+                  : 44,
               transform:
                 period === "year"
                   ? "translateX(0px)"
@@ -229,21 +251,30 @@ export function PortfolioChartCard({
             }}
           />
 
-          <button className={tabClass("year")} onClick={() => switchPeriod("year")}>
+          <button
+            className={tabClass("year")}
+            onClick={() => switchPeriod("year")}
+          >
             Year
           </button>
 
-          <button className={tabClass("month")} onClick={() => switchPeriod("month")}>
+          <button
+            className={tabClass("month")}
+            onClick={() => switchPeriod("month")}
+          >
             Month
           </button>
 
-          <button className={tabClass("week")} onClick={() => switchPeriod("week")}>
+          <button
+            className={tabClass("week")}
+            onClick={() => switchPeriod("week")}
+          >
             Week
           </button>
         </div>
       </div>
 
-      <div style={{ width: "100%", height: "350px" }}>
+      <div style={{ width: "100%", height: 350 }}>
         <div ref={chartRef} style={{ width: "100%", height: "100%" }} />
       </div>
     </div>

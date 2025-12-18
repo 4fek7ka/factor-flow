@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { AssetRow } from "../../services/assetsService";
+import type { AssetRow } from "../../services/assets/assetsSelectors";
 import { SparklineBase } from "../../charts/SparklineBase";
 
 type Props = {

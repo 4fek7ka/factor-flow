@@ -25,10 +25,14 @@ echarts.use([
 
 const TARGET_POINTS = 250;
 
-const ACTIVE_COLOR = "#0ea5e9";
-const INACTIVE_COLOR = "#64748b";
-const TEXT_ACTIVE = "rgba(226,232,240,0.95)";
-const TEXT_INACTIVE = "rgba(226,232,240,0.80)";
+/* =========================
+   THEME COLORS (FIX)
+========================= */
+
+const ACTIVE_COLOR = "var(--primary)";
+const INACTIVE_COLOR = "var(--text-muted)";
+const TEXT_ACTIVE = "var(--text-primary)";
+const TEXT_INACTIVE = "var(--text-secondary)";
 
 export type SimulationChartCardProps = {
   timestamps: number[];
@@ -41,7 +45,6 @@ export type SimulationChartCardProps = {
   showMedian: boolean;
   showRepresentative?: boolean;
   showRange: boolean;
-
   showFan?: boolean;
 
   onToggleCloud?: () => void;
@@ -61,12 +64,10 @@ export function SimulationChartCard({
   showCloud,
   showMedian,
   showRepresentative = true,
-  showRange,
   showFan = false,
   onToggleCloud,
   onToggleMedian,
   onToggleRepresentative,
-  onToggleRange,
   onToggleFan,
 }: SimulationChartCardProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -147,7 +148,6 @@ export function SimulationChartCard({
           showCloud,
           showMedian,
           showRepresentative,
-          showRange,
           showFan,
         },
         fan: fanPct ?? undefined,
@@ -164,7 +164,6 @@ export function SimulationChartCard({
     showCloud,
     showMedian,
     showRepresentative,
-    showRange,
     showFan,
   ]);
 
@@ -175,10 +174,8 @@ export function SimulationChartCard({
         position: "relative",
         width: "100%",
         height: 380,
-
-        /* ✅ ТОЧНО как у других карточек */
-        background: "var(--tblr-card-bg)",
-        border: "1px solid var(--tblr-border-color)",
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
       }}
     >
       <style>{`
@@ -192,9 +189,8 @@ export function SimulationChartCard({
           z-index: 3;
           padding: 6px 12px;
           border-radius: 12px;
-          background: rgba(2,6,23,0.35);
-          border: 1px solid rgba(255,255,255,0.05);
-          backdrop-filter: blur(10px);
+          background: var(--surface-hover);
+          border: 1px solid var(--border);
         }
 
         .sim-legend-item {
@@ -202,7 +198,7 @@ export function SimulationChartCard({
           align-items: center;
           gap: 8px;
           font-size: 13px;
-          font-weight: 700;
+          font-weight: 600;
           cursor: pointer;
           user-select: none;
           color: ${TEXT_INACTIVE};
@@ -217,7 +213,6 @@ export function SimulationChartCard({
           height: 10px;
           border-radius: 999px;
           background: ${INACTIVE_COLOR};
-          transition: background 120ms ease;
         }
 
         .sim-legend-item.is-on .sim-legend-dot {
@@ -256,14 +251,6 @@ export function SimulationChartCard({
         >
           <span className="sim-legend-dot" />
           Cloud
-        </div>
-
-        <div
-          className={`sim-legend-item ${showRange ? "is-on" : ""}`}
-          onClick={onToggleRange}
-        >
-          <span className="sim-legend-dot" />
-          Range
         </div>
       </div>
 

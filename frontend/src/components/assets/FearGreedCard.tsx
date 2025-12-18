@@ -21,6 +21,8 @@ export function FearGreedCard({ value }: Props) {
       style={{
         flex: 1,
         position: "relative",
+        backgroundColor: "var(--surface)",
+        border: "1px solid var(--border)",
       }}
     >
       <div
@@ -30,22 +32,21 @@ export function FearGreedCard({ value }: Props) {
           position: "relative",
         }}
       >
-
         {/* Заголовок */}
         <div
-          className="text-muted"
           style={{
             position: "absolute",
-            top: 14,       // ← добавили отступ сверху
+            top: 14,
             left: 12,
             fontSize: "0.75rem",
-            opacity: 0.85,
+            color: "var(--text-muted)",
+            letterSpacing: "0.02em",
           }}
         >
           Fear & Greed
         </div>
 
-        {/* Контейнер gauge */}
+        {/* Gauge */}
         <div
           style={{
             display: "flex",
@@ -57,7 +58,7 @@ export function FearGreedCard({ value }: Props) {
         >
           <FearGreedGauge value={value} width={160} height={80} />
 
-          {/* ЦЕНТРАЛЬНЫЙ ТЕКСТ ВНУТРИ ДУГИ */}
+          {/* Центр */}
           <div
             style={{
               position: "absolute",
@@ -72,7 +73,7 @@ export function FearGreedCard({ value }: Props) {
                 fontSize: "1.35rem",
                 fontWeight: 600,
                 lineHeight: "1.2",
-                margin: 0,
+                color: "var(--text-primary)",
               }}
             >
               {value}
@@ -81,7 +82,7 @@ export function FearGreedCard({ value }: Props) {
             <div
               style={{
                 fontSize: "0.85rem",
-                opacity: 0.8,
+                color: "var(--text-secondary)",
               }}
             >
               {label}

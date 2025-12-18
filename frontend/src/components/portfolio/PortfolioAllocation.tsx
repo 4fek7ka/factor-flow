@@ -1,34 +1,64 @@
 import { useEffect, useRef, useMemo } from "react";
 import * as echarts from "echarts";
 
-import type {
-  AssetAmounts,
-  HistoryPoint,
-} from "../../services/portfolio/portfolioService";
+import type { AssetAmounts, HistoryPoint } from "../../services/portfolio/portfolioService";
 
+/**
+ * Asset colors tuned to match the purple/cyan dark theme.
+ * Goal: cohesive “designer” palette (not a random rainbow),
+ * while keeping BTC/ETH recognisable.
+ */
 const ASSET_COLORS: Record<string, string> = {
-  ETH: "#8A7FFF",
-  BTC: "#FFB45A",
-  WBTC: "#FFB45A",
-  USDC: "#5DA7FF",
-  USDT: "#2BB673",
-  DAI: "#FFD86B",
-  UNI: "#FF6F9E",
-  SOL: "#66E0FF",
-  BNB: "#F3BA2F",
-  ADA: "#3CC8C8",
-  XRP: "#7C89FF",
-  DOGE: "#C2A633",
-  AVAX: "#E84142",
-  LINK: "#2A5ADA",
-  TON: "#4AA8FF",
-  Others: "#6B7280",
+  // Core
+  ETH: "#8B5CF6", // violet
+  BTC: "#F59E0B", // warm amber (still “BTC-ish”, but fits theme)
+  WBTC: "#F59E0B",
+
+  // Stables
+  USDC: "#38BDF8", // sky/cyan
+  USDT: "#2DD4BF", // teal
+  DAI: "#FDE047", // soft warm yellow
+
+  // Majors / alts (kept within purple/blue/cyan/rose range)
+  SOL: "#22D3EE",
+  BNB: "#FBBF24",
+  ADA: "#60A5FA",
+  XRP: "#93C5FD",
+  LINK: "#7C3AED",
+  UNI: "#FB7185",
+  DOGE: "#FBBF24",
+  AVAX: "#FB7185",
+  TON: "#38BDF8",
+
+  Others: "rgba(255,255,255,0.35)",
 };
 
 type Props = {
   history: HistoryPoint[];
   amounts: AssetAmounts;
 };
+
+function clamp01(x: number) {
+  return Math.max(0, Math.min(1, x));
+}
+
+function hexToRgba(hex: string, alpha: number) {
+  const a = clamp01(alpha);
+  const h = hex.replace("#", "").trim();
+
+  // support #RGB and #RRGGBB
+  const full =
+    h.length === 3
+      ? `${h[0]}${h[0]}${h[1]}${h[1]}${h[2]}${h[2]}`
+      : h.padEnd(6, "0").slice(0, 6);
+
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+
+  if (![r, g, b].every(Number.isFinite)) return `rgba(255,255,255,${a})`;
+  return `rgba(${r},${g},${b},${a})`;
+}
 
 export function PortfolioAllocation({ history, amounts }: Props) {
   const chartRef = useRef<HTMLDivElement>(null);
@@ -56,9 +86,7 @@ export function PortfolioAllocation({ history, amounts }: Props) {
     const othersTotal = others.reduce((s, v) => s + v.valueUsd, 0);
 
     const finalList = [...top3];
-    if (othersTotal > 0) {
-      finalList.push({ symbol: "Others", valueUsd: othersTotal });
-    }
+    if (othersTotal > 0) finalList.push({ symbol: "Others", valueUsd: othersTotal });
 
     const total = finalList.reduce((s, v) => s + v.valueUsd, 0);
 
@@ -95,15 +123,21 @@ export function PortfolioAllocation({ history, amounts }: Props) {
       series: [
         {
           type: "pie",
-          radius: ["55%", "78%"],
+          radius: ["56%", "80%"],
           center: ["50%", "50%"],
           label: { show: false },
           labelLine: { show: false },
           minAngle: 2,
+          itemStyle: {
+            borderColor: "rgba(0,0,0,0.0)",
+            borderWidth: 0,
+          },
           data: allocation.map((a) => ({
             value: a.valueUsd,
             name: a.symbol,
-            itemStyle: { color: ASSET_COLORS[a.symbol] ?? "#6B7280" },
+            itemStyle: {
+              color: ASSET_COLORS[a.symbol] ?? ASSET_COLORS.Others,
+            },
           })),
         },
       ],
@@ -117,25 +151,80 @@ export function PortfolioAllocation({ history, amounts }: Props) {
   }, [allocation]);
 
   return (
-    <div className="card p-3" style={{ width: "100%" }}>
-      <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
-        Portfolio Allocation
-      </div>
+    <div className="card p-3 ff-card" style={{ width: "100%" }}>
+      <style>{`
+        .ff-card {
+          background: var(--surface);
+          border: 1px solid var(--border);
+        }
+
+        .ff-title {
+          font-size: 16px;
+          font-weight: 600;
+          color: #fff;
+          margin-bottom: 10px;
+          letter-spacing: 0.2px;
+        }
+
+        .ff-header {
+          color: rgba(255,255,255,0.70);
+          font-size: 12.5px;
+          letter-spacing: 0.2px;
+        }
+
+        .ff-row {
+          display: grid;
+          grid-template-columns: 14px 1fr 1fr 60px;
+          gap: 10px;
+          align-items: center;
+          padding: 8px 10px;
+          border-radius: 10px;
+
+          background: var(--surface-hover);
+          border: 1px solid var(--border);
+
+          transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+        }
+
+        .ff-row:hover {
+          border-color: rgba(255,255,255,0.14);
+          transform: translateY(-1px);
+        }
+
+        .ff-asset {
+          color: rgba(255,255,255,0.92);
+          font-weight: 600;
+          letter-spacing: 0.2px;
+        }
+
+        .ff-usd {
+          color: rgba(255,255,255,0.86);
+          font-weight: 500;
+        }
+
+        .ff-pct {
+          color: #fff;
+          font-weight: 700;
+        }
+      `}</style>
+
+      <div className="ff-title">Portfolio Allocation</div>
 
       <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 14 }}>
+        {/* CHART */}
         <div style={{ height: 220 }}>
           <div ref={chartRef} style={{ width: "100%", height: "100%" }} />
         </div>
 
+        {/* TABLE */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <div
+            className="ff-header"
             style={{
               display: "grid",
               gridTemplateColumns: "14px 1fr 1fr 60px",
               gap: 10,
               alignItems: "center",
-              fontSize: 13,
-              color: "rgba(255,255,255,0.6)",
               marginBottom: 4,
             }}
           >
@@ -145,38 +234,42 @@ export function PortfolioAllocation({ history, amounts }: Props) {
             <div style={{ textAlign: "right" }}>%</div>
           </div>
 
-          {allocation.map((a) => (
-            <div
-              key={a.symbol}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "14px 1fr 1fr 60px",
-                gap: 10,
-                alignItems: "center",
-                padding: "8px 10px",
-                borderRadius: 10,
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.06)",
-              }}
-            >
+          {allocation.map((a) => {
+            const c = ASSET_COLORS[a.symbol] ?? ASSET_COLORS.Others;
+
+            // Subtle tint (designer touch): the row gets a very light “ink”
+            // from the asset color, but still uses the theme surface.
+            const tint =
+              typeof c === "string" && c.startsWith("#") ? hexToRgba(c, 0.10) : "rgba(255,255,255,0.05)";
+
+            return (
               <div
+                key={a.symbol}
+                className="ff-row"
                 style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: 999,
-                  background: ASSET_COLORS[a.symbol] ?? "#6B7280",
-                  justifySelf: "center",
+                  background: `linear-gradient(90deg, ${tint} 0%, var(--surface-hover) 55%, var(--surface-hover) 100%)`,
                 }}
-              />
+              >
+                <div
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 999,
+                    background: c,
+                    justifySelf: "center",
+                  }}
+                />
 
-              <div style={{ fontWeight: 500 }}>{a.symbol}</div>
-              <div>${a.valueUsd.toFixed(0)}</div>
+                <div className="ff-asset">{a.symbol}</div>
 
-              <div style={{ textAlign: "right", fontWeight: 500, color: "#EFEFEF" }}>
-                {a.pct.toFixed(1)}%
+                <div className="ff-usd">${a.valueUsd.toFixed(0)}</div>
+
+                <div className="ff-pct" style={{ textAlign: "right" }}>
+                  {a.pct.toFixed(1)}%
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

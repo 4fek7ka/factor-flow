@@ -5,24 +5,25 @@ export function Navbar() {
     <header
       className="navbar navbar-expand-md navbar-dark"
       style={{
-        background: "#111827",
-        borderBottom: "1px solid rgba(255,255,255,0.08)",
+        background: "var(--surface)",
+        borderBottom: "1px solid var(--border)",
       }}
     >
       <div className="container-xl d-flex justify-content-between">
-        {/* ЛОГО */}
+        {/* LOGO */}
         <NavLink
           to="/"
           className="navbar-brand"
           style={{
             fontWeight: 600,
-            fontSize: "20px",
+            fontSize: 20,
+            color: "var(--text-primary)",
           }}
         >
           Factor Flow
         </NavLink>
 
-        {/* НАВИГАЦИЯ */}
+        {/* NAVIGATION */}
         <ul className="navbar-nav flex-row">
           <NavItem to="/" label="Dashboard" />
           <NavItem to="/prices" label="Prices" />
@@ -44,8 +45,11 @@ function NavItem({ to, label }: { to: string; label: string }) {
           "nav-link px-3" + (isActive ? " active" : "")
         }
         style={({ isActive }) => ({
-          color: isActive ? "#b351f9" : "#d1d5db",
+          color: isActive
+            ? "var(--primary)"
+            : "var(--text-secondary)",
           fontWeight: isActive ? 600 : 400,
+          transition: "color 0.2s ease-in-out",
         })}
       >
         {label}

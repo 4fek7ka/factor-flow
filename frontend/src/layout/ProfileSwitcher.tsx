@@ -1,4 +1,3 @@
-// frontend/src/layout/ProfileSwitcher.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import portfoliosJson from "../data/mock-portfolios.json";
 import { buildIdenticonDataUri } from "../utils/identicon";
@@ -43,12 +42,11 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
     [selected.owner.address]
   );
 
-  // ✅ фиксируем ширину имени по максимальному имени среди профилей (в пикселях)
+  // фиксируем ширину имени по максимальному имени среди профилей
   const nameWidthPx = useMemo(() => {
     const names = (profiles ?? []).map((p) => (p?.name ?? "").trim());
     if (!names.length) return 120;
 
-    // fallback (если canvas недоступен)
     const maxLen = Math.max(...names.map((n) => n.length), 8);
     const fallback = Math.ceil(maxLen * 8.2) + 2;
 
@@ -58,7 +56,6 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return fallback;
 
-    // должно совпадать со стилем текста в кнопке
     ctx.font = `600 14px ${FONT_FAMILY}`;
 
     let max = 0;
@@ -71,6 +68,7 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
 
   return (
     <div ref={ref} style={{ position: "relative" }}>
+      {/* ================= BUTTON ================= */}
       <button
         onClick={() => setOpen((v) => !v)}
         style={{
@@ -79,12 +77,13 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
           alignItems: "center",
           padding: "6px 10px",
           borderRadius: 10,
-          background: "#0f172a",
-          border: "1px solid rgba(255,255,255,0.08)",
-          color: "#fff",
+
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          color: "var(--text-primary)",
+
           cursor: "pointer",
 
-          // фиксируем параметры шрифта (и для измерения, и для консистентности)
           fontFamily: FONT_FAMILY,
           fontSize: 14,
           fontWeight: 600,
@@ -99,7 +98,6 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
           alt=""
         />
 
-        {/* ✅ фиксированная ширина под самое длинное имя */}
         <span
           style={{
             display: "inline-block",
@@ -113,9 +111,18 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
           {selected.name}
         </span>
 
-        <span style={{ opacity: 0.7, flex: "0 0 auto" }}>▾</span>
+        <span
+          style={{
+            opacity: 0.7,
+            flex: "0 0 auto",
+            color: "var(--text-secondary)",
+          }}
+        >
+          ▾
+        </span>
       </button>
 
+      {/* ================= DROPDOWN ================= */}
       {open && (
         <div
           style={{
@@ -123,10 +130,12 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
             right: 0,
             top: "100%",
             marginTop: 6,
-            background: "#0b1220",
-            border: "1px solid rgba(255,255,255,0.1)",
+
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
             borderRadius: 10,
             minWidth: 260,
+
             zIndex: 20,
           }}
         >
@@ -134,6 +143,8 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
             const icon = buildIdenticonDataUri(p.owner.address, {
               size: 28,
             });
+
+            const isActive = p.id === selectedId;
 
             return (
               <button
@@ -148,14 +159,16 @@ export function ProfileSwitcher({ selectedId, onSelect }: Props) {
                   alignItems: "center",
                   padding: "10px",
                   width: "100%",
-                  background:
-                    p.id === selectedId
-                      ? "rgba(179,81,249,0.15)"
-                      : "transparent",
+
+                  background: isActive
+                    ? "var(--primary-soft)"
+                    : "transparent",
+
                   border: "none",
-                  color: "#fff",
+                  color: "var(--text-primary)",
                   cursor: "pointer",
                   textAlign: "left",
+
                   fontFamily: FONT_FAMILY,
                   fontSize: 14,
                   fontWeight: 600,

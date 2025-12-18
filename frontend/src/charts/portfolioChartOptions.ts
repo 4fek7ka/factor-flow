@@ -1,31 +1,74 @@
+/* =========================
+   Types
+========================= */
+
 type ChartParams = {
   seriesId?: string;
   initial?: boolean;
   opacity?: number; // 0..1
 };
 
+type LineSeries = {
+  id: string;
+  name: string;
+  type: "line";
+  smooth: boolean;
+  showSymbol: boolean;
+
+  animationDuration: number;
+  animationEasing: string;
+  animationDurationUpdate: number;
+  animationEasingUpdate: string;
+
+  color?: string;        // ⬅️ ВАЖНО
+  lineStyle: any;
+  areaStyle?: any;
+  emphasis?: any;
+
+  data: Array<[number, number]>;
+};
+
+/* =========================
+   Tooltip
+========================= */
+
 export function buildTooltip() {
   return {
     trigger: "axis",
-    formatter: (params: any) => {
-      const val = params[0].value[1] as number;
-      const sign = val >= 0 ? "+" : "";
+    formatter: (params: any[]) => {
       const date = new Date(params[0].value[0]);
+
+      const rows = params.map((p) => {
+        const val = p.value[1] as number;
+        const sign = val >= 0 ? "+" : "";
+        return `<div><strong>${p.seriesName}:</strong> ${sign}${val.toFixed(
+          2
+        )}%</div>`;
+      });
 
       return `
         <div>
-          <strong>${sign}${val.toFixed(2)}%</strong><br/>
-          ${date.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}
+          ${rows.join("")}
+          <div style="margin-top:6px;opacity:0.7">
+            ${date.toLocaleDateString("en-GB", {
+              month: "long",
+              year: "numeric",
+            })}
+          </div>
         </div>
       `;
     },
   };
 }
 
+/* =========================
+   Layout
+========================= */
+
 export function buildGrid() {
   return {
     left: 20,
-    right: 48, // ✅ место под проценты справа
+    right: 48,
     top: 20,
     bottom: 40,
   };
@@ -49,7 +92,7 @@ export function buildXAxis() {
 export function buildYAxis() {
   return {
     type: "value",
-    position: "right", // ✅ проценты справа
+    position: "right",
     axisLabel: {
       formatter: (v: number) => `${v.toFixed(0)}%`,
       color: "#999",
@@ -61,68 +104,112 @@ export function buildYAxis() {
   };
 }
 
-export function buildSeries(
+/* =========================
+   Series builders
+========================= */
+
+function buildPortfolioSeries(
   timestamps: number[],
   percentValues: number[],
-  params: ChartParams = {}
-) {
-  const { seriesId = "portfolio-line", initial = false, opacity = 1 } = params;
+  params: ChartParams
+): LineSeries {
+  const { seriesId = "portfolio", initial = false, opacity = 1 } = params;
 
-  const first = percentValues[0];
-  const last = percentValues[percentValues.length - 1];
-  const isUp = last >= first;
+  const ACCENT = "#8B5CF6";
+  const AREA_TOP = "rgba(139,92,246,0.35)";
+  const AREA_BOTTOM = "rgba(139,92,246,0.00)";
 
-  const lineColor = isUp ? "#27a95e" : "#e11c14";
-  const areaTop = isUp ? "rgba(39,169,94,0.40)" : "rgba(225,28,20,0.40)";
-  const areaBottom = isUp ? "rgba(39,169,94,0.05)" : "rgba(225,28,20,0.05)";
+  return {
+    id: seriesId,
+    name: "Portfolio",
+    type: "line",
+    smooth: false,
+    showSymbol: false,
 
-  return [
-    {
-      id: seriesId,
-      name: "Portfolio % Change",
-      type: "line",
-      smooth: false,
-      showSymbol: false,
+    animationDuration: initial ? 1500 : 0,
+    animationEasing: initial ? "quadraticInOut" : "linear",
+    animationDurationUpdate: 750,
+    animationEasingUpdate: "quadraticInOut",
 
-
-      animationDuration: initial ? 1500 : 0,
-      animationEasing: initial ? "quadraticInOut" : "linear",
-
-      animationDurationUpdate: 750,
-      animationEasingUpdate: "quadraticInOut",
-
-      lineStyle: {
-        width: 3,
-        color: lineColor,
-        opacity,
-      },
-
-      areaStyle: {
-        origin: "start",
-        opacity,
-        color: {
-          type: "linear",
-          x: 0,
-          y: 0,
-          x2: 0,
-          y2: 1,
-          colorStops: [
-            { offset: 0, color: areaTop },
-            { offset: 1, color: areaBottom },
-          ],
-        },
-      },
-
-      data: percentValues.map((v, i) => [timestamps[i], v]),
+    color: ACCENT,
+    lineStyle: {
+      width: 3,
+      color: ACCENT,
+      opacity,
     },
-  ];
+
+    areaStyle: {
+      origin: "start",
+      opacity,
+      color: {
+        type: "linear",
+        x: 0,
+        y: 0,
+        x2: 0,
+        y2: 1,
+        colorStops: [
+          { offset: 0, color: AREA_TOP },
+          { offset: 1, color: AREA_BOTTOM },
+        ],
+      },
+    },
+
+    data: percentValues.map((v, i) => [timestamps[i], v]),
+  };
 }
+
+function buildBtcSeries(
+  timestamps: number[],
+  btcPercentValues: number[],
+  initial = false
+): LineSeries {
+  const BTC_ORANGE = "#F59E0B"; // 🔥 явно тёплый benchmark
+
+  return {
+    id: "btc",
+    name: "BTC",
+    type: "line",
+    smooth: false,
+    showSymbol: false,
+
+    animationDuration: initial ? 1500 : 0,
+    animationEasing: initial ? "quadraticInOut" : "linear",
+    animationDurationUpdate: 750,
+    animationEasingUpdate: "quadraticInOut",
+
+    color: BTC_ORANGE, // ⬅️ КЛЮЧЕВО
+    lineStyle: {
+      width: 2,
+      color: BTC_ORANGE,
+      type: "dashed",
+    },
+
+    emphasis: {
+      focus: "series",
+    },
+
+    data: btcPercentValues.map((v, i) => [timestamps[i], v]),
+  };
+}
+
+/* =========================
+   Option
+========================= */
 
 export function buildPortfolioChartOption(
   timestamps: number[],
   percentValues: number[],
-  params: ChartParams = {}
+  params: ChartParams = {},
+  btcPercentValues?: number[]
 ) {
+  const series: LineSeries[] = [
+    buildPortfolioSeries(timestamps, percentValues, params),
+  ];
+
+  if (btcPercentValues && btcPercentValues.length) {
+    series.push(buildBtcSeries(timestamps, btcPercentValues, params.initial));
+  }
+
   return {
     backgroundColor: "transparent",
     animation: true,
@@ -130,6 +217,6 @@ export function buildPortfolioChartOption(
     grid: buildGrid(),
     xAxis: buildXAxis(),
     yAxis: buildYAxis(),
-    series: buildSeries(timestamps, percentValues, params),
+    series,
   };
 }

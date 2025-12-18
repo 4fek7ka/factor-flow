@@ -7,7 +7,9 @@ type Props = {
 
 export function TopGainer7dCard({ name, symbol, image, pct7d }: Props) {
   const isUp = pct7d >= 0;
-  const color = isUp ? "#4ADE80" : "#F87171";
+
+  // ✅ цвета как раньше: зелёный / красный
+  const pctColor = isUp ? "var(--positive)" : "var(--negative)";
 
   return (
     <div
@@ -17,13 +19,15 @@ export function TopGainer7dCard({ name, symbol, image, pct7d }: Props) {
         display: "flex",
         flexDirection: "column",
         padding: "16px 20px",
+        backgroundColor: "var(--surface)",
+        border: "1px solid var(--border)",
       }}
     >
       {/* Заголовок */}
       <div
-        className="text-muted"
         style={{
-          fontSize: "0.9rem",
+          fontSize: "0.85rem",
+          color: "var(--text-muted)",
           marginBottom: 4,
         }}
       >
@@ -46,15 +50,15 @@ export function TopGainer7dCard({ name, symbol, image, pct7d }: Props) {
             gap: 16,
           }}
         >
-          {/* Иконка (ТОЛЬКО если есть image) */}
+          {/* Иконка */}
           {image ? (
             <div
               style={{
                 width: 66,
                 height: 66,
                 borderRadius: "999px",
-                border: "1px solid rgba(148, 163, 184, 0.7)",
-                background: "transparent",
+                border: "1px solid var(--border)",
+                background: "var(--surface-hover)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -83,9 +87,9 @@ export function TopGainer7dCard({ name, symbol, image, pct7d }: Props) {
           >
             <span
               style={{
-                color: "#e5e7eb",
+                color: "var(--text-primary)",
                 fontWeight: 600,
-                fontSize: "1.1rem",
+                fontSize: "1.05rem",
                 letterSpacing: "0.04em",
               }}
             >
@@ -94,9 +98,9 @@ export function TopGainer7dCard({ name, symbol, image, pct7d }: Props) {
 
             <span
               style={{
-                color,
+                color: pctColor,
                 fontWeight: 700,
-                fontSize: "1.5rem",
+                fontSize: "1.45rem",
               }}
             >
               {isUp ? "+" : ""}

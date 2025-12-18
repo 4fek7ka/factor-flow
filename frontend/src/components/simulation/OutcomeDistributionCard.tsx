@@ -25,8 +25,6 @@ export function OutcomeDistributionCard({
   const model = useMemo(() => {
     if (!paths.length || !paths[0]?.length) return null;
 
-    const start = paths[0][0];
-
     const finals = paths
       .map((p) => p[p.length - 1])
       .filter(Number.isFinite)
@@ -51,40 +49,60 @@ export function OutcomeDistributionCard({
     const bins = counts.map((c) => c / maxCount);
 
     const medianPos = ((median - min) / (max - min || 1)) * 100;
-    const isPositive = median >= start;
 
-    return { bins, min, max, median, medianPos, isPositive };
+    return { bins, min, max, median, medianPos };
   }, [paths]);
 
   if (!model) return null;
 
-  const MEDIAN_COLOR = model.isPositive ? "#22c55e" : "#ef4444";
+  /* =========================
+     🎨 COLORS
+  ========================= */
 
-  const BAR_GRADIENT = `linear-gradient(180deg,
-    rgba(125,211,252,0.70) 0%,
-    rgba(56,189,248,0.56) 45%,
-    rgba(14,165,233,0.34) 100%
-  )`;
+  const BAR_COLOR = "rgba(187,134,252,0.55)";
+  const MEDIAN_COLOR = "#7dd3fc"; // светло-голубая
 
   return (
-    <div className="card card-sm w-100">
+    <div
+      className="card card-sm w-100"
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+      }}
+    >
       <div className="card-body">
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ fontWeight: 700, color: "rgba(226,232,240,0.95)" }}>
+        {/* HEADER */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginBottom: 10,
+          }}
+        >
+          <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>
             {title}
           </div>
 
           <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 12, color: "rgba(148,163,184,0.9)" }}>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
               median
             </div>
-            <div style={{ fontWeight: 800, color: MEDIAN_COLOR }}>
+            <div style={{ fontWeight: 700, color: MEDIAN_COLOR }}>
               {formatMoney(model.median)}
             </div>
           </div>
         </div>
 
-        <div style={{ position: "relative", height: 72, display: "flex", alignItems: "flex-end", gap: 5 }}>
+        {/* DISTRIBUTION */}
+        <div
+          style={{
+            position: "relative",
+            height: 72,
+            display: "flex",
+            alignItems: "flex-end",
+            gap: 6,
+          }}
+        >
           {model.bins.map((v, i) => (
             <div
               key={i}
@@ -92,30 +110,39 @@ export function OutcomeDistributionCard({
                 flex: 1,
                 height: `${Math.max(0.06, v) * 100}%`,
                 borderRadius: 4,
-                background: BAR_GRADIENT,
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.12)",
+                background: BAR_COLOR,
                 transition: "height 200ms ease",
               }}
             />
           ))}
 
+          {/* MEDIAN LINE — ЧУТЬ ТОЛЩЕ */}
           <div
             style={{
               position: "absolute",
               left: `${model.medianPos}%`,
-              top: -6,
-              bottom: -6,
+              top: -8,
+              bottom: -8,
               transform: "translateX(-50%)",
-              width: 3,
+              width: 4,            // 👈 было 3
               background: MEDIAN_COLOR,
               borderRadius: 999,
             }}
           />
         </div>
 
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 12 }}>
-          <div>min {formatMoney(model.min)}</div>
-          <div>max {formatMoney(model.max)}</div>
+        {/* FOOTER */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginTop: 8,
+            fontSize: 12,
+            color: "var(--text-muted)",
+          }}
+        >
+          <div>{formatMoney(model.min)}</div>
+          <div>{formatMoney(model.max)}</div>
         </div>
       </div>
     </div>

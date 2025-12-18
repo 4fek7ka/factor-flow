@@ -16,33 +16,52 @@ type Props = {
 
 export function MarketCapCard({ capUsd, changePct, spark }: Props) {
   const isUp = changePct >= 0;
-  const color = isUp ? "#22c55e" : "#ef4444";
+
+  // Sparkline всегда акцентная
+  const sparkColor = "var(--primary)";
 
   return (
     <div
       className="card card-sm mb-3 h-100"
       style={{
-        flex: 1, // ⭐ позволяет карточке растянуться по ширине
+        flex: 1,
+        backgroundColor: "var(--surface)",
+        border: "1px solid var(--border)",
       }}
     >
       <div className="card-body" style={{ padding: "12px 16px" }}>
         <div className="d-flex justify-content-between mb-1">
-          <div className="text-muted">Market Cap</div>
-          <div className={isUp ? "text-success" : "text-danger"}>
-            {changePct >= 0 ? "+" : ""}
+          <div style={{ color: "var(--text-muted)" }}>Market Cap</div>
+
+          <div
+            style={{
+              color: isUp ? "var(--positive)" : "var(--negative)",
+              fontWeight: 500,
+            }}
+          >
+            {isUp ? "+" : ""}
             {changePct.toFixed(2)}%
           </div>
         </div>
 
-        <div className="h2 m-0">{formatMarketCap(capUsd)}</div>
+        <div
+          style={{
+            fontSize: "1.45rem",
+            fontWeight: 600,
+            color: "var(--text-primary)",
+            lineHeight: 1.15,
+          }}
+        >
+          {formatMarketCap(capUsd)}
+        </div>
 
-        <div style={{ marginTop: 6 }}>
+        {/* ⬇️ сдвиг вниз */}
+        <div style={{ marginTop: 22 }}>
           <SparklineBase
             values={spark}
-            color={color}
-            width={200}   // можно заменить на 100% если нужно
+            color={sparkColor}
             height={30}
-            fullWidth={true} // ⭐ Sparkline тянется на всю ширину
+            fullWidth={true}
           />
         </div>
       </div>

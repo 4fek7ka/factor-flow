@@ -10,6 +10,13 @@ export function AssetsTable({ assets, livePrices }: Props) {
   return (
     <>
       <style>{`
+        .assets-card {
+          background: var(--surface, #111827);
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 12px;
+          overflow-x: auto;
+        }
+
         .assets-table {
           width: 100%;
           border-collapse: collapse;
@@ -29,23 +36,32 @@ export function AssetsTable({ assets, livePrices }: Props) {
           vertical-align: middle;
         }
 
+        /* ===== Header ===== */
+
         th .cell {
           font-weight: 600;
-          font-size: 15px;
-          color: #e5e7eb;
-          letter-spacing: 0.25px;
+          font-size: 14px;
+          letter-spacing: 0.4px;
+          color: #E5E7EB;
         }
 
+        /* ===== Rows ===== */
+
         .assets-table tbody tr {
-          border-bottom: 1px solid rgba(255,255,255,0.06);
+          border-bottom: 1px solid rgba(255,255,255,0.04);
+          transition: background 120ms ease;
+        }
+
+        .assets-table tbody tr:last-child {
+          border-bottom: none;
         }
 
         .assets-table tbody tr:hover {
-          background: rgba(255,255,255,0.03);
+          background: rgba(139,92,246,0.06);
         }
       `}</style>
 
-      <div className="card" style={{ padding: 0, overflowX: "auto" }}>
+      <div className="assets-card">
         <table className="assets-table">
           <colgroup>
             <col style={{ width: "60px" }} />
