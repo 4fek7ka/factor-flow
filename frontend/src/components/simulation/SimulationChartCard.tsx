@@ -44,7 +44,10 @@ export type SimulationChartCardProps = {
   showCloud: boolean;
   showMedian: boolean;
   showRepresentative?: boolean;
+
+  // оставляем в типе, чтобы не ломать вызовы снаружи
   showRange: boolean;
+
   showFan?: boolean;
 
   onToggleCloud?: () => void;
@@ -251,7 +254,6 @@ export function SimulationChartCard({
           <span className="sim-legend-dot" />
           Cloud
         </div>
-
       </div>
 
       <div ref={ref} style={{ width: "100%", height: "100%" }} />

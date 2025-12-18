@@ -72,6 +72,114 @@ export function buildSimulationChartOption({
   yDomain,
   flags,
 }: BuildOptionParams): EChartsCoreOption {
+  const series: any[] = [
+    /* ================= CLOUD ================= */
+    ...cloud.map((p) => ({
+      type: "line",
+      name: "Cloud",
+      data: timestamps.map((t, i) => [t, p[i]]),
+      showSymbol: false,
+      silent: true,
+      tooltip: { show: false },
+      lineStyle: {
+        color: CLOUD_COLOR,
+        width: 1,
+        opacity: flags.showCloud ? 1 : 0,
+      },
+      z: 1,
+    })),
+
+    /* ================= FAN ================= */
+    fan && {
+      type: "custom",
+      name: "FanOuter",
+      silent: true,
+      tooltip: { show: false },
+      data: [0],
+      z: 2,
+      renderItem: (_: unknown, api: any) => ({
+        type: "polygon",
+        shape: {
+          points: [
+            ...timestamps.map((t, i) => api.coord([t, fan.q95[i]])),
+            ...timestamps
+              .slice()
+              .reverse()
+              .map((t, i) =>
+                api.coord([t, fan.q05[fan.q05.length - 1 - i]])
+              ),
+          ],
+        },
+        style: {
+          fill: FAN_OUTER,
+          opacity: flags.showFan ? 1 : 0,
+          // важно: никакой обводки
+          stroke: "rgba(0,0,0,0)",
+          lineWidth: 0,
+        },
+      }),
+    },
+
+    fan && {
+      type: "custom",
+      name: "FanInner",
+      silent: true,
+      tooltip: { show: false },
+      data: [0],
+      z: 3,
+      renderItem: (_: unknown, api: any) => ({
+        type: "polygon",
+        shape: {
+          points: [
+            ...timestamps.map((t, i) => api.coord([t, fan.q75[i]])),
+            ...timestamps
+              .slice()
+              .reverse()
+              .map((t, i) =>
+                api.coord([t, fan.q25[fan.q25.length - 1 - i]])
+              ),
+          ],
+        },
+        style: {
+          fill: FAN_INNER,
+          opacity: flags.showFan ? 1 : 0,
+          // важно: никакой обводки
+          stroke: "rgba(0,0,0,0)",
+          lineWidth: 0,
+        },
+      }),
+    },
+
+    /* ================= MEDIAN ================= */
+    {
+      type: "line",
+      name: "Median",
+      data: timestamps.map((t, i) => [t, median[i]]),
+      showSymbol: false,
+      lineStyle: {
+        color: "rgba(226,232,240,0.7)",
+        width: 2,
+        opacity: flags.showMedian ? 1 : 0,
+        type: "dashed",
+      },
+      z: 10,
+    },
+
+    /* ================= MAIN ================= */
+    {
+      type: "line",
+      name: "Main",
+      data: timestamps.map((t, i) => [t, representative[i]]),
+      showSymbol: false,
+      lineStyle: {
+        color: COLOR_MAIN,
+        width: 2,
+        opacity: flags.showRepresentative ? 1 : 0,
+      },
+      z: 12,
+    },
+  ].filter(Boolean);
+
   return {
     backgroundColor: "transparent",
 
@@ -96,7 +204,6 @@ export function buildSimulationChartOption({
       formatter: (params: any[]) => {
         const main = params.find((p) => p.seriesName === "Main");
         if (!main) return "";
-
         const i = main.dataIndex;
 
         let html = `
@@ -142,120 +249,16 @@ export function buildSimulationChartOption({
       },
       axisLine: { show: false },
       axisTick: { show: false },
+
+      // ✅ УБИРАЕМ ДВЕ ЛИНИИ: сверху и снизу (на max/min)
       splitLine: {
         show: true,
+        showMinLine: false,
+        showMaxLine: false,
         lineStyle: { color: "rgba(148,163,184,0.18)" },
       },
     },
 
-    series: [
-      /* ================= CLOUD ================= */
-      ...cloud.map((p) => ({
-        type: "line",
-        name: "Cloud",
-        data: timestamps.map((t, i) => [t, p[i]]),
-        showSymbol: false,
-        silent: true,
-        tooltip: { show: false },
-        lineStyle: {
-          color: CLOUD_COLOR,
-          width: 1,
-          opacity: flags.showCloud ? 1 : 0,
-        },
-        z: 1,
-      })),
-
-      /* ================= FAN ================= */
-      fan && {
-        type: "custom",
-        name: "FanOuter",
-        silent: true,
-        tooltip: { show: false },
-        data: [0],
-        z: 2,
-        renderItem: (_: unknown, api: any) => ({
-          type: "polygon",
-          shape: {
-            points: [
-              ...timestamps.map((t, i) => api.coord([t, fan.q95[i]])),
-              ...timestamps
-                .slice()
-                .reverse()
-                .map((t, i) =>
-                  api.coord([t, fan.q05[fan.q05.length - 1 - i]])
-                ),
-            ],
-          },
-          style: {
-            fill: FAN_OUTER,
-            opacity: flags.showFan ? 1 : 0,
-
-            // важно: никакой обводки (чтобы не было "верх/низ линий")
-            stroke: "rgba(0,0,0,0)",
-            lineWidth: 0,
-          },
-        }),
-      },
-
-      fan && {
-        type: "custom",
-        name: "FanInner",
-        silent: true,
-        tooltip: { show: false },
-        data: [0],
-        z: 3,
-        renderItem: (_: unknown, api: any) => ({
-          type: "polygon",
-          shape: {
-            points: [
-              ...timestamps.map((t, i) => api.coord([t, fan.q75[i]])),
-              ...timestamps
-                .slice()
-                .reverse()
-                .map((t, i) =>
-                  api.coord([t, fan.q25[fan.q25.length - 1 - i]])
-                ),
-            ],
-          },
-          style: {
-            fill: FAN_INNER,
-            opacity: flags.showFan ? 1 : 0,
-
-            // важно: никакой обводки
-            stroke: "rgba(0,0,0,0)",
-            lineWidth: 0,
-          },
-        }),
-      },
-
-      /* ================= MEDIAN ================= */
-      {
-        type: "line",
-        name: "Median",
-        data: timestamps.map((t, i) => [t, median[i]]),
-        showSymbol: false,
-        lineStyle: {
-          color: "rgba(226,232,240,0.7)",
-          width: 2,
-          opacity: flags.showMedian ? 1 : 0,
-          type: "dashed",
-        },
-        z: 10,
-      },
-
-      /* ================= MAIN ================= */
-      {
-        type: "line",
-        name: "Main",
-        data: timestamps.map((t, i) => [t, representative[i]]),
-        showSymbol: false,
-        lineStyle: {
-          color: COLOR_MAIN,
-          width: 2,
-          opacity: flags.showRepresentative ? 1 : 0,
-        },
-        z: 12,
-      },
-    ].filter(Boolean),
+    series,
   };
 }
