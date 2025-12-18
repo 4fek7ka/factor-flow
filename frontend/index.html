@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" style="background-color: #1E1E1E;">
+<html lang="en" data-font="manrope" style="background-color:#1E1E1E;">
   <head>
     <meta charset="UTF-8" />
 
@@ -9,17 +9,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Factor Flow</title>
 
-    <!-- 🌓 Базовый фон до загрузки React -->
+    <!-- Google Fonts: Manrope + Fira Code -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&family=Manrope:wght@200..800&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Минимальный базовый стиль ДО загрузки React -->
     <style>
       html,
       body {
         margin: 0;
         padding: 0;
-        background-color: #1E1E1E; /* цвет navbar / surface */
+        background-color: #1e1e1e;
         color: #e6e6e6;
       }
     </style>
   </head>
+
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

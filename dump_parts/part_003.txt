@@ -1,0 +1,1123 @@
+frontend/public/vite.svg\n<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--logos" width="31.88" height="32" preserveAspectRatio="xMidYMid meet" viewBox="0 0 256 257"><defs><linearGradient id="IconifyId1813088fe1fbc01fb466" x1="-.828%" x2="57.636%" y1="7.652%" y2="78.411%"><stop offset="0%" stop-color="#41D1FF"></stop><stop offset="100%" stop-color="#BD34FE"></stop></linearGradient><linearGradient id="IconifyId1813088fe1fbc01fb467" x1="43.376%" x2="50.316%" y1="2.242%" y2="89.03%"><stop offset="0%" stop-color="#FFEA83"></stop><stop offset="8.333%" stop-color="#FFDD35"></stop><stop offset="100%" stop-color="#FFA800"></stop></linearGradient></defs><path fill="url(#IconifyId1813088fe1fbc01fb466)" d="M255.153 37.938L134.897 252.976c-2.483 4.44-8.862 4.466-11.382.048L.875 37.958c-2.746-4.814 1.371-10.646 6.827-9.67l120.385 21.517a6.537 6.537 0 0 0 2.322-.004l117.867-21.483c5.438-.991 9.574 4.796 6.877 9.62Z"></path><path fill="url(#IconifyId1813088fe1fbc01fb467)" d="M185.432.063L96.44 17.501a3.268 3.268 0 0 0-2.634 3.014l-5.474 92.456a3.268 3.268 0 0 0 3.997 3.378l24.777-5.718c2.318-.535 4.413 1.507 3.936 3.838l-7.361 36.047c-.495 2.426 1.782 4.5 4.151 3.78l15.304-4.649c2.372-.72 4.652 1.36 4.15 3.788l-11.698 56.621c-.732 3.542 3.979 5.473 5.943 2.437l1.313-2.028l72.516-144.72c1.215-2.423-.88-5.186-3.54-4.672l-25.505 4.922c-2.396.462-4.435-1.77-3.759-4.114l16.646-57.705c.677-2.35-1.37-4.583-3.769-4.113Z"></path></svg>\nfrontend/README.md\n# React + TypeScript + Vite
+
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+
+Currently, two official plugins are available:
+
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+
+## React Compiler
+
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+
+```js
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+
+      // Remove tseslint.configs.recommended and replace with this
+      tseslint.configs.recommendedTypeChecked,
+      // Alternatively, use this for stricter rules
+      tseslint.configs.strictTypeChecked,
+      // Optionally, add this for stylistic rules
+      tseslint.configs.stylisticTypeChecked,
+
+      // Other configs...
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+```
+
+You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+
+```js
+// eslint.config.js
+import reactX from 'eslint-plugin-react-x'
+import reactDom from 'eslint-plugin-react-dom'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+      // Enable lint rules for React
+      reactX.configs['recommended-typescript'],
+      // Enable lint rules for React DOM
+      reactDom.configs.recommended,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+```\nfrontend/src/App.tsx\nimport { RouterProvider } from "react-router-dom";
+import { router } from "./router";
+
+export default function App() {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "var(--bg)",
+        color: "var(--text-primary)",
+      }}
+    >
+      <RouterProvider router={router} />
+    </div>
+  );
+}\nfrontend/src/charts/portfolioChartOptions.ts\n/* =========================
+   Types
+========================= */
+
+type ChartParams = {
+  seriesId?: string;
+  initial?: boolean;
+  opacity?: number; // 0..1
+};
+
+type LineSeries = {
+  id: string;
+  name: string;
+  type: "line";
+  smooth: boolean;
+  showSymbol: boolean;
+
+  animationDuration: number;
+  animationEasing: string;
+  animationDurationUpdate: number;
+  animationEasingUpdate: string;
+
+  color?: string;        // ⬅️ ВАЖНО
+  lineStyle: any;
+  areaStyle?: any;
+  emphasis?: any;
+
+  data: Array<[number, number]>;
+};
+
+/* =========================
+   Tooltip
+========================= */
+
+export function buildTooltip() {
+  return {
+    trigger: "axis",
+    formatter: (params: any[]) => {
+      const date = new Date(params[0].value[0]);
+
+      const rows = params.map((p) => {
+        const val = p.value[1] as number;
+        const sign = val >= 0 ? "+" : "";
+        return `<div><strong>${p.seriesName}:</strong> ${sign}${val.toFixed(
+          2
+        )}%</div>`;
+      });
+
+      return `
+        <div>
+          ${rows.join("")}
+          <div style="margin-top:6px;opacity:0.7">
+            ${date.toLocaleDateString("en-GB", {
+              month: "long",
+              year: "numeric",
+            })}
+          </div>
+        </div>
+      `;
+    },
+  };
+}
+
+/* =========================
+   Layout
+========================= */
+
+export function buildGrid() {
+  return {
+    left: 20,
+    right: 48,
+    top: 20,
+    bottom: 40,
+  };
+}
+
+export function buildXAxis() {
+  return {
+    type: "time",
+    axisLabel: {
+      color: "#999",
+      formatter: (value: number) => {
+        const d = new Date(value);
+        return d.toLocaleDateString("en-GB", { month: "short" });
+      },
+    },
+    axisLine: { lineStyle: { color: "#555" } },
+    splitLine: { show: false },
+  };
+}
+
+export function buildYAxis() {
+  return {
+    type: "value",
+    position: "right",
+    axisLabel: {
+      formatter: (v: number) => `${v.toFixed(0)}%`,
+      color: "#999",
+      margin: 12,
+    },
+    axisLine: { lineStyle: { color: "#555" } },
+    axisTick: { show: true },
+    splitLine: { lineStyle: { color: "#333" } },
+  };
+}
+
+/* =========================
+   Series builders
+========================= */
+
+function buildPortfolioSeries(
+  timestamps: number[],
+  percentValues: number[],
+  params: ChartParams
+): LineSeries {
+  const { seriesId = "portfolio", initial = false, opacity = 1 } = params;
+
+  const ACCENT = "#8B5CF6";
+  const AREA_TOP = "rgba(139,92,246,0.35)";
+  const AREA_BOTTOM = "rgba(139,92,246,0.00)";
+
+  return {
+    id: seriesId,
+    name: "Portfolio",
+    type: "line",
+    smooth: false,
+    showSymbol: false,
+
+    animationDuration: initial ? 1500 : 0,
+    animationEasing: initial ? "quadraticInOut" : "linear",
+    animationDurationUpdate: 750,
+    animationEasingUpdate: "quadraticInOut",
+
+    color: ACCENT,
+    lineStyle: {
+      width: 3,
+      color: ACCENT,
+      opacity,
+    },
+
+    areaStyle: {
+      origin: "start",
+      opacity,
+      color: {
+        type: "linear",
+        x: 0,
+        y: 0,
+        x2: 0,
+        y2: 1,
+        colorStops: [
+          { offset: 0, color: AREA_TOP },
+          { offset: 1, color: AREA_BOTTOM },
+        ],
+      },
+    },
+
+    data: percentValues.map((v, i) => [timestamps[i], v]),
+  };
+}
+
+function buildBtcSeries(
+  timestamps: number[],
+  btcPercentValues: number[],
+  initial = false
+): LineSeries {
+  const BTC_ORANGE = "#F59E0B"; // 🔥 явно тёплый benchmark
+
+  return {
+    id: "btc",
+    name: "BTC",
+    type: "line",
+    smooth: false,
+    showSymbol: false,
+
+    animationDuration: initial ? 1500 : 0,
+    animationEasing: initial ? "quadraticInOut" : "linear",
+    animationDurationUpdate: 750,
+    animationEasingUpdate: "quadraticInOut",
+
+    color: BTC_ORANGE, // ⬅️ КЛЮЧЕВО
+    lineStyle: {
+      width: 2,
+      color: BTC_ORANGE,
+      type: "dashed",
+    },
+
+    emphasis: {
+      focus: "series",
+    },
+
+    data: btcPercentValues.map((v, i) => [timestamps[i], v]),
+  };
+}
+
+/* =========================
+   Option
+========================= */
+
+export function buildPortfolioChartOption(
+  timestamps: number[],
+  percentValues: number[],
+  params: ChartParams = {},
+  btcPercentValues?: number[]
+) {
+  const series: LineSeries[] = [
+    buildPortfolioSeries(timestamps, percentValues, params),
+  ];
+
+  if (btcPercentValues && btcPercentValues.length) {
+    series.push(buildBtcSeries(timestamps, btcPercentValues, params.initial));
+  }
+
+  return {
+    backgroundColor: "transparent",
+    animation: true,
+    tooltip: buildTooltip(),
+    grid: buildGrid(),
+    xAxis: buildXAxis(),
+    yAxis: buildYAxis(),
+    series,
+  };
+}\nfrontend/src/charts/SparklineBase.tsx\n
+
+type Props = {
+  values: number[];
+  color: string;
+  width?: number;         // internal viewBox width (fixed mode)
+  height?: number;
+  strokeWidth?: number;
+  fullWidth?: boolean;    // NEW: adaptive width mode
+};
+
+export function SparklineBase({
+  values,
+  color,
+  width = 200,
+  height = 45,
+  strokeWidth = 2,
+  fullWidth = false,
+}: Props) {
+  if (!values.length) return null;
+
+  // 1) Convert to percent change
+  const base = values[0];
+  const pctValues = values.map((v) => ((v - base) / base) * 100);
+
+  // 2) Range
+  const min = Math.min(...pctValues);
+  const max = Math.max(...pctValues);
+  const range = max - min || 0;
+
+  // 3) Volatility scale
+  const A = Math.abs(range);
+  const K = 1.5;
+  const scale = A === 0 ? 0 : Math.min(1, A / (A + K));
+
+  const centerY = height / 2;
+
+  // 4) Build polyline
+  const points = pctValues
+    .map((v, i) => {
+      const norm = range === 0 ? 0.5 : (v - min) / range;
+      const normCentered = norm - 0.5;
+      const y = centerY - normCentered * height * scale;
+      const x = (i / Math.max(values.length - 1, 1)) * width;
+      return `${x},${y}`;
+    })
+    .join(" ");
+
+  return (
+    <svg
+      width={fullWidth ? "100%" : width}     // dynamic or fixed width
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio={fullWidth ? "none" : "xMidYMid meet"}
+    >
+      <polyline
+        fill="none"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        points={points}
+      />
+    </svg>
+  );
+}\nfrontend/src/components/assets/AssetRow.tsx\nimport { useEffect, useRef, useState } from "react";
+import type { AssetRow } from "../../services/assets/assetsSelectors";
+import { SparklineBase } from "../../charts/SparklineBase";
+
+type Props = {
+  asset: AssetRow;
+  index: number;
+  livePrice?: number;
+};
+
+function colorize(v: number) {
+  return v >= 0 ? "#4ADE80" : "#F87171";
+}
+
+export function AssetRowItem({ asset, index, livePrice }: Props) {
+  const price = livePrice ?? asset.price;
+
+  const prevRef = useRef<number>(price);
+  const [flash, setFlash] = useState<"up" | "down" | null>(null);
+  const [fade, setFade] = useState(false);
+
+  useEffect(() => {
+    const prev = prevRef.current;
+
+    if (price > prev) {
+      setFlash("up");
+      setFade(false);
+    } else if (price < prev) {
+      setFlash("down");
+      setFade(false);
+    }
+
+    prevRef.current = price;
+
+    if (price !== prev) {
+      const t1 = setTimeout(() => setFade(true), 50);     // включаем fade
+      const t2 = setTimeout(() => setFlash(null), 300); // сбрасываем flash
+
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    }
+  }, [price]);
+
+  const priceColor =
+    flash === "up"
+      ? "#22c55e"
+      : flash === "down"
+      ? "#ef4444"
+      : "#E4E4E7";
+
+  return (
+    <tr>
+      {/* Index */}
+      <td>
+        <div className="cell" style={{ paddingLeft: 24, color: "#A1A1AA" }}>
+          {index + 1}
+        </div>
+      </td>
+
+      {/* Asset */}
+      <td>
+        <div className="cell" style={{ fontWeight: 600, color: "#F4F4F5" }}>
+          {asset.symbol}
+        </div>
+      </td>
+
+      {/* Price */}
+      <td>
+        <div
+          className="cell"
+          style={{
+            textAlign: "right",
+            paddingRight: 16,
+            color: priceColor,
+            transition: fade ? "color 1.5s ease-out" : "none",
+          }}
+        >
+          ${price.toFixed(2)}
+        </div>
+      </td>
+
+      {/* 1h */}
+      <td>
+        <div
+          className="cell"
+          style={{ textAlign: "center", color: colorize(asset.change1hPct) }}
+        >
+          {asset.change1hPct.toFixed(2)}%
+        </div>
+      </td>
+
+      {/* 24h */}
+      <td>
+        <div
+          className="cell"
+          style={{ textAlign: "center", color: colorize(asset.change24hPct) }}
+        >
+          {asset.change24hPct.toFixed(2)}%
+        </div>
+      </td>
+
+      {/* 7d */}
+      <td>
+        <div
+          className="cell"
+          style={{ textAlign: "center", color: colorize(asset.change7dPct) }}
+        >
+          {asset.change7dPct.toFixed(2)}%
+        </div>
+      </td>
+
+      {/* Market Cap */}
+      <td>
+        <div
+          className="cell"
+          style={{ textAlign: "right", paddingRight: 16, color: "#E5E7EB" }}
+        >
+          ${asset.marketCapUsd.toLocaleString()}
+        </div>
+      </td>
+
+      {/* Sparkline */}
+      <td>
+        <div className="cell" style={{ textAlign: "right", paddingRight: 32 }}>
+          <SparklineBase
+            values={asset.sparkline}
+            color={asset.change7dPct >= 0 ? "#4ADE80" : "#F87171"}
+            width={150}
+            height={34}
+          />
+        </div>
+      </td>
+    </tr>
+  );
+}\nfrontend/src/components/assets/AssetsTable.tsx\nimport type { AssetRow } from "../../services/assets/assetsSelectors";
+import { AssetRowItem } from "./AssetRow";
+
+type Props = {
+  assets: AssetRow[];
+  livePrices?: Record<string, number>;
+};
+
+export function AssetsTable({ assets, livePrices }: Props) {
+  return (
+    <>
+      <style>{`
+        .assets-card {
+          background: var(--surface, #111827);
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 12px;
+          overflow-x: auto;
+        }
+
+        .assets-table {
+          width: 100%;
+          border-collapse: collapse;
+          table-layout: fixed;
+        }
+
+        .assets-table th,
+        .assets-table td {
+          padding: 0;
+        }
+
+        .cell {
+          height: 48px;
+          line-height: 48px;
+          font-size: 14px;
+          white-space: nowrap;
+          vertical-align: middle;
+        }
+
+        /* ===== Header ===== */
+
+        th .cell {
+          font-weight: 600;
+          font-size: 14px;
+          letter-spacing: 0.4px;
+          color: #E5E7EB;
+        }
+
+        /* ===== Rows ===== */
+
+        .assets-table tbody tr {
+          border-bottom: 1px solid rgba(255,255,255,0.04);
+          transition: background 120ms ease;
+        }
+
+        .assets-table tbody tr:last-child {
+          border-bottom: none;
+        }
+
+        .assets-table tbody tr:hover {
+          background: rgba(139,92,246,0.06);
+        }
+      `}</style>
+
+      <div className="assets-card">
+        <table className="assets-table">
+          <colgroup>
+            <col style={{ width: "60px" }} />
+            <col style={{ width: "160px" }} />
+            <col style={{ width: "150px" }} />
+            <col style={{ width: "110px" }} />
+            <col style={{ width: "110px" }} />
+            <col style={{ width: "110px" }} />
+            <col style={{ width: "180px" }} />
+            <col style={{ width: "240px" }} />
+          </colgroup>
+
+          <thead>
+            <tr>
+              <th>
+                <div className="cell" style={{ paddingLeft: 24 }}>
+                  #
+                </div>
+              </th>
+              <th>
+                <div className="cell">ASSET</div>
+              </th>
+              <th>
+                <div
+                  className="cell"
+                  style={{ textAlign: "right", paddingRight: 16 }}
+                >
+                  PRICE
+                </div>
+              </th>
+              <th>
+                <div className="cell" style={{ textAlign: "center" }}>
+                  1h %
+                </div>
+              </th>
+              <th>
+                <div className="cell" style={{ textAlign: "center" }}>
+                  24h %
+                </div>
+              </th>
+              <th>
+                <div className="cell" style={{ textAlign: "center" }}>
+                  7d %
+                </div>
+              </th>
+              <th>
+                <div
+                  className="cell"
+                  style={{ textAlign: "right", paddingRight: 16 }}
+                >
+                  Market Cap
+                </div>
+              </th>
+              <th>
+                <div
+                  className="cell"
+                  style={{ textAlign: "right", paddingRight: 32 }}
+                >
+                  Sparkline
+                </div>
+              </th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {assets.map((asset, i) => (
+              <AssetRowItem
+                key={`${asset.symbol}-${i}`}
+                asset={asset}
+                index={i}
+                livePrice={livePrices?.[asset.symbol]}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}\nfrontend/src/components/assets/BtcEthAltCard.tsx\nimport type { FC } from "react";
+
+type Props = {
+  btc: number;
+  eth: number;
+  alt: number;
+};
+
+export const BtcEthAltCard: FC<Props> = ({ btc, eth, alt }) => {
+  const btcPct = btc.toFixed(1);
+  const ethPct = eth.toFixed(1);
+  const altPct = alt.toFixed(1);
+
+  // 🎨 Цвета под общую тему
+  const btcColor = "#F59E0B"; // BTC — оранжевый
+  const ethColor = "#8B5CF6"; // ETH — фиолетовый
+  const altColor = "#64748B"; // ALT — нейтральный
+
+  return (
+    <div
+      className="card card-sm mb-3 h-100"
+      style={{
+        flex: 1,
+        backgroundColor: "var(--surface)", // ✅ без градиента
+        border: "1px solid var(--border)",
+      }}
+    >
+      <div
+        className="card-body"
+        style={{
+          padding: "12px 16px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+        }}
+      >
+        {/* Заголовок */}
+        <div style={{ color: "var(--text-muted)", fontSize: 14 }}>
+          Market Dominance
+        </div>
+
+        {/* Полоса */}
+        <div
+          style={{
+            width: "100%",
+            height: 12,
+            borderRadius: 10,
+            overflow: "hidden",
+            display: "flex",
+            background: "var(--surface-hover)",
+            border: "1px solid var(--border)",
+          }}
+        >
+          <div style={{ width: `${btc}%`, backgroundColor: btcColor }} />
+          <div style={{ width: `${eth}%`, backgroundColor: ethColor }} />
+          <div style={{ width: `${alt}%`, backgroundColor: altColor }} />
+        </div>
+
+        {/* Подписи */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            fontSize: 14,
+            marginTop: 4,
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span style={{ color: btcColor, fontWeight: 600 }}>BTC</span>
+            <span style={{ color: ethColor, fontWeight: 600 }}>ETH</span>
+            <span style={{ color: altColor, fontWeight: 600 }}>ALT</span>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>
+              {btcPct}%
+            </span>
+            <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>
+              {ethPct}%
+            </span>
+            <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>
+              {altPct}%
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};\nfrontend/src/components/assets/FearGreedCard.tsx\nimport { FearGreedGauge } from "./FearGreedGauge";
+
+type Props = {
+  value: number;
+};
+
+function labelFromValue(v: number) {
+  if (v < 25) return "Extreme Fear";
+  if (v < 45) return "Fear";
+  if (v < 55) return "Neutral";
+  if (v < 75) return "Greed";
+  return "Extreme Greed";
+}
+
+export function FearGreedCard({ value }: Props) {
+  const label = labelFromValue(value);
+
+  return (
+    <div
+      className="card card-sm mb-3 h-100"
+      style={{
+        flex: 1,
+        position: "relative",
+        backgroundColor: "var(--surface)",
+        border: "1px solid var(--border)",
+      }}
+    >
+      <div
+        className="card-body"
+        style={{
+          padding: "0 12px",
+          position: "relative",
+        }}
+      >
+        {/* Заголовок */}
+        <div
+          style={{
+            position: "absolute",
+            top: 14,
+            left: 12,
+            fontSize: "0.75rem",
+            color: "var(--text-muted)",
+            letterSpacing: "0.02em",
+          }}
+        >
+          Fear & Greed
+        </div>
+
+        {/* Gauge */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            marginTop: 22,
+            position: "relative",
+            height: 90,
+          }}
+        >
+          <FearGreedGauge value={value} width={160} height={80} />
+
+          {/* Центр */}
+          <div
+            style={{
+              position: "absolute",
+              top: "80%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "1.35rem",
+                fontWeight: 600,
+                lineHeight: "1.2",
+                color: "var(--text-primary)",
+              }}
+            >
+              {value}
+            </div>
+
+            <div
+              style={{
+                fontSize: "0.85rem",
+                color: "var(--text-secondary)",
+              }}
+            >
+              {label}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}\nfrontend/src/components/assets/FearGreedGauge.tsx\ntype Props = {
+  value: number; // 0–100
+  width?: number;
+  height?: number;
+};
+
+/* =========================
+   Geometry helpers
+========================= */
+
+function polar(cx: number, cy: number, r: number, angleDeg: number) {
+  const rad = (angleDeg * Math.PI) / 180;
+  return {
+    x: cx + r * Math.cos(rad),
+    y: cy - r * Math.sin(rad),
+  };
+}
+
+function arcPath(cx: number, cy: number, r: number, start: number, end: number) {
+  const p0 = polar(cx, cy, r, start);
+  const p1 = polar(cx, cy, r, end);
+
+  const largeArcFlag = Math.abs(end - start) > 180 ? 1 : 0;
+  const sweepFlag = end < start ? 1 : 0;
+
+  return `M ${p0.x} ${p0.y} A ${r} ${r} 0 ${largeArcFlag} ${sweepFlag} ${p1.x} ${p1.y}`;
+}
+
+/* =========================
+   Component
+========================= */
+
+export function FearGreedGauge({
+  value,
+  width = 220,
+  height = 120,
+}: Props) {
+  const cx = width / 2;
+  const cy = height;
+  const r = height - 20;
+  const strokeWidth = 8;
+
+  /* =========================
+     Stepped gradient sectors
+     (accent → blue → white)
+  ========================= */
+
+  const SECTORS = [
+    { color: "var(--primary)" }, // фиолетовый
+    { color: "#8FA4F9" },        // фиолетово-голубой
+    { color: "var(--secondary)" }, // голубой
+    { color: "#AEEBFA" },        // голубовато-белый
+    { color: "#E6E6E6" },        // белый
+  ];
+
+  const stepAngle = 180 / SECTORS.length;
+
+  const sectors = SECTORS.map((s, i) => ({
+    from: 180 - i * stepAngle,
+    to: 180 - (i + 1) * stepAngle,
+    color: s.color,
+  }));
+
+  /* =========================
+     Pointer (points to sector)
+  ========================= */
+
+  const clamped = Math.max(0, Math.min(100, value));
+  const angle = 180 - (clamped / 100) * 180;
+  const pointer = polar(cx, cy, r, angle);
+
+  return (
+    <svg width="100%" viewBox={`0 0 ${width} ${height}`}>
+      {/* Background arc */}
+      <path
+        d={arcPath(cx, cy, r, 180, 0)}
+        stroke="var(--border)"
+        strokeWidth={strokeWidth}
+        fill="none"
+        strokeLinecap="round"
+        vectorEffect="non-scaling-stroke"
+      />
+
+      {/* Stepped sectors */}
+      {sectors.map((s, i) => (
+        <path
+          key={i}
+          d={arcPath(cx, cy, r, s.from, s.to)}
+          stroke={s.color}
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      ))}
+
+      {/* Pointer */}
+      <circle
+        cx={pointer.x}
+        cy={pointer.y}
+        r={6}
+        fill="var(--primary)"
+        stroke="var(--surface)"
+        strokeWidth={2}
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  );
+}\nfrontend/src/components/assets/MarketCapCard.tsx\nimport { SparklineBase } from "../../charts/SparklineBase";
+
+function formatMarketCap(v: number) {
+  if (v >= 1e12) return `$${(v / 1e12).toFixed(2)}T`;
+  if (v >= 1e9) return `$${(v / 1e9).toFixed(2)}B`;
+  if (v >= 1e6) return `$${(v / 1e6).toFixed(2)}M`;
+  if (v >= 1e3) return `$${(v / 1e3).toFixed(2)}K`;
+  return `$${v}`;
+}
+
+type Props = {
+  capUsd: number;
+  changePct: number;
+  spark: number[];
+};
+
+export function MarketCapCard({ capUsd, changePct, spark }: Props) {
+  const isUp = changePct >= 0;
+
+  // Sparkline всегда акцентная
+  const sparkColor = "var(--primary)";
+
+  return (
+    <div
+      className="card card-sm mb-3 h-100"
+      style={{
+        flex: 1,
+        backgroundColor: "var(--surface)",
+        border: "1px solid var(--border)",
+      }}
+    >
+      <div className="card-body" style={{ padding: "12px 16px" }}>
+        <div className="d-flex justify-content-between mb-1">
+          <div style={{ color: "var(--text-muted)" }}>Market Cap</div>
+
+          <div
+            style={{
+              color: isUp ? "var(--positive)" : "var(--negative)",
+              fontWeight: 500,
+            }}
+          >
+            {isUp ? "+" : ""}
+            {changePct.toFixed(2)}%
+          </div>
+        </div>
+
+        <div
+          style={{
+            fontSize: "1.45rem",
+            fontWeight: 600,
+            color: "var(--text-primary)",
+            lineHeight: 1.15,
+          }}
+        >
+          {formatMarketCap(capUsd)}
+        </div>
+
+        {/* ⬇️ сдвиг вниз */}
+        <div style={{ marginTop: 22 }}>
+          <SparklineBase
+            values={spark}
+            color={sparkColor}
+            height={30}
+            fullWidth={true}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}\nfrontend/src/components/assets/TopGainer7dCard.tsx\ntype Props = {
+  name: string;
+  symbol: string;
+  image?: string | null;
+  pct7d: number;
+};
+
+export function TopGainer7dCard({ name, symbol, image, pct7d }: Props) {
+  const isUp = pct7d >= 0;
+
+  // ✅ цвета как раньше: зелёный / красный
+  const pctColor = isUp ? "var(--positive)" : "var(--negative)";
+
+  return (
+    <div
+      className="card card-sm mb-3 h-100"
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        padding: "16px 20px",
+        backgroundColor: "var(--surface)",
+        border: "1px solid var(--border)",
+      }}
+    >
+      {/* Заголовок */}
+      <div
+        style={{
+          fontSize: "0.85rem",
+          color: "var(--text-muted)",
+          marginBottom: 4,
+        }}
+      >
+        Top Gainer (7d)
+      </div>
+
+      {/* Центрированный контент */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+          }}
+        >
+          {/* Иконка */}
+          {image ? (
+            <div
+              style={{
+                width: 66,
+                height: 66,
+                borderRadius: "999px",
+                border: "1px solid var(--border)",
+                background: "var(--surface-hover)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <img
+                src={image}
+                alt={name}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                }}
+              />
+            </div>
+          ) : null}
+
+          {/* Название + процент */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            <span
+              style={{
+                color: "var(--text-primary)",
+                fontWeight: 600,
+                fontSize: "1.05rem",
+                letterSpacing: "0.04em",
+              }}
+            >
+              {symbol.toUpperCase()}
+            </span>
+
+            <span
+              style={{
+                color: pctColor,
+                fontWeight: 700,
+                fontSize: "1.45rem",
+              }}
+            >
+              {isUp ? "+" : ""}
+              {pct7d.toFixed(2)}%
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}\nfrontend/src/components/portfolio/AssetSparklineCard.tsx\n

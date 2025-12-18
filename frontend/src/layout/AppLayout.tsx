@@ -42,7 +42,8 @@ export function AppLayout() {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 8,
+              gap: 10,
+              whiteSpace: "nowrap",
             }}
           >
             <img
@@ -55,15 +56,32 @@ export function AppLayout() {
               }}
             />
 
+            {/* TITLE */}
             <span
               style={{
                 fontWeight: 600,
-                fontSize: 16,
-                color: "var(--text-primary)",
-                whiteSpace: "nowrap",
+                fontSize: 23,
+                display: "flex",
+                alignItems: "baseline",
               }}
             >
-              Factor Flow
+              {/* Factor — blue */}
+              <span
+                style={{
+                  color: "#38bdf8", // blue / sky
+                }}
+              >
+                Factor
+              </span>
+              &nbsp;
+              {/* Flow — violet */}
+              <span
+                style={{
+                  color: "#a78bfa", // violet
+                }}
+              >
+                Flow
+              </span>
             </span>
           </div>
 

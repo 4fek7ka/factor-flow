@@ -1,0 +1,968 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { HistoryPoint, AssetAmounts } from "../../services/portfolio/portfolioService";
+
+/* =========================
+   Helpers
+========================= */
+
+function calcPortfolioValue(p: HistoryPoint, amounts: AssetAmounts) {
+  let total = 0;
+  for (const [symbol, amount] of Object.entries(amounts)) {
+    const price = p.prices[symbol] ?? 0;
+    total += price * amount;
+  }
+  return total;
+}
+
+function computeStats(history: HistoryPoint[], amounts: AssetAmounts) {
+  if (history.length < 2) {
+    return { volatility: 0, minVol: 0, maxVol: 0, avgMove: 0, stdDev: 0 };
+  }
+
+  const vals = history
+    .map((p) => calcPortfolioValue(p, amounts))
+    .filter((v) => Number.isFinite(v) && v > 0);
+
+  if (vals.length < 2) {
+    return { volatility: 0, minVol: 0, maxVol: 0, avgMove: 0, stdDev: 0 };
+  }
+
+  const minVal = Math.min(...vals);
+  const maxVal = Math.max(...vals);
+  const avg = vals.reduce((s, x) => s + x, 0) / vals.length || 1;
+
+  const volatilityRange = ((maxVal - minVal) / avg) * 100;
+  const minPct = ((minVal - avg) / avg) * 100;
+  const maxPct = ((maxVal - avg) / avg) * 100;
+
+  const avgMoveCalc =
+    vals.slice(1).reduce((s, v, i) => s + Math.abs(v - vals[i]), 0) /
+    (vals.length - 1);
+
+  const avgMovePct = (avgMoveCalc / avg) * 100;
+
+  const variance = vals.reduce((s, v) => s + (v - avg) ** 2, 0) / vals.length;
+  const std = Math.sqrt(variance);
+  const stdDevPct = (std / avg) * 100;
+
+  return {
+    volatility: volatilityRange,
+    minVol: minPct,
+    maxVol: maxPct,
+    avgMove: avgMovePct,
+    stdDev: stdDevPct,
+  };
+}
+
+/* =========================
+   Types
+========================= */
+
+type Props = {
+  history: HistoryPoint[];
+  amounts: AssetAmounts;
+};
+
+type Stats = {
+  volatility: number;
+  minVol: number;
+  maxVol: number;
+  avgMove: number;
+  stdDev: number;
+};
+
+/* =========================
+   Component
+========================= */
+
+export function VolatilityArcCard({ history, amounts }: Props) {
+  const nextStats = useMemo<Stats>(
+    () => computeStats(history, amounts),
+    [history, amounts]
+  );
+
+  const [displayStats, setDisplayStats] = useState<Stats>(nextStats);
+  const [arcVolatility, setArcVolatility] = useState<number>(nextStats.volatility);
+  const [fadePhase, setFadePhase] = useState<"in" | "out">("in");
+
+  const signature = useMemo(() => {
+    const first = history[0]?.timestamp ?? 0;
+    const last = history[history.length - 1]?.timestamp ?? 0;
+
+    const amountsKey = Object.entries(amounts)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => `${k}:${v}`)
+      .join("|");
+
+    return `${history.length}:${first}:${last}:${amountsKey}`;
+  }, [history, amounts]);
+
+  const prevSigRef = useRef<string>(signature);
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (prevSigRef.current === signature) return;
+    prevSigRef.current = signature;
+
+    setArcVolatility(nextStats.volatility);
+    setFadePhase("out");
+
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+
+    timerRef.current = window.setTimeout(() => {
+      setDisplayStats(nextStats);
+      setFadePhase("in");
+      timerRef.current = null;
+    }, 180);
+
+    return () => {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    };
+  }, [signature, nextStats]);
+
+  /* =========================
+     Arc math
+  ========================= */
+
+  const pct = Math.min(Math.max(arcVolatility / 120, 0), 1);
+
+  const radius = 100;
+  const circumference = Math.PI * radius;
+  const filled = pct * circumference;
+  const empty = circumference - filled;
+
+  /* 🔥 Контрастный текст */
+  const TEXT_PRIMARY = "#FFFFFF";
+  const TEXT_SECONDARY = "rgba(255,255,255,0.85)";
+
+  return (
+    <div
+      className="card vola-card"
+      style={{
+        borderRadius: 10,
+        height: "100%",
+        width: "100%",
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+      }}
+    >
+      <style>{`
+        .vola-fade {
+          transition: opacity 220ms ease, filter 220ms ease;
+        }
+        .vola-fade.out {
+          opacity: 0;
+          filter: blur(2px);
+        }
+        .vola-fade.in {
+          opacity: 1;
+          filter: blur(0px);
+        }
+
+        
+      `}</style>
+
+      <div
+        className="card-body"
+        style={{
+          display: "flex",
+          gap: 28,
+          alignItems: "center",
+          paddingTop: 20,
+          paddingBottom: 20,
+        }}
+      >
+        {/* ======================= GAUGE ======================= */}
+        <div style={{ flex: "0 0 260px" }}>
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            <svg width="260" height="170" viewBox="0 0 260 170">
+              <defs>
+                {/* 🎯 Фиолетовый → голубой → белый */}
+                <linearGradient id="volaGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#8B5CF6" />
+                  <stop offset="55%" stopColor="#38BDF8" />
+                  <stop offset="100%" stopColor="#FFFFFF" />
+                </linearGradient>
+              </defs>
+
+              {/* Background arc */}
+              <path
+                d="M30 120 A100 100 0 0 1 230 120"
+                stroke="rgba(255,255,255,0.14)"
+                strokeWidth="16"
+                fill="none"
+              />
+
+              {/* Foreground arc */}
+              <path
+                className="vola-arc"
+                d="M30 120 A100 100 0 0 1 230 120"
+                stroke="url(#volaGradient)"
+                strokeWidth="16"
+                fill="none"
+                strokeDasharray={`${filled} ${empty}`}
+                strokeLinecap="round"
+              />
+
+              {/* Percentage */}
+              <text
+                x="130"
+                y="108"
+                fill={TEXT_PRIMARY}
+                fontSize="28"
+                fontWeight="700"
+                dominantBaseline="middle"
+                textAnchor="middle"
+                className={`vola-fade ${fadePhase}`}
+              >
+                {displayStats.volatility.toFixed(2)}%
+              </text>
+
+              {/* Low / High */}
+              <text x="12" y="155" fill={TEXT_SECONDARY} fontSize="15" fontWeight="600">
+                Low
+              </text>
+              <text x="248" y="155" fill={TEXT_SECONDARY} fontSize="15" fontWeight="600" textAnchor="end">
+                High
+              </text>
+            </svg>
+          </div>
+
+          <div
+            style={{
+              textAlign: "center",
+              marginTop: 8,
+              fontSize: 15,
+              color: TEXT_SECONDARY,
+            }}
+          >
+            Period Range Volatility
+          </div>
+        </div>
+
+        {/* ======================= ANALYTICS ======================= */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+            paddingLeft: 32,
+            flex: 1,
+            color: TEXT_PRIMARY,
+            fontSize: 15,
+          }}
+        >
+          <div style={{ marginBottom: 6, fontWeight: 600, fontSize: 16 }}>
+            Analytics
+          </div>
+
+          {[
+            { label: "Min", value: displayStats.minVol },
+            { label: "Max", value: displayStats.maxVol },
+            { label: "Avg Abs Move", value: displayStats.avgMove },
+            { label: "Std Dev", value: displayStats.stdDev },
+          ].map((m, i) => (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                borderBottom: i < 3 ? "1px solid var(--border)" : "none",
+                paddingBottom: 6,
+                paddingTop: 4,
+              }}
+            >
+              <span style={{ color: TEXT_SECONDARY }}>{m.label}</span>
+              <span
+                className={`vola-fade ${fadePhase}`}
+                style={{ fontFamily: "monospace", color: TEXT_PRIMARY }}
+              >
+                {m.value.toFixed(2)}%
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}\nfrontend/src/components/Reveal.tsx\nimport { useEffect, useState } from "react";
+import type { CSSProperties, ReactNode } from "react";
+
+type Props = {
+  children: ReactNode;
+
+  /** базовая задержка */
+  delayMs?: number;
+
+  /** шаг между элементами (stagger) */
+  staggerMs?: number;
+
+  /** индекс элемента (0,1,2...) */
+  index?: number;
+
+  durationMs?: number;
+  y?: number;
+  className?: string;
+  style?: CSSProperties;
+};
+
+export function Reveal({
+  children,
+  delayMs = 0,
+  staggerMs = 80,
+  index = 0,
+  durationMs = 520,
+  y = 12,
+  className,
+  style,
+}: Props) {
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const [shown, setShown] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) {
+      setReduceMotion(true);
+      setShown(true);
+      return;
+    }
+
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduceMotion(mq.matches);
+    if (mq.matches) setShown(true);
+
+    const onChange = () => {
+      setReduceMotion(mq.matches);
+      if (mq.matches) setShown(true);
+    };
+
+    // Safari compatibility
+    // @ts-ignore
+    mq.addEventListener
+      ? mq.addEventListener("change", onChange)
+      : mq.addListener(onChange);
+
+    return () => {
+      // @ts-ignore
+      mq.removeEventListener
+        ? mq.removeEventListener("change", onChange)
+        : mq.removeListener(onChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (reduceMotion) return;
+
+    setShown(false);
+    const id = requestAnimationFrame(() => setShown(true));
+    return () => cancelAnimationFrame(id);
+  }, [reduceMotion]);
+
+  const totalDelay = delayMs + index * staggerMs;
+
+  const animStyle: CSSProperties = reduceMotion
+    ? {}
+    : {
+        opacity: shown ? 1 : 0,
+        transform: shown ? "translateY(0px)" : `translateY(${y}px)`,
+
+        transitionProperty: "opacity, transform",
+        transitionDuration: `${durationMs}ms, ${durationMs + 180}ms`,
+        transitionTimingFunction:
+          "cubic-bezier(0.16, 1, 0.3, 1), cubic-bezier(0.22, 1, 0.36, 1)",
+        transitionDelay: `${totalDelay}ms, ${totalDelay + 90}ms`,
+
+        willChange: "opacity, transform",
+      };
+
+  return (
+    <div className={className} style={{ ...animStyle, ...style }}>
+      {children}
+    </div>
+  );
+}\nfrontend/src/components/simulation/FinalOutcomeCard.tsx\nimport { useMemo } from "react";
+
+type Props = {
+  startValue: number;
+  finalValue: number; // 🔴 итоговое значение MAIN (representative)
+};
+
+function formatMoney(v: number) {
+  return v.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
+}
+
+export function FinalOutcomeCard({ startValue, finalValue }: Props) {
+  const model = useMemo(() => {
+    const deltaPct =
+      startValue === 0 ? 0 : ((finalValue - startValue) / startValue) * 100;
+
+    const isPositive = deltaPct >= 0;
+
+    const RANGE = 30;
+    const clamped = Math.max(-RANGE, Math.min(RANGE, deltaPct));
+    const posPct = ((clamped + RANGE) / (RANGE * 2)) * 100;
+
+    return { deltaPct, isPositive, posPct, RANGE };
+  }, [startValue, finalValue]);
+
+  const ACCENT_COLOR = model.isPositive
+    ? "var(--positive)"
+    : "var(--negative)";
+
+  const sign = model.deltaPct >= 0 ? "+" : "-";
+
+  const centerPct = 50;
+  const fillLeft = model.isPositive ? centerPct : model.posPct;
+  const fillWidth = Math.abs(model.posPct - centerPct);
+
+  return (
+    <div
+      className="card card-sm w-100"
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+      }}
+    >
+      <div className="card-body">
+        <div
+          style={{
+            fontWeight: 600,
+            marginBottom: 10,
+            color: "var(--text-primary)",
+          }}
+        >
+          Final outcome
+        </div>
+
+        {/* VALUE */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            gap: 10,
+            marginBottom: 14,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 26,
+              fontWeight: 700,
+              color: "var(--text-primary)",
+            }}
+          >
+            {formatMoney(finalValue)}
+          </div>
+
+          <div
+            style={{
+              fontSize: 15,
+              fontWeight: 700,
+              color: ACCENT_COLOR,
+            }}
+          >
+            {sign}
+            {Math.abs(model.deltaPct).toFixed(1)}%
+          </div>
+        </div>
+
+        {/* SCALE */}
+        <div style={{ position: "relative", height: 20 }}>
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: 0,
+              right: 0,
+              height: 6,
+              transform: "translateY(-50%)",
+              borderRadius: 999,
+              background: "var(--surface-hover)",
+            }}
+          />
+
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: `${fillLeft}%`,
+              width: `${fillWidth}%`,
+              height: 6,
+              transform: "translateY(-50%)",
+              borderRadius: 999,
+              background: model.isPositive
+                ? "rgba(34,197,94,0.35)"
+                : "rgba(239,68,68,0.35)",
+            }}
+          />
+
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: 2,
+              height: 14,
+              background: "var(--border)",
+            }}
+          />
+
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: `${model.posPct}%`,
+              transform: "translate(-50%, -50%)",
+              width: 14,
+              height: 14,
+              borderRadius: "50%",
+              background: ACCENT_COLOR,
+              border: "2px solid var(--surface)",
+            }}
+          />
+        </div>
+
+        {/* labels */}
+        <div
+          style={{
+            position: "relative",
+            height: 16,
+            marginTop: 6,
+            fontSize: 12,
+            color: "var(--text-muted)",
+          }}
+        >
+          <div style={{ position: "absolute", left: 0 }}>
+            -{model.RANGE}%
+          </div>
+          <div
+            style={{
+              position: "absolute",
+              left: "50%",
+              transform: "translateX(-50%)",
+            }}
+          >
+            0%
+          </div>
+          <div style={{ position: "absolute", right: 0 }}>
+            +{model.RANGE}%
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}\nfrontend/src/components/simulation/OutcomeDistributionCard.tsx\nimport { useMemo } from "react";
+
+type Props = {
+  paths: number[][];
+  title?: string;
+};
+
+function medianOf(sorted: number[]): number {
+  const m = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[m] : (sorted[m - 1] + sorted[m]) / 2;
+}
+
+function formatMoney(v: number) {
+  return v.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
+}
+
+export function OutcomeDistributionCard({
+  paths,
+  title = "Outcome distribution",
+}: Props) {
+  const model = useMemo(() => {
+    if (!paths.length || !paths[0]?.length) return null;
+
+    const finals = paths
+      .map((p) => p[p.length - 1])
+      .filter(Number.isFinite)
+      .sort((a, b) => a - b);
+
+    if (!finals.length) return null;
+
+    const min = finals[0];
+    const max = finals[finals.length - 1];
+    const median = medianOf(finals);
+
+    const BUCKETS = 14;
+    const counts = Array(BUCKETS).fill(0);
+    const step = (max - min) / BUCKETS || 1;
+
+    for (const v of finals) {
+      const i = Math.min(BUCKETS - 1, Math.floor((v - min) / step));
+      counts[i]++;
+    }
+
+    const maxCount = Math.max(...counts) || 1;
+    const bins = counts.map((c) => c / maxCount);
+
+    const medianPos = ((median - min) / (max - min || 1)) * 100;
+
+    return { bins, min, max, median, medianPos };
+  }, [paths]);
+
+  if (!model) return null;
+
+  /* =========================
+     🎨 COLORS
+  ========================= */
+
+  const BAR_COLOR = "rgba(187,134,252,0.55)";
+  const MEDIAN_COLOR = "#7dd3fc"; // светло-голубая
+
+  return (
+    <div
+      className="card card-sm w-100"
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+      }}
+    >
+      <div className="card-body">
+        {/* HEADER */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginBottom: 10,
+          }}
+        >
+          <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+            {title}
+          </div>
+
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              median
+            </div>
+            <div style={{ fontWeight: 700, color: MEDIAN_COLOR }}>
+              {formatMoney(model.median)}
+            </div>
+          </div>
+        </div>
+
+        {/* DISTRIBUTION */}
+        <div
+          style={{
+            position: "relative",
+            height: 72,
+            display: "flex",
+            alignItems: "flex-end",
+            gap: 6,
+          }}
+        >
+          {model.bins.map((v, i) => (
+            <div
+              key={i}
+              style={{
+                flex: 1,
+                height: `${Math.max(0.06, v) * 100}%`,
+                borderRadius: 4,
+                background: BAR_COLOR,
+                transition: "height 200ms ease",
+              }}
+            />
+          ))}
+
+          {/* MEDIAN LINE — ЧУТЬ ТОЛЩЕ */}
+          <div
+            style={{
+              position: "absolute",
+              left: `${model.medianPos}%`,
+              top: -8,
+              bottom: -8,
+              transform: "translateX(-50%)",
+              width: 4,            // 👈 было 3
+              background: MEDIAN_COLOR,
+              borderRadius: 999,
+            }}
+          />
+        </div>
+
+        {/* FOOTER */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginTop: 8,
+            fontSize: 12,
+            color: "var(--text-muted)",
+          }}
+        >
+          <div>{formatMoney(model.min)}</div>
+          <div>{formatMoney(model.max)}</div>
+        </div>
+      </div>
+    </div>
+  );
+}\nfrontend/src/components/simulation/SimulationChartCard.tsx\n// SimulationChartCard.tsx
+import { useEffect, useRef } from "react";
+import * as echarts from "echarts/core";
+import type { EChartsType } from "echarts/core";
+
+import { LineChart, CustomChart } from "echarts/charts";
+import { TooltipComponent, GridComponent } from "echarts/components";
+import { CanvasRenderer } from "echarts/renderers";
+
+import {
+  resample,
+  resampleFan,
+  toPercentFromBase,
+  buildFanQuantiles,
+} from "./simulationChart.utils";
+import { buildSimulationChartOption } from "./simulationChart.option";
+
+echarts.use([
+  LineChart,
+  CustomChart,
+  TooltipComponent,
+  GridComponent,
+  CanvasRenderer,
+]);
+
+const TARGET_POINTS = 250;
+
+/* =========================
+   THEME COLORS (FIX)
+========================= */
+
+const ACTIVE_COLOR = "var(--primary)";
+const INACTIVE_COLOR = "var(--text-muted)";
+const TEXT_ACTIVE = "var(--text-primary)";
+const TEXT_INACTIVE = "var(--text-secondary)";
+
+export type SimulationChartCardProps = {
+  timestamps: number[];
+  median: number[];
+  representative: number[];
+  upper: number[];
+  lower: number[];
+  cloud: number[][];
+  showCloud: boolean;
+  showMedian: boolean;
+  showRepresentative?: boolean;
+
+  // оставляем в типе, чтобы не ломать вызовы снаружи
+  showRange: boolean;
+
+  showFan?: boolean;
+
+  onToggleCloud?: () => void;
+  onToggleMedian?: () => void;
+  onToggleRepresentative?: () => void;
+  onToggleRange?: () => void;
+  onToggleFan?: () => void;
+};
+
+export function SimulationChartCard({
+  timestamps,
+  median,
+  representative,
+  upper,
+  lower,
+  cloud,
+  showCloud,
+  showMedian,
+  showRepresentative = true,
+
+  showFan = false,
+  onToggleCloud,
+  onToggleMedian,
+  onToggleRepresentative,
+  onToggleFan,
+}: SimulationChartCardProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<EChartsType | null>(null);
+  const yDomainRef = useRef<{ min: number; max: number } | null>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+
+    const chart = echarts.init(ref.current);
+    chartRef.current = chart;
+
+    const onResize = () => chart.resize();
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      window.removeEventListener("resize", onResize);
+      chart.dispose();
+      chartRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    const baseCandidate = median[0] ?? representative[0] ?? 1;
+    const base =
+      Number.isFinite(baseCandidate) && baseCandidate !== 0
+        ? baseCandidate
+        : 1;
+
+    const medianPct = toPercentFromBase(median, base);
+    const repPct = toPercentFromBase(representative, base);
+    const upperPct = toPercentFromBase(upper, base);
+    const lowerPct = toPercentFromBase(lower, base);
+    const cloudPct = cloud.map((p) => toPercentFromBase(p, base));
+
+    const fanPctRaw = buildFanQuantiles(cloudPct);
+    const fanPct = fanPctRaw ? resampleFan(fanPctRaw, TARGET_POINTS) : null;
+
+    if (!yDomainRef.current) {
+      const all = [
+        ...medianPct,
+        ...repPct,
+        ...upperPct,
+        ...lowerPct,
+        ...cloudPct.flat(),
+        ...(fanPct
+          ? [
+              ...fanPct.q05,
+              ...fanPct.q25,
+              ...fanPct.q50,
+              ...fanPct.q75,
+              ...fanPct.q95,
+            ]
+          : []),
+      ];
+
+      const min = Math.min(...all);
+      const max = Math.max(...all);
+      const pad = (max - min) * 1;
+      yDomainRef.current = { min: min - pad, max: max + pad };
+    }
+
+    const ts = resample(timestamps, TARGET_POINTS);
+
+    chart.setOption(
+      buildSimulationChartOption({
+        timestamps: ts,
+        median: resample(medianPct, TARGET_POINTS),
+        representative: resample(repPct, TARGET_POINTS),
+        cloud: cloudPct.map((p) => resample(p, TARGET_POINTS)),
+        yDomain: yDomainRef.current!,
+        flags: {
+          showCloud,
+          showMedian,
+          showRepresentative,
+          showFan,
+        },
+        fan: fanPct ?? undefined,
+      }),
+      { notMerge: true }
+    );
+  }, [
+    timestamps,
+    median,
+    representative,
+    upper,
+    lower,
+    cloud,
+    showCloud,
+    showMedian,
+    showRepresentative,
+    showFan,
+  ]);
+
+  return (
+    <div
+      className="card"
+      style={{
+        position: "relative",
+        width: "100%",
+        height: 380,
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+      }}
+    >
+      <style>{`
+        .sim-legend {
+          position: absolute;
+          top: 12px;
+          left: 50%;
+          transform: translateX(-50%);
+          display: flex;
+          gap: 16px;
+          z-index: 3;
+          padding: 6px 12px;
+          border-radius: 12px;
+          background: var(--surface-hover);
+          border: 1px solid var(--border);
+        }
+
+        .sim-legend-item {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          user-select: none;
+          color: ${TEXT_INACTIVE};
+        }
+
+        .sim-legend-item.is-on {
+          color: ${TEXT_ACTIVE};
+        }
+
+        .sim-legend-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 999px;
+          background: ${INACTIVE_COLOR};
+        }
+
+        .sim-legend-item.is-on .sim-legend-dot {
+          background: ${ACTIVE_COLOR};
+        }
+      `}</style>
+
+      <div className="sim-legend">
+        <div
+          className={`sim-legend-item ${showRepresentative ? "is-on" : ""}`}
+          onClick={onToggleRepresentative}
+        >
+          <span className="sim-legend-dot" />
+          Main
+        </div>
+
+        <div
+          className={`sim-legend-item ${showFan ? "is-on" : ""}`}
+          onClick={onToggleFan}
+        >
+          <span className="sim-legend-dot" />
+          Fan
+        </div>
+
+        <div
+          className={`sim-legend-item ${showMedian ? "is-on" : ""}`}
+          onClick={onToggleMedian}
+        >
+          <span className="sim-legend-dot" />
+          Median
+        </div>
+
+        <div
+          className={`sim-legend-item ${showCloud ? "is-on" : ""}`}
+          onClick={onToggleCloud}
+        >
+          <span className="sim-legend-dot" />
+          Cloud
+        </div>
+      </div>
+
+      <div ref={ref} style={{ width: "100%", height: "100%" }} />
+    </div>
+  );
+}\nfrontend/src/components/simulation/simulationChart.option.ts\n
