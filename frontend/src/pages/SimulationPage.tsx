@@ -116,10 +116,12 @@ export function SimulationPage() {
     params.scenario,
   ]);
 
-  const finalMedian = sim.median.at(-1) ?? startValue;
+  // ✅ ИТОГОВОЕ ЗНАЧЕНИЕ MAIN / REPRESENTATIVE
+  const finalMain =
+    sim.representative.at(-1) ?? startValue;
 
   /* =========================
-     READY FLAG (КЛЮЧЕВОЕ)
+     READY FLAG
   ========================= */
   const ready =
     filteredHistory.length > 0 &&
@@ -149,7 +151,7 @@ export function SimulationPage() {
               minWidth: 0,
             }}
           >
-            {/* 🟣 График — первая волна */}
+            {/* 🟣 Chart */}
             <Reveal delayMs={0}>
               <SimulationChartCard
                 timestamps={sim.timestamps}
@@ -184,7 +186,7 @@ export function SimulationPage() {
               />
             </Reveal>
 
-            {/* 🟣 Итоги — вторая волна */}
+            {/* 🟣 Outcomes */}
             <Reveal delayMs={100}>
               <div
                 style={{
@@ -195,7 +197,7 @@ export function SimulationPage() {
               >
                 <FinalOutcomeCard
                   startValue={startValue}
-                  median={finalMedian}
+                  finalValue={finalMain}
                 />
                 <OutcomeDistributionCard paths={sim.paths} />
               </div>

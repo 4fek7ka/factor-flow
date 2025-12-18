@@ -2,7 +2,7 @@ import { useMemo } from "react";
 
 type Props = {
   startValue: number;
-  median: number;
+  finalValue: number; // 🔴 итоговое значение MAIN (representative)
 };
 
 function formatMoney(v: number) {
@@ -13,10 +13,10 @@ function formatMoney(v: number) {
   });
 }
 
-export function FinalOutcomeCard({ startValue, median }: Props) {
+export function FinalOutcomeCard({ startValue, finalValue }: Props) {
   const model = useMemo(() => {
     const deltaPct =
-      startValue === 0 ? 0 : ((median - startValue) / startValue) * 100;
+      startValue === 0 ? 0 : ((finalValue - startValue) / startValue) * 100;
 
     const isPositive = deltaPct >= 0;
 
@@ -25,13 +25,12 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
     const posPct = ((clamped + RANGE) / (RANGE * 2)) * 100;
 
     return { deltaPct, isPositive, posPct, RANGE };
-  }, [startValue, median]);
+  }, [startValue, finalValue]);
 
   const ACCENT_COLOR = model.isPositive
     ? "var(--positive)"
     : "var(--negative)";
 
-  // ✅ ВСЕГДА показываем знак
   const sign = model.deltaPct >= 0 ? "+" : "-";
 
   const centerPct = 50;
@@ -73,7 +72,7 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
               color: "var(--text-primary)",
             }}
           >
-            {formatMoney(median)}
+            {formatMoney(finalValue)}
           </div>
 
           <div
@@ -90,7 +89,6 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
 
         {/* SCALE */}
         <div style={{ position: "relative", height: 20 }}>
-          {/* base line */}
           <div
             style={{
               position: "absolute",
@@ -104,7 +102,6 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
             }}
           />
 
-          {/* filled range */}
           <div
             style={{
               position: "absolute",
@@ -120,7 +117,6 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
             }}
           />
 
-          {/* center zero */}
           <div
             style={{
               position: "absolute",
@@ -133,7 +129,6 @@ export function FinalOutcomeCard({ startValue, median }: Props) {
             }}
           />
 
-          {/* marker */}
           <div
             style={{
               position: "absolute",
