@@ -133,7 +133,7 @@ export function SimulationChartCard({
 
       const min = Math.min(...all);
       const max = Math.max(...all);
-      const pad = (max - min) * 0.08;
+      const pad = (max - min) * 1;
       yDomainRef.current = { min: min - pad, max: max + pad };
     }
 
